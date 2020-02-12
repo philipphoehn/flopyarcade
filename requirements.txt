@@ -1,0 +1,10 @@
+pathos==0.2.5
+matplotlib==3.2.0rc1
+imageio==2.3.0
+numpy==1.17.4
+tensorflow==2.0.0rc0
+flopy==3.2.13
+tqdm==4.25.0
+Keras==2.3.1
+cx_Freeze==6.1
+ipython==7.12.0
