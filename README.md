@@ -38,7 +38,7 @@ Two algorithms are currently provided along with the environments. These are imp
 
 The environment formulation allows for models, controls and objectives of arbitrary complexity. Modifications or more complex environments can easily be implemented with small changes to the code.
 
-Examples of machine-controlled actions taken in the same environment by agent from genetic optimization after 1 generation (left), 6 generations (center) and 26 generations (right):![](geneticoptimization.gif)
+Examples of machine-controlled actions taken in the same environment by the highest-scoring agent of genetic optimization after 1 generation (left), 6 generations (center) and 26 generations (right):![](geneticoptimization.gif)
 
 ## Usage
 
