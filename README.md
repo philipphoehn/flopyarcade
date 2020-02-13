@@ -8,7 +8,7 @@ Ready to try?
 
 The objective is to safely transport a virtual particle as it follows advection while travelling from a random location at the western boundary to eastern boundary. You have to protect a well from capturing this particle. The well is randomly located with a random pumping rate. Furthermore, the particle must not flow into cells of specified head in the north and south. The controls you have depend on the environment, but are in total the up/down/left/right key. They allow you to either adjust specified head(s) or the well location. The highest score is achieved if the particle stays on the indicated shortest route, or as close as possible to it.
 
-![](envtypes.gif)
+To show some examples:![](envtypes.gif)
 
 ## Installation
 
@@ -37,6 +37,8 @@ Three environments have currently been implemented. However, groundwater environ
 Two algorithms are currently provided along with the environments. These are implementions of (1) [double Q-learning](https://arxiv.org/abs/1509.06461) and (2) a weights-evolving [genetic algorithm](https://arxiv.org/abs/1712.06567) for training deep neural networks as policy models. They reside in the FloPyAgent class.
 
 The environment formulation allows for models, controls and objectives of arbitrary complexity. Modifications or more complex environments can easily be implemented with small changes to the code.
+
+To show some examples:![](geneticoptimization.gif)
 
 ## Usage
 
