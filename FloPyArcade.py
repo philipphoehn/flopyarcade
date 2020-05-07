@@ -7,8 +7,10 @@
 
 
 # imports for environments
-from matplotlib import use as matplotlibBackend
-matplotlibBackend('Agg')
+# add this in case of issues with matplotlib backend
+# from matplotlib import use as matplotlibBackend
+# matplotlibBackend('Agg')
+
 from flopy.modflow import Modflow, ModflowBas, ModflowDis, ModflowLpf
 from flopy.modflow import ModflowOc, ModflowPcg, ModflowWel
 from flopy.modpath import Modpath, ModpathBas
