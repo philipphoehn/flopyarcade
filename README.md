@@ -34,7 +34,7 @@ Three environments have currently been implemented. However, groundwater environ
 
 ## Optimization algorithms
 
-Two algorithms are currently provided along with the environments. These are implementions of (1) [double Q-learning](https://arxiv.org/abs/1509.06461) and (2) a weights-evolving [genetic algorithm](https://arxiv.org/abs/1712.06567) for training deep neural networks as policy models. They reside in the FloPyAgent class.
+Two algorithms are currently provided along with the environments. These are implementions of (1) [double Q-learning](https://arxiv.org/abs/1509.06461) and (2) a weights-evolving [genetic algorithm](https://arxiv.org/abs/1712.06567) for training deep neural networks as policy models - optionally combined with a simple implementation of [novelty search](https://arxiv.org/abs/1304.3362) to help avoiding convergence towards local minima. They reside in the FloPyAgent class.
 
 The environment formulation allows for models, controls and objectives of arbitrary complexity. Modifications or more complex environments can easily be implemented with small changes to the code.
 
@@ -55,7 +55,7 @@ python FloPyArcadePlay.py
 python FloPyArcadeDQN.py
 ```
 
-3) FloPyArcadeGeneticNetwork.py runs a search for optimal policy models following a genetic optimization. It allows multi-threaded parallel execution, given the number of available threads by the variable NAGENTSPARALLEL.
+3) FloPyArcadeGeneticNetwork.py runs a search for optimal policy models following a genetic optimization - optionally with novelty search. It allows multi-threaded parallel execution, given the number of available threads by the variable NAGENTSPARALLEL.
 
 ```bash
 python FloPyArcadeGeneticNetwork.py
