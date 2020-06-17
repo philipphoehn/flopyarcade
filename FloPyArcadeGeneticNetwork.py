@@ -12,42 +12,44 @@ from FloPyArcade import FloPyEnvSurrogate
 
 # environment settings
 envSettings = {
-    'ENVTYPE': '3',                             # string defining environment
-    'MODELNAME': 'gs-e3s1n1000e200g10000av1st200mpr5e-1mpo5e-2ar150x3v1relubn1_res25_ns-ev1e500', # string defining model basename
+    'ENVTYPE': '1',                             # string defining environment
+    'MODELNAME': 'gs-e1s1n2000e100g10000av50st200mpr1e-0mpo3e-3ar250x5v1relubn1_res100_ns-ev1e1000', # string defining model basename
+    # 'MODELNAME': 'test2', # string defining model basename
     'PATHMF2005': None,                         # string of local path to MODFLOW 2005 executable
     'PATHMP6': None,                            # string of local path to MODPATH 6 executable
     'SURROGATESIMULATOR': None,
     # 'SURROGATESIMULATOR': ['bestModelUnweightedInitial', 'bestModelUnweighted'],   # current best fit 0.000619
     'SEEDAGENT': 1,                                  # integer enabling reproducibility of the agents
-    'SEEDENV': 1,                               # integer enabling reproducibility of the environments
+    'SEEDENV': 3,                               # integer enabling reproducibility of the environments
     'NAGENTSPARALLEL': 16,                      # integer defining parallelized agent runs
     'REWARDMINTOSAVE': 0.0,                     # float defining minimal reward to save a model
     'RENDER': False,                            # boolean to define if displaying runs
     'RENDEREVERY': 1000,                        # integer defining runs displayed
     'BESTAGENTANIMATION': True,                 # boolean defining whether to save animation of best agent per generation
     'KEEPMODELHISTORY': True,                   # boolean defining whether to keep all agents throughout evolution
-    'RESUME': True,                              # boolean defining whether to keep all agents throughout evolution
+    'RESUME': False,                              # boolean defining whether to keep all agents throughout evolution
     'NLAY': 1,
-    'NROW': 25,
-    'NCOL': 25
+    'NROW': 100,
+    'NCOL': 100
 }
 
 # hyperparameters
 hyParams = {
-    'NAGENTS': 1000,                              # integer defining number of agents
-    'NAGENTELITES': 200,                         # integer defining number of agents considered as parents
+    'NAGENTS': 2000,                              # integer defining number of agents
+    'NAGENTELITES': 100,                         # integer defining number of agents considered as parents
     'NGENERATIONS': 10000,                          # integer defining number of generations for evolution
-    'NGAMESAVERAGED': 1,                       # integer defining number of games played for averaging
+    'NGAMESAVERAGED': 50,                       # integer defining number of games played for averaging
     'NAGENTSTEPS': 200,                         # integer defining number of episodes per agent
-    'MUTATIONPROBABILITY': 0.5,                # float defining fraction of mutated parameters
-    'MUTATIONPOWER': 0.05,                     # float defining mutation, 0.02 after https://arxiv.org/pdf/1712.06567.pdf
-    'NHIDDENNODES': [150] * 3,                   # list of integers of nodes per hidden layer to define architecture
+    'MUTATIONPROBABILITY': 1.0,                # float defining fraction of mutated parameters
+    'MUTATIONPOWER': 0.005,                     # float defining mutation, 0.02 after https://arxiv.org/pdf/1712.06567.pdf
+    'NHIDDENNODES': [250] * 5,                   # list of integers of nodes per hidden layer to define architecture
     'ARCHITECTUREVARY': True,                   # boolean defining to allow architecture variation
-    'HIDDENACTIVATIONS': ['relu'] * 3,          # list of strings defining hidden nodal activations
+    'HIDDENACTIVATIONS': ['relu'] * 5,          # list of strings defining hidden nodal activations
     'BATCHNORMALIZATION': True,                  # boolean defining batch normalization
-    'NOVELTYSEARCH': True,
+    'NOVELTYSEARCH': True,                       # boolean
     'ADDNOVELTYEVERY': 1,
-    'NNOVELTYELITES': 500
+    'NNOVELTYELITES': 1000,
+    'NNOVELTYNEIGHBORS': 100
 }
 
 

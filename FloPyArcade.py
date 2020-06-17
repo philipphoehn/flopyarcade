@@ -7,10 +7,8 @@
 
 
 # imports for environments
-# add this in case of issues with matplotlib backend
-# from matplotlib import use as matplotlibBackend
-# matplotlibBackend('Agg')
-
+from matplotlib import use as matplotlibBackend
+matplotlibBackend('Agg')
 from flopy.modflow import Modflow, ModflowBas, ModflowDis, ModflowLpf
 from flopy.modflow import ModflowOc, ModflowPcg, ModflowWel
 from flopy.modpath import Modpath, ModpathBas
@@ -38,10 +36,12 @@ environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 getLogger('tensorflow').setLevel(FATAL)
 
 # additional imports for agents
-from collections import deque
+from collections import deque, defaultdict
 from datetime import datetime
 from gc import collect as garbageCollect
+from itertools import count
 from pathos.pools import _ProcessPool as Pool
+from pathos.pools import _ThreadPool as ThreadPool
 from pickle import dump, load
 from tensorflow.keras.initializers import glorot_uniform
 from tensorflow.keras.layers import Activation, BatchNormalization, Dense
@@ -66,7 +66,7 @@ class FloPyAgent():
 
     def __init__(self, observationsVector=None, actionSpace=['keep'],
                  hyParams=None, envSettings=None, mode='random',
-                 maxTasksPerWorker=10, zFill=6):
+                 maxTasksPerWorker=100, maxTasksPerWorkerMutate=1000, zFill=6):
         """Constructor"""
 
         self.wrkspc = dirname(abspath(__file__))
@@ -81,6 +81,7 @@ class FloPyAgent():
         self.hyParams, self.envSettings = hyParams, envSettings
         self.agentMode = mode
         self.maxTasksPerWorker, self.zFill = maxTasksPerWorker, zFill
+        self.maxTasksPerWorkerMutate = maxTasksPerWorkerMutate
 
         # setting seeds
         if self.envSettings is not None:
@@ -218,8 +219,14 @@ class FloPyAgent():
         """
 
         # setting environment and number of games
-        self.env, n, self.noveltyItemCount = env, self.hyParams['NGAMESAVERAGED'], 0
-        self.noveltySearch, self.noveltyArchive = noveltySearch, {}
+        self.env, n = env, self.hyParams['NGAMESAVERAGED']
+        if noveltySearch:
+            self.noveltySearch, self.noveltyArchive = noveltySearch, {}
+            self.noveltyItemCount = 0
+            self.agentsUnique, self.agentsUniqueIDs = [], []
+            self.agentsDuplicate = []
+            self.actionsUniqueIDMapping = defaultdict(count().__next__)
+        cores = self.envSettings['NAGENTSPARALLEL']
         # generating unique process ID from system time
         self.pid = str(uuid4())
 
@@ -239,6 +246,25 @@ class FloPyAgent():
                 if continueFlag: continue
                 if breakFlag: break
 
+                if self.noveltySearch:
+                    # regenerating list of unique and duplicate agents
+                    # in case of resume
+                    for iAgent in range(self.noveltyItemCount):
+                        agentStr = 'agent' + str(iAgent+1)
+                        # self.noveltyArchive[agentStr] = {}
+                        tempAgentPrefix = self.noveltyArchive[agentStr]['modelFile'].replace('.h5', '')
+                        pth = join(tempAgentPrefix + '_results.p')
+                        actions = self.pickleLoad(pth)['actions']
+                        actionsAll = [action for actions_ in actions for action in actions_]
+                        actionsUniqueID = self.actionsUniqueIDMapping[tuple(actionsAll)]
+                        self.noveltyArchive[agentStr]['actionsUniqueID'] = actionsUniqueID
+                        if actionsUniqueID not in self.agentsUniqueIDs:
+                            # checking if unique ID from actions already exists
+                            self.agentsUnique.append(iAgent)
+                            self.agentsUniqueIDs.append(actionsUniqueID)
+                        else:
+                            self.agentsDuplicate.append(iAgent)
+
             # simulating agents in environment, returning average of n runs
             self.rewards = self.runAgentsRepeatedlyGenetic(agentCounts, n, env)
             # sorting by rewards in reverse, starting with indices of top reward
@@ -250,43 +276,79 @@ class FloPyAgent():
                 '_agentsSortedParentIndexes.p'), sortedParentIdxs)
 
             if self.noveltySearch:
+                print('Performing novelty search')
                 # iterating through agents and storing with novelty in archive
                 # calculating average nearest-neighbor novelty score
                 for iAgent in range(self.hyParams['NAGENTS']):
-                    novelties, itemID = [], self.noveltyItemCount
+                    noveltiesAgent, actionsAll = [], []
+                    itemID = self.noveltyItemCount
                     k = self.noveltyItemCount
-                    self.noveltyArchive['agent' + str(k+1)] = {}
-
+                    agentStr = 'agent' + str(k+1)
+                    self.noveltyArchive[agentStr] = {}
                     tempAgentPrefix = join(self.tempModelPrefix + '_agent'
                         + str(iAgent + 1).zfill(self.zFill))
                     modelFile = tempAgentPrefix + '.h5'
-                    pth = join(tempAgentPrefix + '_actions.p')
-                    actions = self.pickleLoad(pth)
-                    for iAgent2 in range(self.hyParams['NAGENTS']):
-                        if iAgent != iAgent2:
-                            tempAgentPrefix2 = join(self.tempModelPrefix +
-                                '_agent' +
-                                str(iAgent2 + 1).zfill(self.zFill))
-                            pth2 = join(tempAgentPrefix2 + '_actions.p')
-                            actions2 = self.pickleLoad(pth2)
-                            novelty = 0.
-                            for g in range(len(actions)):
-                                novelty += self.actionNoveltyMetric(actions[g],
-                                    actions2[g])
-                            novelties.append(novelty)
-                    novelty = mean(novelties)
-                    # creating archive, linking novelty score with agent model
-                    self.noveltyArchive['agent' + str(k+1)]['novelty'] = novelty
-                    self.noveltyArchive['agent' + str(k+1)]['itemID'] = itemID
-                    self.noveltyArchive['agent' + str(k+1)]['model'] = modelFile
+                    pth = join(tempAgentPrefix + '_results.p')
+                    actions = self.pickleLoad(pth)['actions']
+                    actionsAll = [action for actions_ in actions for action in actions_]
+                    # https://stackoverflow.com/questions/38291372/assign-unique-id-to-list-of-lists-in-python-where-duplicates-get-the-same-id
+                    actionsUniqueID = self.actionsUniqueIDMapping[tuple(actionsAll)]
+                    self.noveltyArchive[agentStr]['itemID'] = itemID
+                    self.noveltyArchive[agentStr]['modelFile'] = modelFile
+                    self.noveltyArchive[agentStr]['actions'] = actions
+                    self.noveltyArchive[agentStr]['actionsUniqueID'] = actionsUniqueID
+                    if actionsUniqueID not in self.agentsUniqueIDs:
+                        # checking if unique ID from actions already exists
+                        self.agentsUnique.append(k)
+                        self.agentsUniqueIDs.append(actionsUniqueID)
+                    else:
+                        self.agentsDuplicate.append(k)
                     self.noveltyItemCount += 1
+                print('Novelty search:', len(self.agentsUnique), 'unique agents', len(self.agentsDuplicate), 'duplicate agents')
+
+                # updating novelty of unique agents
+                # Note: This can become a massive bottleneck with increasing
+                # number of stored agent information and generations
+                # despite parallelization
+                noveltiesUniqueAgents, t0 = [], time()
+                args = [iAgent for iAgent in self.agentsUnique]
+                chunksTotal = self.yieldChunks(args,
+                    cores*self.maxTasksPerWorkerMutate)
+                for chunk in chunksTotal:
+                    noveltiesPerAgent = self.multiprocessChunks(
+                        self.calculateNoveltyPerAgent, chunk)
+                    noveltiesUniqueAgents += noveltiesPerAgent
+                for iUniqueAgent in self.agentsUnique:
+                    agentStr = 'agent' + str(iUniqueAgent+1)
+                    actionsUniqueID = self.noveltyArchive[agentStr]['actionsUniqueID']
+                    novelty = noveltiesUniqueAgents[actionsUniqueID]
+                    self.noveltyArchive[agentStr]['novelty'] = novelty
+
+                # updating novelty of duplicate agents from existing value
+                for iDuplicateAgent in self.agentsDuplicate:
+                    # finding ID of agent representing duplicate agent's actions
+                    agentStr = 'agent' + str(iDuplicateAgent+1)
+                    actionsUniqueID = self.noveltyArchive[agentStr]['actionsUniqueID']
+                    novelty = noveltiesUniqueAgents[actionsUniqueID]
+                    self.noveltyArchive[agentStr]['novelty'] = novelty
+
                 self.pickleDump(join(self.tempModelPrefix +
                     '_noveltyArchive.p'), self.noveltyArchive)
+                self.novelties, self.noveltyFilenames = [], []
+                for k in range(self.noveltyItemCount):
+                    agentStr = 'agent' + str(k+1)
+                    self.novelties.append(
+                        self.noveltyArchive[agentStr]['novelty'])
+                    self.noveltyFilenames.append(
+                        self.noveltyArchive[agentStr]['modelFile'])
+                # print('len(self.noveltyFilenames)', len(self.noveltyFilenames))
+                print('Finished novelty search, took', time()-t0, 's')
 
             # returning best-performing agents
             self.returnChildrenGenetic(sortedParentIdxs)
-            if self.geneticGeneration+1 > 1:
+            if self.geneticGeneration+1 >= self.hyParams['ADDNOVELTYEVERY']:
                 print('lowest novelty', min(self.novelties))
+                print('average novelty', mean(self.novelties))
                 print('highest novelty', max(self.novelties))
 
             MODELNAME = self.envSettings['MODELNAME']
@@ -593,20 +655,17 @@ class FloPyAgent():
                 MODELNAME=MODELNAMETEMP, _seed=SEEDTEMP,
                 NAGENTSTEPS=self.hyParams['NAGENTSTEPS'])
     
-        pthSuffixes = ['_trajectories.p', '_actions.p', '_rewards.p',
-                       '_wellCoords.p']
+        results, keys = {}, ['trajectories', 'actions', 'rewards', 'wellCoords']
         if self.currentGame == 1:
             trajectories = [[] for _ in range(self.hyParams['NGAMESAVERAGED'])]
             actions = [[] for _ in range(self.hyParams['NGAMESAVERAGED'])]
             rewards = [[] for _ in range(self.hyParams['NGAMESAVERAGED'])]
             wellCoords = [[] for _ in range(self.hyParams['NGAMESAVERAGED'])]
         elif self.currentGame > 1:
-            objs = []
-            for pthSuffix in pthSuffixes:
-                pth = join(tempAgentPrefix + pthSuffix)
-                objs.append(self.pickleLoad(pth))
-            trajectories, actions = objs[0], objs[1]
-            rewards, wellCoords = objs[2], objs[3]
+            pth = join(tempAgentPrefix + '_results.p')
+            results = self.pickleLoad(pth)
+            trajectories, actions = results[keys[0]], results[keys[1]]
+            rewards, wellCoords = results[keys[2]], results[keys[3]]
 
         r, t0game = 0, time()
         for step in range(self.hyParams['NAGENTSTEPS']):
@@ -634,8 +693,9 @@ class FloPyAgent():
                 trajectories[self.currentGame-1].append(env.trajectories)
                 objects = [trajectories, actions, rewards, wellCoords]
                 for i, objectCurrent in enumerate(objects):
-                    pth = join(tempAgentPrefix + pthSuffixes[i])
-                    self.pickleDump(pth, objectCurrent)
+                    results[keys[i]] = objectCurrent
+                pth = join(tempAgentPrefix + '_results.p')
+                self.pickleDump(pth, results)
                 break
 
         return r
@@ -696,16 +756,30 @@ class FloPyAgent():
             self.envSettings['MODELNAME'] + '_gen' +
             str(generation+1).zfill(self.zFill))
 
-        self.novelties = []
-        for k in range(self.noveltyItemCount):
-            self.novelties.append(
-                self.noveltyArchive['agent' + str(k+1)]['novelty'])
-        self.candidateNoveltyParentIdxs = argsort(
-            self.novelties)[::-1][:self.hyParams['NNOVELTYELITES']]
+        if self.noveltySearch:
+            recalculateNovelties = False
+            try:
+                self.novelties
+            except Exception as e:
+                recalculateNovelties = True
+            if len(self.novelties) == 0:
+                recalculateNovelties = True
+
+            if recalculateNovelties:
+                self.novelties, self.noveltyFilenames = [], []
+                for k in range(self.noveltyItemCount):
+                    agentStr = 'agent' + str(k+1)
+                    self.novelties.append(
+                        self.noveltyArchive[agentStr]['novelty'])
+                    self.noveltyFilenames.append(
+                        self.noveltyArchive[agentStr]['modelFile'])
+            self.candidateNoveltyParentIdxs = argsort(
+                self.novelties)[::-1][:self.hyParams['NNOVELTYELITES']]
 
         bestAgent = load_model(join(self.tempModelPrefix + '_agent' +
             str(sortedParentIdxs[0] + 1).zfill(self.zFill) + '.h5'),
             compile=False)
+
         if not self.rereturnChildrenGenetic:
             bestAgent.save(join(self.tempModelPrefix + '_agentBest.h5'))
         if generation < self.hyParams['NGENERATIONS']:
@@ -715,7 +789,7 @@ class FloPyAgent():
             nNoveltyAgents = self.hyParams['NNOVELTYELITES']
             self.candidateParentIdxs = sortedParentIdxs[:nAgentElites]
             chunksTotal = self.yieldChunks(arange(self.hyParams['NAGENTS']-1),
-                self.envSettings['NAGENTSPARALLEL']*self.maxTasksPerWorker)
+                self.envSettings['NAGENTSPARALLEL']*self.maxTasksPerWorkerMutate)
             for chunk in chunksTotal:
                 _ = self.multiprocessChunks(self.returnChildrenGeneticSingleRun,
                     chunk)
@@ -737,22 +811,23 @@ class FloPyAgent():
         if self.noveltySearch:
             if ((self.geneticGeneration+1) % self.hyParams['ADDNOVELTYEVERY']) == 0:
                 remainingElites = self.hyParams['NAGENTS'] - (childIdx+1)
+                if self.rereturnChildrenGenetic:
+                    generation = self.geneticGeneration
+                else:
+                    generation = self.geneticGeneration + 1
                 if (childIdx+1 ==
                     remainingElites - self.hyParams['NNOVELTYELITES']):
-                    print('### noveltySearch after generation',
-                        self.geneticGeneration+1)
+
+                    print('Performing novelty evolution after generation',
+                        generation)
                 if remainingElites <= self.hyParams['NNOVELTYELITES']:
-                    len_ = len(self.candidateNoveltyParentIdxs)
-                    filenames = []
-                    for k in range(self.noveltyItemCount):
-                        f = self.noveltyArchive['agent' + str(k+1)]['model']
-                        filenames.append(f)
                     # selecting a novelty parent randomly, might skip most novel
+                    # len_ = len(self.candidateNoveltyParentIdxs)
                     # selected_agent_index = self.candidateNoveltyParentIdxs[randint(len_)]
                     # selecting each novelty parent individually
                     selected_agent_index = self.candidateNoveltyParentIdxs[int(
                         remainingElites)-1]
-                    agentPth = filenames[selected_agent_index]
+                    agentPth = self.noveltyFilenames[selected_agent_index]
 
         # loading given parent agent, current with retries in case of race
         # condition: https://bugs.python.org/issue36773
@@ -865,6 +940,15 @@ class FloPyAgent():
             self.sortedParentIdxs = self.pickleLoad(indexespth)
             self.noveltyArchive = self.pickleLoad(noveltyArchivepth)
             self.flagSkipGeneration, continueFlag = True, True
+
+            self.novelties, self.noveltyFilenames = [], []
+            for k in range(self.noveltyItemCount):
+                agentStr = 'agent' + str(k+1)
+                self.novelties.append(
+                    self.noveltyArchive[agentStr]['novelty'])
+                self.noveltyFilenames.append(
+                    self.noveltyArchive[agentStr]['modelFile'])
+
         # regenerating children for generation to resume at
         else:
             if self.envSettings['KEEPMODELHISTORY']:
@@ -880,28 +964,48 @@ class FloPyAgent():
 
         return self.sortedParentIdxs, continueFlag, breakFlag
 
-    def actionNoveltyMetric(self, actions1, actions2):
+    def calculateNoveltyPerPair(self, args):
+        agentStr = 'agent' + str(args[0]+1)
+        agentStr2 = 'agent' + str(args[1]+1)
+        actions = self.noveltyArchive[agentStr]['actions']
+        actions2 = self.noveltyArchive[agentStr2]['actions']
+        novelty = 0.
+        for g in range(len(actions)):
+            novelty += self.actionNoveltyMetric(actions[g],
+                actions2[g])
 
-        diffsCount = 0.
+        return novelty
+
+    def calculateNoveltyPerAgent(self, iAgent):
+        agentStr = 'agent' + str(iAgent+1)
+        novelties = []
+        # self.hyParams['NNOVELTYNEIGHBORS']
+        for iAgent2 in range(self.noveltyItemCount):
+            if iAgent != iAgent2:
+                novelties.append(self.calculateNoveltyPerPair([iAgent, iAgent2]))
+        novelty = mean(novelties)
+
+        return novelty
+
+    def actionNoveltyMetric(self, actions1, actions2):
         # finding largest object, or determining equal length
         if len(actions1) > len(actions2):
             shorterObj = actions2
             longerObj = actions1
-        if len(actions1) < len(actions2):
-            shorterObj = actions1
-            longerObj = actions2
-        if len(actions1) == len(actions2):
+        if len(actions1) <= len(actions2):
             shorterObj = actions1
             longerObj = actions2
 
-        for i, action in enumerate(shorterObj):
-            if action != longerObj[i]:
-                diffsCount += 1.
+        diffsCount = len(shorterObj) - sum(array(shorterObj) == array(longerObj[:len(shorterObj)]))
+
         # enabling this might promote agents having acted longer but not
         # too different to begin with
         # diffsCount += float(abs(len(longerObj) - len(shorterObj)))
 
-        return diffsCount
+        # dividing by the length of it, to avoid rewarding longer objects
+        novelty = diffsCount/len(shorterObj)
+
+        return novelty
 
     def saveBestAgent(self, MODELNAME):
         # saving best agent of the current generation
@@ -946,18 +1050,22 @@ class FloPyAgent():
         for i in range(0, len(lst), n):
             yield lst[i:i + n]
 
-    def multiprocessChunks(self, function, chunk):
+    def multiprocessChunks(self, function, chunk, parallelProcesses=None, wait=False):
         """Process function in parallel given a chunk of arguments."""
 
         # Pool object from pathos instead of multiprocessing library necessary
         # as tensor.keras models are currently not pickleable
         # https://github.com/tensorflow/tensorflow/issues/32159
-        p = Pool(processes=self.envSettings['NAGENTSPARALLEL'])
+        if parallelProcesses == None:
+            parallelProcesses = self.envSettings['NAGENTSPARALLEL']
+        p = Pool(processes=parallelProcesses)
         pasync = p.map_async(function, chunk)
         # waiting is important to order results correctly when running
+        # -- really?
         # in asynchronous mode (correct reward order is validated)
-        pasync.wait()
         pasync = pasync.get()
+        if wait:
+            pasync.wait()
         p.close()
         p.join()
         p.terminate()
@@ -1341,10 +1449,10 @@ class FloPyEnv():
         # why is a periodLength of 2.0 necessary to simulate 1 day?
         self.minX, self.minY = 0., 0.
         self.extentX, self.extentY = 100., 100.
-        self.zBot, self.zTop = 0, 50.
+        self.zBot, self.zTop = 0., 50.
         # previously self.nRow, self.nCol = 100, 100, for comparison check /dev/discretizationHeadDependence.txt
         # self.nLay, self.nRow, self.nCol = 1, 800, 800
-        self.headSpecWest, self.headSpecEast = 10.0, 6.0
+        self.headSpecWest, self.headSpecEast = 60.0, 56.0
         self.minQ = -2000.0
         # self.minQ = -3000.0
         self.maxQ = -500.0
@@ -1364,20 +1472,20 @@ class FloPyEnv():
         # print('debug wellRadius', self.wellRadius)
 
         if self.ENVTYPE == '1':
-            self.minH = 6.0
-            self.maxH = 10.0
+            self.minH = 56.0
+            self.maxH = 60.0
             self.actionSpace = ['up', 'keep', 'down']
             self.actionRange = 0.5
             self.deviationPenaltyFactor = 10.0
         elif self.ENVTYPE == '2':
-            self.minH = 6.0
-            self.maxH = 12.0
+            self.minH = 56.0
+            self.maxH = 62.0
             self.actionSpace = ['up', 'keep', 'down']
             self.actionRange = 5.0
             self.deviationPenaltyFactor = 4.0
         elif self.ENVTYPE == '3':
-            self.minH = 6.0
-            self.maxH = 10.0
+            self.minH = 56.0
+            self.maxH = 60.0
             self.actionSpace = ['up', 'keep', 'down', 'left', 'right']
             self.actionRange = 10.0
             self.deviationPenaltyFactor = 10.0
@@ -1925,6 +2033,108 @@ class FloPyEnv():
         self.renderClearAxes()
         del self.headsplot
 
+    def render3d(self):
+        """Render environment in 3 dimensions."""
+
+        from mpl_toolkits import mplot3d
+        import numpy as np
+        from numpy import mgrid, pi
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import axes3d
+        from matplotlib import cm
+
+        if self.timeStep == 0:
+            self.fig = figure(figsize=(15, 12))
+            self.ax = self.fig.gca(projection='3d')
+            self.ax.view_init(22.5, 90)
+            self.plotfilesSaved = []
+
+        test = self.dis.get_node_coordinates()
+        # xx, yy = np.meshgrid(test[0], test[1], sparse=True)
+        x1, y1 = np.meshgrid(test[0], test[1])
+        z1 = np.reshape(np.ndarray.flatten(self.heads), (self.nRow, self.nCol))
+        # self.ax.plot_surface(x1, y1, z1, cmap='viridis', edgecolor='none')
+        # self.ax.scatter(self.trajectories['x'][-1][-1], self.trajectories['y'][-1][-1],
+        #     lw=2, c='red', zorder=6)
+
+        lParticle, cParticle, rParticle = self.cellInfoFromCoordinates(
+            [self.particleCoords[0], self.particleCoords[1], self.particleCoords[2]])
+        hParticle = self.heads[lParticle-1, rParticle-1, cParticle-1]
+        
+        print('debug head', self.timeStep, hParticle)
+        print('particle coordinates', self.particleCoords)
+
+        if self.timeStep == 0:
+            self.ax.scatter(self.minX, self.particleCoords[1], lw=2, c='red',
+                zorder=6, alpha=1.0)
+        if self.timeStep > 0:
+            self.ax.scatter(self.trajectories['x'][-1][-1], self.trajectories['y'][-1][-1],
+                 lw=2, c='red', zorder=6, alpha=1.0
+                 )
+            xs = [self.trajectories['x'][-1][-1], self.trajectories['x'][-1][-1]]
+            ys = [self.trajectories['y'][-1][-1], self.trajectories['y'][-1][-1]]
+            zs = [hParticle, 12]
+            self.ax.plot(xs, ys, zs, 'red', alpha=0.8, linewidth=2.5, zorder=2)
+
+        self.modelmap = PlotMapView(model=self.mf, layer=0, ax=self.ax)
+        # # self.grid = self.modelmap.plot_grid(zorder=1, lw=0.1)
+        # self.headsplot = self.modelmap.plot_array(self.heads,
+        #                                           masked_values=[999.],
+        #                                           alpha=0.5, zorder=2,
+        #                                           cmap=get_cmap('terrain'),
+        #                                           ax=self.ax
+        #                                           )
+        # self.quadmesh = self.modelmap.plot_ibound(zorder=3, ax=self.ax)
+        # ax.scatter(x, y, zs=0, zdir='y', c=c_list, label='points in (x,z)')
+
+        # bug in zordering may be fixed soon:
+        # https://github.com/matplotlib/matplotlib/pull/14508
+        # meanwhile use rendering?
+        # https://laurentperrinet.github.io/sciblog/posts/2015-01-16-rendering-3d-scenes-in-python.html
+        
+
+        # https://stackoverflow.com/questions/13932150/matplotlib-wrong-overlapping-when-plotting-two-3d-surfaces-on-the-same-axes/43004221
+        # plotting a sphere representing the particle on top of the surface
+        from numpy import cos, sin
+        u = np.linspace(0, 2 * np.pi, 100)
+        v = np.linspace(0, np.pi, 100)
+        x2 = 1 * np.outer(np.cos(u), np.sin(v)) + self.particleCoords[0]
+        y2 = 1 * np.outer(np.sin(u), np.sin(v)) + self.particleCoords[1]
+        z2 = 0.2 * np.outer(np.ones(np.size(u)), np.cos(v)) + hParticle
+        
+        # self.ax.plot_surface(x1, y1, z1, rstride=8, cstride=8, alpha=0.3, antialiased=False, zorder=-1)
+        # self.ax.plot_surface(x2, y2, z2, rstride=1, cstride=1, color='b', alpha=1, antialiased=False, zorder=1)
+
+        self.ax.plot_surface(x1, y2, np.where(z1<z2, z1, np.nan))
+        self.ax.plot_surface(x2, y2, z2)
+        self.ax.plot_surface(x1, y1, np.where(z1>=z2, z1, np.nan))
+
+
+        cset = self.ax.contour(x1, y1, z1, zdir='z', offset=-0.5,
+            cmap=get_cmap('terrain'))
+        cset = self.ax.contour(x1, y1, z1, zdir='x', offset=0.,
+            cmap=get_cmap('terrain'))
+        cset = self.ax.contour(x1, y1, z1, zdir='y', offset=0.,
+            cmap=get_cmap('terrain'))
+        self.ax.plot([50], [50], [8], 'k--', alpha=0.5, linewidth=2.5)
+        self.ax.set_xlim(0., 100.)
+        self.ax.set_ylim(0., 100.)
+        self.ax.set_zlim(0., 20.)
+        # plotting normal plot as projection at the bottom
+
+        if self.MANUALCONTROL:
+            self.renderUserInterAction()
+        elif not self.MANUALCONTROL:
+            if self.RENDER:
+                show(block=False)
+                pause(self.MANUALCONTROLTIME)
+        if self.SAVEPLOT:
+            self.renderSavePlot()
+            if self.done or self.timeStep==self.NAGENTSTEPS:
+                self.renderAnimationFromFiles()
+
+        self.renderClearAxes()
+
     def renderInitializeCanvas(self):
         """Initialize plot canvas with figure and axes."""
         self.fig = figure(figsize=(7, 7))
@@ -2055,11 +2265,11 @@ class FloPyEnv():
                                                     self.headSpecEast) + ' m\nDestination', fontsize=12)
         if self.ENVTYPE == '1':
             self.ax.set_xlabel('water level:   ' + str('%.2f' %
-                                                       self.actionValueSouth) 
+                                                       self.actionValueNorth) 
                                                        + ' m', fontsize=12)
             self.ax2.set_xlabel('water level:   ' +
                                 str('%.2f' %
-                                    self.actionValueNorth) +
+                                    self.actionValueSouth) +
                                 ' m', fontsize=12)
         elif self.ENVTYPE == '2':
             self.ax.set_xlabel('water level:   ' + str('%.2f' %
@@ -2068,12 +2278,12 @@ class FloPyEnv():
         elif self.ENVTYPE == '3':
             self.ax.set_xlabel('water level:   ' + 
                                str('%.2f' %
-                                   self.headSpecSouth) +
+                                   self.headSpecNorth) +
                                ' m',
                                fontsize=12)
             self.ax2.set_xlabel('water level:   ' +
                                 str('%.2f' %
-                                    self.headSpecNorth) +
+                                    self.headSpecSouth) +
                                 ' m',
                                 fontsize=12)
 
@@ -2102,12 +2312,15 @@ class FloPyEnv():
         """Save plot of the currently rendered timestep."""
         if self.timeStep == 0:
             # setting up the path to save results plots in
-            self.plotspth = join(self.wrkspc, 'runs')
-            # ensuring plotspth directory exists
+            self.plotsfolderpth = join(self.wrkspc, 'runs')
+            self.plotspth = join(self.wrkspc, 'runs', self.ANIMATIONFOLDER)
+            # ensuring directories exists
+            if not exists(self.plotsfolderpth):
+                makedirs(self.plotsfolderpth)
             if not exists(self.plotspth):
                 makedirs(self.plotspth)
 
-        plotfile = join(self.wrkspc, 'runs', self.ANIMATIONFOLDER,
+        plotfile = join(self.plotspth,
                               self.MODELNAME + '_'
                               + str(self.timeStep).zfill(len(str(abs(self.NAGENTSTEPS)))+1)
                               + '.png'
@@ -2117,75 +2330,19 @@ class FloPyEnv():
 
     def renderClearAxes(self):
         """Clear all axis after timestep."""
-        self.ax.cla()
-        self.ax.clear()
-        self.ax2.cla()
-        self.ax2.clear()
+        try:
+            self.ax.cla()
+            self.ax.clear()
+        except: pass
+        try:
+            self.ax2.cla()
+            self.ax2.clear()
+        except: pass
         if self.ENVTYPE == '1' or self.ENVTYPE == '3':
-            self.ax3.cla()
-            self.ax3.clear()
-
-    def render3d(self):
-        """Render environment in 3 dimensions."""
-        from mpl_toolkits import mplot3d
-        import numpy as np
-        import matplotlib.pyplot as plt
-        test = self.dis.get_node_coordinates()
-        # self.fig = plt.figure()
-        ax3d = plt.axes(projection='3d')
-        xx, yy = np.meshgrid(test[0], test[1], sparse=True)
-        ax3d.plot_surface(xx, yy, np.reshape(np.ndarray.flatten(self.heads), (self.nRow, self.nCol)), cmap='viridis', edgecolor='none')
-        ax3d.scatter(self.trajectories['x'][-1][-1], self.trajectories['y'][-1][-1],
-                 lw=2, c='red', zorder=6
-                 )
-        show(block=False)
-        # waitforbuttonpress(timeout=self.MANUALCONTROLTIME)
-        sleep(10)
-        plt.close()
-
-        """Render environment in 3 dimensions."""
-        import numpy as np
-        if self.timeStep == 0:
-            from mpl_toolkits import mplot3d
-            import matplotlib.pyplot as plt
-            # self.fig = plt.figure()
-            self.ax3d = plt.axes(projection='3d')
-            self.ax3d.view_init(45, 0)
-
-
-        # test = self.dis.get_node_coordinates()
-        # xx, yy = np.meshgrid(test[0], test[1], sparse=True)
-        # lParticle, cParticle, rParticle = self.cellInfoFromCoordinates(
-        #     [self.particleCoords[0], self.particleCoords[1], self.particleCoords[2]])
-        # hParticle = self.heads[lParticle-1, rParticle-1, cParticle-1]
-        # print('debug head', self.timeStep, hParticle)
-
-        # # plotting ideal line and projection of 2d plot at bottom
-
-        # # are the coordinates here correct?
-        # headField = self.ax3d.plot_surface(yy, xx,
-        #     (np.reshape(np.ndarray.flatten(self.heads), (self.nRow, self.nCol)).T),
-        #     cmap=get_cmap('terrain'), edgecolor='none', alpha=1.0, zorder=1)
-        # # fliplr
-
-        # if self.timeStep == 0:
-        #     self.ax3d.scatter(self.minX, self.particleCoords[1], lw=2, c='red',
-        #         zorder=6, alpha=1.0)
-        # if self.timeStep > 0:
-        #     self.ax3d.scatter(self.trajectories['x'][-1][-1], self.trajectories['y'][-1][-1],
-        #          lw=2, c='red', zorder=6, alpha=1.0
-        #          )
-        #     xs = [self.trajectories['x'][-1][-1], self.trajectories['x'][-1][-1]]
-        #     ys = [self.trajectories['y'][-1][-1], self.trajectories['y'][-1][-1]]
-        #     zs = [hParticle, 12]
-        #     self.ax3d.plot(xs, ys, zs, 'red', alpha=0.8, linewidth=2.5, zorder=2)
-
-        # show(block=False)
-        # waitforbuttonpress(timeout=self.MANUALCONTROLTIME)
-        # # pause(0.1)
-        # del headField
-        # # ax3d.cla()
-        # # ax3d.clear()
+            try:
+                self.ax3.cla()
+                self.ax3.clear()
+            except: pass
 
     def renderAnimationFromFiles(self):
         """Create animation of fulll game run.
@@ -2973,7 +3130,7 @@ class FloPyArcade():
     def __init__(self, agent=None, modelNameLoad=None, modelName='FloPyArcade',
         animationFolder=None, NAGENTSTEPS=200, PATHMF2005=None, PATHMP6=None,
         surrogateSimulator=None, flagSavePlot=False,
-        flagSavePlotAllAgents=False, flagManualControl=False, flagRender=False,
+        flagManualControl=False, flagRender=False,
         keepTimeSeries=False, nLay=1, nRow=100, nCol=100):
         """Constructor."""
 
@@ -2982,7 +3139,6 @@ class FloPyArcade():
         self.SURROGATESIMULATOR = surrogateSimulator
         self.NAGENTSTEPS = NAGENTSTEPS
         self.SAVEPLOT = flagSavePlot
-        self.SAVEPLOTALLAGENTS = flagSavePlotAllAgents
         self.MANUALCONTROL = flagManualControl
         self.RENDER = flagRender
         self.MODELNAME = modelName if modelName is not None else modelNameLoad
@@ -3024,21 +3180,22 @@ class FloPyArcade():
         observations, self.done = self.env.observationsVectorNormalized, self.env.done
         if self.keepTimeSeries:
             # collecting time series of game metrices
-            states, stresses, rewards, doneFlags, successFlags = [], [], [], [], []
-            states.append(observations)
+            statesNormalized, stressesNormalized = [], []
+            rewards, doneFlags, successFlags = [], [], []
+            heads, actions, wellCoords, trajectories = [], [], [], []
+            statesNormalized.append(observations)
             rewards.append(0.)
             doneFlags.append(self.done)
             successFlags.append(-1)
+            heads.append(self.env.heads)
+            wellCoords.append(self.env.wellCoords)
+
         self.actionRange, self.actionSpace = self.env.actionRange, self.env.actionSpace
         agent = FloPyAgent(actionSpace=self.actionSpace)
 
         # game loop
         self.success = False
         self.rewardTotal = 0.
-
-        # load the model in advance
-        # agentModel = load_model(
-        # join(self.wrkspc, 'models', modelNameLoad + '.h5'))
 
         for self.timeSteps in range(self.NAGENTSTEPS):
             if not self.done:
@@ -3073,10 +3230,14 @@ class FloPyArcade():
 
                 if self.keepTimeSeries:
                     # collecting time series of game metrices
-                    states.append(self.env.observationsVectorNormalized)
-                    stresses.append(self.env.stressesVectorNormalized)
+                    statesNormalized.append(self.env.observationsVectorNormalized)
+                    stressesNormalized.append(self.env.stressesVectorNormalized)
                     rewards.append(reward)
+
+                    heads.append(self.env.heads)
                     doneFlags.append(self.done)
+                    wellCoords.append(self.env.wellCoords)
+                    actions.append(action)
                     if not self.done:
                         successFlags.append(-1)
                     if self.done:
@@ -3094,11 +3255,16 @@ class FloPyArcade():
 
                 if self.keepTimeSeries:
                     self.timeSeries = {}
-                    self.timeSeries['statesNormalized'] = states
-                    self.timeSeries['stressesNormalized'] = stresses
+                    self.timeSeries['statesNormalized'] = statesNormalized
+                    self.timeSeries['stressesNormalized'] = stressesNormalized
                     self.timeSeries['rewards'] = rewards
                     self.timeSeries['doneFlags'] = doneFlags
                     self.timeSeries['successFlags'] = successFlags
+
+                    self.timeSeries['heads'] = heads
+                    self.timeSeries['wellCoords'] = wellCoords
+                    self.timeSeries['actions'] = actions
+                    self.timeSeries['trajectories'] = self.env.trajectories
 
                 self.success = self.env.success
                 if self.env.success:
