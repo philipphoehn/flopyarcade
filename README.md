@@ -4,6 +4,8 @@ FloPyArcade is a [MODFLOW](https://www.usgs.gov/mission-areas/water-resources/sc
 
 Too late, with the peak of arcade games a few decades ago, you would think? Obviously. But arcade games received renewed interest with the advent of [OpenAI Gym](https://gym.openai.com/) enabling to score past human performance with reinforcement learning. FloPyArcade offers a set of simple simulated groundwater flow environments, following the style of [environments in OpenAI Gym](https://gym.openai.com/envs/#atari). They allow to experiment with existing or new reinforcement learning algorithms to find neural networks that yield optimal control policies. Two common learning algorithms are readily available. Try and train for yourself. Adding your own simulation environment of arbitrary complexity with your own controls is possible.
 
+Examples of machine-controlled actions taken in the same environment by the highest-scoring agent of genetic optimization after various generations:
+
 ![](geneticoptimization.gif)
 
 Ready to try controlling yourself?
@@ -39,8 +41,6 @@ Examples of human actions taken: Environment 1 (left) allows to adjust the north
 Two algorithms are currently provided along with the environments. These are implementions of (1) [double Q-learning](https://arxiv.org/abs/1509.06461) and (2) a weights-evolving [genetic algorithm](https://arxiv.org/abs/1712.06567) for training deep neural networks as policy models - optionally combined with a simple implementation of [novelty search](https://arxiv.org/abs/1304.3362) to help avoiding convergence towards local minima. They reside in the FloPyAgent class.
 
 The environment formulation allows for models, controls and objectives of arbitrary complexity. Modifications or more complex environments can easily be implemented with small changes to the code.
-
-Examples of machine-controlled actions taken in the same environment by the highest-scoring agent of genetic optimization after 1 generation (left), 6 generations (center) and 26 generations (right):![](geneticoptimization.gif)
 
 ## Usage
 
