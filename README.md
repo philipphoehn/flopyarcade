@@ -75,7 +75,7 @@ Pull requests and constructive disccusions are absolutely welcome. For major cha
 
 This project is heavily based on [FloPy](https://github.com/modflowpy/flopy/), [TensorFlow](https://www.tensorflow.org/), [Keras](https://keras.io/), [NumPy](https://numpy.org/) and others, and I would therefore like to acknowledge all the valuable work of developers of these outstanding libraries. Furthermore, Harrison from [pythonprogramming.net](https://pythonprogramming.net/) indirectly contributed by making inspiring programming tutorials freely accessible to enthusiasts on his website and via the [sentdex YouTube channel](https://www.youtube.com/user/sentdex), as well as many posts on [towardsdatascience.com](https://towardsdatascience.com/).
 
-To contact me, feel free to send me an email: [philipp.hoehn@yahoo.com](mailto:philipp.hoehn@yahoo.com)
+Contact: [philipp.hoehn@yahoo.com](mailto:philipp.hoehn@yahoo.com)
 
 ## License
 
