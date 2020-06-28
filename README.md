@@ -67,7 +67,7 @@ Modify settings for the environment and hyperparameters for the provided optimiz
 
 ## Notes
 
-This project is experimental and is developed only during spare time. It is envisioned to ultimately be [PEP-8](https://www.python.org/dev/peps/pep-0008/)-compliant, but this has smaller priority than improving and optimizing functionality.
+This project is meant to demonstrate a new avenue of applying FloPy. It is experimental and is developed only during spare time. The code is envisioned to ultimately be [PEP-8](https://www.python.org/dev/peps/pep-0008/)-compliant, but this has smaller priority than improving and optimizing functionality.
 
 ## Contributions
 
