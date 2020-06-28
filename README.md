@@ -1,5 +1,3 @@
-# FloPyArcade
-
 ![](banner.png)
 
 FloPyArcade is a [MODFLOW](https://www.usgs.gov/mission-areas/water-resources/science/modflow-and-related-programs?qt-science_center_objects=0#qt-science_center_objects)-powered groundwater arcade-type game. It builds on functionality of the library [FloPy](https://github.com/modflowpy/flopy/), which is a wrapper around MODFLOW as well as its related software and adds pre- and postprocessing options.
