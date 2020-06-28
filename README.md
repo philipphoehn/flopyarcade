@@ -6,6 +6,8 @@ FloPyArcade is a [MODFLOW](https://www.usgs.gov/mission-areas/water-resources/sc
 
 Too late, with the peak of arcade games a few decades ago, you would think? Obviously. But arcade games received renewed interest with the advent of [OpenAI Gym](https://gym.openai.com/) enabling to score way past human performance in them with reinforcement learning. FloPyArcade offers a set of simple simulated groundwater flow environments, following the style of [environments in OpenAI Gym](https://gym.openai.com/envs/#atari). This allows to experiment with existing or new reinforcement learning algorithms.
 
+![](geneticoptimization.gif)
+
 Ready to try?
 
 The objective is to safely transport a virtual particle as it follows advection while travelling from a random location at the western boundary to eastern boundary. You have to protect a well from capturing this particle. The well is randomly located with a random pumping rate. Furthermore, the particle must not flow into cells of specified head in the north and south. The controls you have depend on the environment, but are in total the up/down/left/right key. They allow you to either adjust specified head(s) or the well location. The highest score is achieved if the particle stays on the indicated shortest route, or as close as possible to it.
