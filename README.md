@@ -32,7 +32,7 @@ python make_modpath6.py
 
 Three environments have currently been implemented. However, groundwater environments of arbitrary complexity can be implemented in a similar way, if the desired opimisation target(s) can be obtained from the simulation. Feel free to modify. Currently, they can be changed with the ENVTYPE variable, ranging from '1' to '3'.
 
-Examples of human actions taken: Environment 1 (left) allows to adjust northern and southern specified heads synchronously. Environment 2 (center) allows to adjust southern specified heads. Environment 3 (right) allows to move the pumping well.![](envtypes.gif)
+Examples of human actions taken: Environment 1 (left) allows to adjust the northern and southern specified heads synchronously. Environment 2 (center) allows to adjust the southern specified heads. Environment 3 (right) allows to move the pumping well.![](envtypes.gif)
 
 ## Optimization algorithms
 
