@@ -10,8 +10,6 @@ Ready to try?
 
 The objective is to safely transport a virtual particle as it follows advection while travelling from a random location at the western boundary to eastern boundary. You have to protect a well from capturing this particle. The well is randomly located with a random pumping rate. Furthermore, the particle must not flow into cells of specified head in the north and south. The controls you have depend on the environment, but are in total the up/down/left/right key. They allow you to either adjust specified head(s) or the well location. The highest score is achieved if the particle stays on the indicated shortest route, or as close as possible to it.
 
-Examples of human actions taken in environment 1 (left), environment 2 (center) and environment 3 (right):![](envtypes.gif)
-
 ## Installation
 
 Given [TensorFlow](https://www.tensorflow.org/)'s current compatibility, this project works with [Python3](https://www.python.org/) up to version 3.7. The installation is a 2-step procedure:
@@ -32,7 +30,9 @@ python make_modpath6.py
 
 ## Environments
 
-Three environments have currently been implemented. However, groundwater environments of arbitrary complexity can be implemented in a similar way, if the desired opimisation target(s) can be obtained from the simulation. Feel free to modify. Currently, they can be changed with the ENVTYPE variable, ranging from '1' to '3':
+Three environments have currently been implemented. However, groundwater environments of arbitrary complexity can be implemented in a similar way, if the desired opimisation target(s) can be obtained from the simulation. Feel free to modify. Currently, they can be changed with the ENVTYPE variable, ranging from '1' to '3'.
+
+Examples of human actions taken in environment 1 (left), environment 2 (center) and environment 3 (right):![](envtypes.gif)
 
 ## Optimization algorithms
 
