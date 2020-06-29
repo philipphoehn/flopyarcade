@@ -57,7 +57,7 @@ python FloPyArcadePlay.py
 python FloPyArcadeDQN.py
 ```
 
-3) FloPyArcadeGeneticNetwork.py runs a search for optimal policy models following a genetic optimization - optionally with novelty search. It allows multi-threaded parallel execution, given the number of available threads by the variable NAGENTSPARALLEL.
+3) FloPyArcadeGeneticNetwork.py runs a search for optimal policy models following a genetic optimization - optionally with novelty search. It allows parallel execution with multiple processes, given the number of available CPU threads by the variable NAGENTSPARALLEL.
 
 ```bash
 python FloPyArcadeGeneticNetwork.py
