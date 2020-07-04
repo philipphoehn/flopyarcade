@@ -40,6 +40,8 @@ from collections import deque, defaultdict
 from datetime import datetime
 from gc import collect as garbageCollect
 from itertools import count
+# import pathos.multiprocessing as pathosMP
+import pathos.helpers as pathosHelpers
 from pathos.pools import _ProcessPool as Pool
 from pathos.pools import _ThreadPool as ThreadPool
 from pickle import dump, load
@@ -57,6 +59,11 @@ from tensorflow.compat.v1.keras import backend as K
 from tensorflow.keras.models import load_model as TFload_model
 from tqdm import tqdm
 from uuid import uuid4
+
+# avoiding freeze issues on Linux when loading Tensorflow model
+# https://github.com/keras-team/keras/issues/9964
+# https://stackoverflow.com/questions/40615795/pathos-enforce-spawning-on-linux
+pathosHelpers.mp.context._force_start_method('spawn')
 
 
 class FloPyAgent():
@@ -135,9 +142,9 @@ class FloPyAgent():
 
         # initializing main predictive and target model
         self.mainModel = self.createNNModel()
-        self.mainModel._make_predict_function()
+        # self.mainModel._make_predict_function()
         self.targetModel = self.createNNModel()
-        self.targetModel._make_predict_function()
+        # self.targetModel._make_predict_function()
         self.targetModel.set_weights(self.mainModel.get_weights())
 
         # initializing array with last training data of specified length
