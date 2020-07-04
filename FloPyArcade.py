@@ -20,7 +20,7 @@ from matplotlib.pyplot import Circle, close, figure, pause, show
 from matplotlib.pyplot import waitforbuttonpress
 from numpy import add, arange, argmax, argsort, array, ceil, copy, divide
 from numpy import extract, float32, int32, linspace, max, maximum, min, minimum
-from numpy import mean, ones, shape, sqrt, sum, zeros
+from numpy import mean, ones, rollaxis, shape, sqrt, sum, zeros
 from numpy.random import randint, random, randn, uniform
 from numpy.random import seed as numpySeed
 from os import environ, listdir, makedirs, remove, rmdir
@@ -40,12 +40,14 @@ from collections import deque, defaultdict
 from datetime import datetime
 from gc import collect as garbageCollect
 from itertools import count
+from pathos import helpers as pathosHelpers
 from pathos.pools import _ProcessPool as Pool
 from pathos.pools import _ThreadPool as ThreadPool
 from pickle import dump, load
 from tensorflow.keras.initializers import glorot_uniform
 from tensorflow.keras.layers import Activation, BatchNormalization, Dense
 from tensorflow.keras.layers import Dropout
+from tensorflow.keras.layers import Conv2D, MaxPool2D, Flatten
 from tensorflow.keras.models import clone_model, load_model, model_from_json
 from tensorflow.keras.models import save_model
 from tensorflow.keras.models import Sequential
@@ -57,6 +59,11 @@ from tensorflow.compat.v1.keras import backend as K
 from tensorflow.keras.models import load_model as TFload_model
 from tqdm import tqdm
 from uuid import uuid4
+
+# avoiding freeze issues on Linux when loading Tensorflow model
+# https://github.com/keras-team/keras/issues/9964
+# https://stackoverflow.com/questions/40615795/pathos-enforce-spawning-on-linux
+pathosHelpers.mp.context._force_start_method('spawn')
 
 
 class FloPyAgent():
@@ -375,29 +382,43 @@ class FloPyAgent():
             seed = self.SEED
         model = Sequential()
         initializer = glorot_uniform(seed=seed)
-        nHiddenNodes = copy(self.hyParams['NHIDDENNODES'])
-        # resetting numpy seeds to generate reproducible architecture
-        numpySeed(seed)
 
-        # applying architecture (variable number of nodes per hidden layer)
-        if self.agentMode == 'genetic' and self.hyParams['ARCHITECTUREVARY']:
+        if self.hyParams['MODELTYPE'] == 'mlp':
+            nHiddenNodes = copy(self.hyParams['NHIDDENNODES'])
+            # resetting numpy seeds to generate reproducible architecture
+            numpySeed(seed)
+
+            # applying architecture (variable number of nodes per hidden layer)
+            if self.agentMode == 'genetic' and self.hyParams['ARCHITECTUREVARY']:
+                for layerIdx in range(len(nHiddenNodes)):
+                    nHiddenNodes[layerIdx] = randint(2, self.hyParams['NHIDDENNODES'][layerIdx]+1)
             for layerIdx in range(len(nHiddenNodes)):
-                nHiddenNodes[layerIdx] = randint(2, self.hyParams['NHIDDENNODES'][layerIdx]+1)
-        for layerIdx in range(len(nHiddenNodes)):
-            inputShape = shape(self.observationsVector) if layerIdx == 0 else []
-            model.add(Dense(units=nHiddenNodes[layerIdx],
-                input_shape=inputShape,
-                kernel_initializer=glorot_uniform(seed=seed),
-                use_bias=True))
-            if self.hyParams['BATCHNORMALIZATION']:
-                model.add(BatchNormalization())
-            model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][layerIdx]))
-            if 'DROPOUTS' in self.hyParams:
-                if self.hyParams['DROPOUTS'][layerIdx] != 0.0:
-                    model.add(Dropout(self.hyParams['DROPOUTS'][layerIdx]))
+                inputShape = shape(self.observationsVector) if layerIdx == 0 else []
+                model.add(Dense(units=nHiddenNodes[layerIdx],
+                    input_shape=inputShape,
+                    kernel_initializer=glorot_uniform(seed=seed),
+                    use_bias=True))
+                if self.hyParams['BATCHNORMALIZATION']:
+                    model.add(BatchNormalization())
+                model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][layerIdx]))
+                if 'DROPOUTS' in self.hyParams:
+                    if self.hyParams['DROPOUTS'][layerIdx] != 0.0:
+                        model.add(Dropout(self.hyParams['DROPOUTS'][layerIdx]))
 
-        reproduceTest = model.get_weights()
-        # print('seed', seed, 'reproduceTest', reproduceTest)
+        elif self.hyParams['MODELTYPE'] == 'conv':
+            # inputShape = shape(array(self.observationsVector))
+            inputShape = list(shape(self.observationsVector))# + [1]
+            inputShape = [100, 100, 1]
+            print('debug inputShape', inputShape)
+            model.add(Conv2D(64, (3,3), input_shape=inputShape))
+            model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][0]))
+            model.add(MaxPool2D((2, 2)))
+            model.add(Conv2D(32, (3,3)))
+            model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][0]))
+            model.add(MaxPool2D((2, 2)))
+            model.add(Flatten())
+            model.add(Dense(100))
+            model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][0]))
 
         # adding output layer
         model.add(Dense(self.actionSpaceSize, activation='linear',
@@ -669,14 +690,23 @@ class FloPyAgent():
 
         r, t0game = 0, time()
         for step in range(self.hyParams['NAGENTSTEPS']):
+
+            if self.hyParams['MODELTYPE'] == 'mlp':
+                obs = env.observationsVectorNormalized
+            elif self.hyParams['MODELTYPE'] == 'conv':
+                obs = env.observationsVectorNormalizedHeads
+                obs = rollaxis(array(obs), 1)
+                obs = rollaxis(array(obs), 2)
+                print('debug2 shape obs in', shape(obs))
+
             actionIdx = argmax(self.getqsGivenAgentModel(agent,
-                env.observationsVectorNormalized))
+                obs))
             action = self.actionSpace[actionIdx]
             
             t0step = time()
             # note: need to feed normalized observations
-            new_observation, reward, done, info = env.step(
-                env.observationsVectorNormalized, action, r)
+            _, reward, done, info = env.step(
+                obs, action, r)
             # print('debug duration step', time() - t0step)
             actions[self.currentGame-1].append(action)
             rewards[self.currentGame-1].append(reward)
@@ -1198,6 +1228,7 @@ class FloPyEnv():
             self.state['actionValueY'] = self.actionValueY
 
         self.observations = {}
+        self.observationsNormalized, self.observationsNormalizedHeads = {}, {}
         self.observations['particleCoords'] = self.particleCoords
         self.observations['headsSampledField'] = self.heads[0::self.sampleHeadsEvery,
                                                 0::self.sampleHeadsEvery,
@@ -1229,7 +1260,6 @@ class FloPyEnv():
         self.observations['wellQ'] = self.wellQ
         self.observations['wellCoords'] = self.wellCoords
 
-        self.observationsNormalized = {}
         self.observationsNormalized['particleCoords'] = divide(
             copy(self.particleCoords), self.minX + self.extentX)
         self.observationsNormalized['headsSampledField'] = divide(self.observations['headsSampledField'],
@@ -1239,11 +1269,15 @@ class FloPyEnv():
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
             self.wellCoords, self.minX + self.extentX)
+        self.observationsNormalizedHeads['heads'] = divide(self.state['heads'],
+            self.maxH)
 
         self.observationsVector = self.observationsDictToVector(
             self.observations)
         self.observationsVectorNormalized = self.observationsDictToVector(
             self.observationsNormalized)
+        self.observationsVectorNormalizedHeads = self.observationsDictToVector(
+            self.observationsNormalizedHeads)
 
         if self.ENVTYPE == '1':
             self.stressesVectorNormalized = [self.actionValueSouth/self.maxH, self.actionValueNorth/self.maxH,
@@ -1318,7 +1352,7 @@ class FloPyEnv():
             self.state['actionValueY'] = self.actionValueY
 
         self.observations = {}
-        self.observationsNormalized = {}
+        self.observationsNormalized, self.observationsNormalizedHeads = {}, {}
         self.observations['particleCoords'] = self.particleCoords
         self.observations['headsSampledField'] = self.heads[0::self.sampleHeadsEvery,
                                                 0::self.sampleHeadsEvery,
@@ -1357,11 +1391,15 @@ class FloPyEnv():
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
             self.wellCoords, self.minX + self.extentX)
+        self.observationsNormalizedHeads['heads'] = divide(self.state['heads'],
+            self.maxH)
 
         self.observationsVector = self.observationsDictToVector(
             self.observations)
         self.observationsVectorNormalized = self.observationsDictToVector(
             self.observationsNormalized)
+        self.observationsVectorNormalizedHeads = self.observationsDictToVector(
+            self.observationsNormalizedHeads)
 
         if self.observations['particleCoords'][0] >= self.extentX - self.dCol:
             self.success = True
@@ -2488,17 +2526,21 @@ class FloPyEnv():
     def observationsDictToVector(self, observationsDict):
         """Convert dictionary of observations to list."""
         observationsVector = []
-        for obs in observationsDict['particleCoords']:
-            observationsVector.append(obs)
+        if 'particleCoords' in observationsDict.keys():
+            for obs in observationsDict['particleCoords']:
+                observationsVector.append(obs)
         # full field not longer part of reported state
         # for obs in observationsDict['headsSampledField'].flatten().flatten():
         #     observationsVector.append(obs)
-        for obs in observationsDict['heads']:
-            observationsVector.append(obs)
+        if 'heads' in observationsDict.keys():
+            for obs in observationsDict['heads']:
+                observationsVector.append(obs)
         # print('len(observationsDict[heads])', len(observationsDict['heads']))
-        observationsVector.append(observationsDict['wellQ'])
-        for obs in observationsDict['wellCoords']:
-            observationsVector.append(obs)
+        if 'wellQ' in observationsDict.keys():
+            observationsVector.append(observationsDict['wellQ'])
+        if 'wellCoords' in observationsDict.keys():
+            for obs in observationsDict['wellCoords']:
+                observationsVector.append(obs)
         return observationsVector
 
     def observationsVectorToDict(self, observationsVector):

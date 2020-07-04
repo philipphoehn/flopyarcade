@@ -12,15 +12,14 @@ from FloPyArcade import FloPyEnvSurrogate
 
 # environment settings
 envSettings = {
-    'ENVTYPE': '1',                             # string defining environment
-    'MODELNAME': 'gs-e1s1n2000e100g10000av50st200mpr1e-0mpo3e-3ar250x5v1relubn1_res100_ns-ev1e1000', # string defining model basename
-    # 'MODELNAME': 'test2', # string defining model basename
+    'ENVTYPE': '3',                             # string defining environment
+    'MODELNAME': 'ConvTest', # string defining model basename
     'PATHMF2005': None,                         # string of local path to MODFLOW 2005 executable
     'PATHMP6': None,                            # string of local path to MODPATH 6 executable
     'SURROGATESIMULATOR': None,
     # 'SURROGATESIMULATOR': ['bestModelUnweightedInitial', 'bestModelUnweighted'],   # current best fit 0.000619
     'SEEDAGENT': 1,                                  # integer enabling reproducibility of the agents
-    'SEEDENV': 3,                               # integer enabling reproducibility of the environments
+    'SEEDENV': 1,                               # integer enabling reproducibility of the environments
     'NAGENTSPARALLEL': 16,                      # integer defining parallelized agent runs
     'REWARDMINTOSAVE': 0.0,                     # float defining minimal reward to save a model
     'RENDER': False,                            # boolean to define if displaying runs
@@ -35,20 +34,21 @@ envSettings = {
 
 # hyperparameters
 hyParams = {
-    'NAGENTS': 2000,                              # integer defining number of agents
-    'NAGENTELITES': 100,                         # integer defining number of agents considered as parents
+    'NAGENTS': 200,                              # integer defining number of agents
+    'NAGENTELITES': 25,                         # integer defining number of agents considered as parents
     'NGENERATIONS': 10000,                          # integer defining number of generations for evolution
-    'NGAMESAVERAGED': 50,                       # integer defining number of games played for averaging
+    'NGAMESAVERAGED': 1,                       # integer defining number of games played for averaging
     'NAGENTSTEPS': 200,                         # integer defining number of episodes per agent
     'MUTATIONPROBABILITY': 1.0,                # float defining fraction of mutated parameters
     'MUTATIONPOWER': 0.005,                     # float defining mutation, 0.02 after https://arxiv.org/pdf/1712.06567.pdf
+    'MODELTYPE': 'conv',
     'NHIDDENNODES': [250] * 5,                   # list of integers of nodes per hidden layer to define architecture
     'ARCHITECTUREVARY': True,                   # boolean defining to allow architecture variation
     'HIDDENACTIVATIONS': ['relu'] * 5,          # list of strings defining hidden nodal activations
     'BATCHNORMALIZATION': True,                  # boolean defining batch normalization
     'NOVELTYSEARCH': True,                       # boolean
     'ADDNOVELTYEVERY': 1,
-    'NNOVELTYELITES': 1000,
+    'NNOVELTYELITES': 100,
     'NNOVELTYNEIGHBORS': 100
 }
 
@@ -77,7 +77,7 @@ def main(envSettings, hyParams):
 
     # initializing agent
     agent = FloPyAgent(
-        env.observationsVector,
+        env.observationsVectorNormalizedHeads if hyParams['MODELTYPE']=='conv' else env.observationsVector,
         env.actionSpace,
         hyParams,
         envSettings,
