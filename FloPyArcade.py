@@ -40,8 +40,7 @@ from collections import deque, defaultdict
 from datetime import datetime
 from gc import collect as garbageCollect
 from itertools import count
-# import pathos.multiprocessing as pathosMP
-import pathos.helpers as pathosHelpers
+from pathos import helpers as pathosHelpers
 from pathos.pools import _ProcessPool as Pool
 from pathos.pools import _ThreadPool as ThreadPool
 from pickle import dump, load
