@@ -407,9 +407,9 @@ class FloPyAgent():
 
         elif self.hyParams['MODELTYPE'] == 'conv':
             # inputShape = shape(array(self.observationsVector))
-            inputShape = list(shape(self.observationsVector))# + [1]
-            inputShape = [100, 100, 1]
-            print('debug inputShape', inputShape)
+            inputShape = list(shape(rollaxis(rollaxis(array(self.observationsVector), 1), 2)))
+            # inputShape = [100, 100, 1]
+            # print('debug inputShape', inputShape)
             model.add(Conv2D(64, (3,3), input_shape=inputShape))
             model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][0]))
             model.add(MaxPool2D((2, 2)))
@@ -697,7 +697,7 @@ class FloPyAgent():
                 obs = env.observationsVectorNormalizedHeads
                 obs = rollaxis(array(obs), 1)
                 obs = rollaxis(array(obs), 2)
-                print('debug2 shape obs in', shape(obs))
+                # print('debug2 shape obs in', shape(obs))
 
             actionIdx = argmax(self.getqsGivenAgentModel(agent,
                 obs))
