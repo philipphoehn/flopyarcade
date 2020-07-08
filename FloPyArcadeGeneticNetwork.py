@@ -20,7 +20,7 @@ envSettings = {
     # 'SURROGATESIMULATOR': ['bestModelUnweightedInitial', 'bestModelUnweighted'],   # current best fit 0.000619
     'SEEDAGENT': 1,                                  # integer enabling reproducibility of the agents
     'SEEDENV': 1,                               # integer enabling reproducibility of the environments
-    'NAGENTSPARALLEL': 16,                      # integer defining parallelized agent runs
+    'NAGENTSPARALLEL': 4,                      # integer defining parallelized agent runs
     'REWARDMINTOSAVE': 0.0,                     # float defining minimal reward to save a model
     'RENDER': False,                            # boolean to define if displaying runs
     'RENDEREVERY': 1000,                        # integer defining runs displayed
@@ -34,14 +34,14 @@ envSettings = {
 
 # hyperparameters
 hyParams = {
-    'NAGENTS': 200,                              # integer defining number of agents
+    'NAGENTS': 32,                              # integer defining number of agents
     'NAGENTELITES': 25,                         # integer defining number of agents considered as parents
     'NGENERATIONS': 10000,                          # integer defining number of generations for evolution
     'NGAMESAVERAGED': 1,                       # integer defining number of games played for averaging
     'NAGENTSTEPS': 200,                         # integer defining number of episodes per agent
     'MUTATIONPROBABILITY': 1.0,                # float defining fraction of mutated parameters
     'MUTATIONPOWER': 0.005,                     # float defining mutation, 0.02 after https://arxiv.org/pdf/1712.06567.pdf
-    'MODELTYPE': 'conv',
+    'MODELTYPE': 'mlp',
     'NHIDDENNODES': [250] * 5,                   # list of integers of nodes per hidden layer to define architecture
     'ARCHITECTUREVARY': True,                   # boolean defining to allow architecture variation
     'HIDDENACTIVATIONS': ['relu'] * 5,          # list of strings defining hidden nodal activations

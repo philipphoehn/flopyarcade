@@ -20,7 +20,7 @@ from matplotlib.pyplot import Circle, close, figure, pause, show
 from matplotlib.pyplot import waitforbuttonpress
 from numpy import add, arange, argmax, argsort, array, ceil, copy, divide
 from numpy import extract, float32, int32, linspace, max, maximum, min, minimum
-from numpy import mean, ones, rollaxis, shape, sqrt, sum, zeros
+from numpy import mean, ones, rollaxis, shape, sqrt, sum, subtract, zeros
 from numpy.random import randint, random, randn, uniform
 from numpy.random import seed as numpySeed
 from os import environ, listdir, makedirs, remove, rmdir
@@ -210,7 +210,7 @@ class FloPyAgent():
                     f'{datetime.now().strftime("%Y%m%d%H%M%S")}datetime.h5'
                 if self.average_rewardCV >= self.envSettings['REWARDMINTOSAVE']:
                     # saving model if larger than a specified reward threshold
-                    self.mainModel.save(join(self.wrkspc, 'models', DQNfstring))
+                    self.mainModel.save(join(self.wrkspc, 'models', DQNfstring), overwrite=True)
 
             # decaying epsilon
             if self.epsilon > self.hyParams['EPSILONMIN']:
@@ -365,6 +365,8 @@ class FloPyAgent():
             # saving best agent of the current generation
             self.saveBestAgent(MODELNAME)
 
+            print('self.bestAgentFileName', self.bestAgentFileName)
+
             if self.envSettings['BESTAGENTANIMATION']:
                 if not self.flagSkipGeneration:
                     self.saveBestAgentAnimation(env, self.bestAgentFileName,
@@ -407,17 +409,31 @@ class FloPyAgent():
 
         elif self.hyParams['MODELTYPE'] == 'conv':
             # inputShape = shape(array(self.observationsVector))
+            # self.observationsVector = list(self.observationsVector)
+            # print(min(self.observationsVector), max(self.observationsVector))
             inputShape = list(shape(rollaxis(rollaxis(array(self.observationsVector), 1), 2)))
             # inputShape = [100, 100, 1]
             # print('debug inputShape', inputShape)
             model.add(Conv2D(64, (3,3), input_shape=inputShape))
+            if self.hyParams['BATCHNORMALIZATION']:
+                model.add(BatchNormalization())
             model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][0]))
-            model.add(MaxPool2D((2, 2)))
+            # model.add(MaxPool2D((2, 2)))
             model.add(Conv2D(32, (3,3)))
+            if self.hyParams['BATCHNORMALIZATION']:
+                model.add(BatchNormalization())
             model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][0]))
-            model.add(MaxPool2D((2, 2)))
+            # model.add(MaxPool2D((2, 2)))
+            if self.hyParams['BATCHNORMALIZATION']:
+                model.add(BatchNormalization())
             model.add(Flatten())
             model.add(Dense(100))
+            if self.hyParams['BATCHNORMALIZATION']:
+                model.add(BatchNormalization())
+            model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][0]))
+            model.add(Dense(100))
+            if self.hyParams['BATCHNORMALIZATION']:
+                model.add(BatchNormalization())
             model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][0]))
 
         # adding output layer
@@ -692,12 +708,12 @@ class FloPyAgent():
         for step in range(self.hyParams['NAGENTSTEPS']):
 
             if self.hyParams['MODELTYPE'] == 'mlp':
-                obs = env.observationsVectorNormalized
+                obs = env.observationsVectorNormalizedHeads
+                obs = array(obs).flatten()
             elif self.hyParams['MODELTYPE'] == 'conv':
                 obs = env.observationsVectorNormalizedHeads
                 obs = rollaxis(array(obs), 1)
                 obs = rollaxis(array(obs), 2)
-                # print('debug2 shape obs in', shape(obs))
 
             actionIdx = argmax(self.getqsGivenAgentModel(agent,
                 obs))
@@ -764,7 +780,7 @@ class FloPyAgent():
         agent = self.createNNModel(seed=self.envSettings['SEEDAGENT']+agentIdx)
         agent.save(join(self.tempModelpth, self.envSettings['MODELNAME'] +
             '_gen' + str(generation).zfill(self.zFill) + '_agent' +
-            str(agentIdx + 1).zfill(self.zFill) + '.h5'))
+            str(agentIdx + 1).zfill(self.zFill) + '.h5'), overwrite=True)
 
     def returnChildrenGenetic(self, sortedParentIdxs):
         """Mutate best parents, keep elite child and save them to disk
@@ -811,10 +827,10 @@ class FloPyAgent():
             compile=False)
 
         if not self.rereturnChildrenGenetic:
-            bestAgent.save(join(self.tempModelPrefix + '_agentBest.h5'))
+            bestAgent.save(join(self.tempModelPrefix + '_agentBest.h5'), overwrite=True)
         if generation < self.hyParams['NGENERATIONS']:
             bestAgent.save(join(tempNextModelPrefix + '_agent' +
-                str(self.hyParams['NAGENTS']).zfill(self.zFill) + '.h5'))
+                str(self.hyParams['NAGENTS']).zfill(self.zFill) + '.h5'), overwrite=True)
             nAgentElites = self.hyParams['NAGENTELITES']
             nNoveltyAgents = self.hyParams['NNOVELTYELITES']
             self.candidateParentIdxs = sortedParentIdxs[:nAgentElites]
@@ -874,7 +890,7 @@ class FloPyAgent():
         # altering parent agent to create child agent
         childrenAgent = self.mutateGenetic(agent)
         childrenAgent.save(join(self.tempNextModelPrefix +
-            '_agent' + str(childIdx + 1).zfill(self.zFill) + '.h5'))
+            '_agent' + str(childIdx + 1).zfill(self.zFill) + '.h5'), overwrite=True)
 
     def mutateGenetic(self, agent):
         """Mutate single agent model.
@@ -902,8 +918,8 @@ class FloPyAgent():
         """ Query given model for Q values given observations of state
         """
         # predict_on_batch robust in parallel operation?
-        return agentModel.predict_on_batch(
-            array(state).reshape(-1, (*shape(state))))[0]
+        input = array(state).reshape(-1, (*shape(state)))
+        return agentModel.predict_on_batch(input)[0]
 
     def loadAgentModel(self, modelNameLoad=None, compiled=False):
         """Load an agent model."""
@@ -920,12 +936,26 @@ class FloPyAgent():
             agentModel.load_weights(modelPrefix + 'Weights.h5')
         if not exists(modelPrefix + '.json'):
             agentModel = load_model(modelPrefix + '.h5', compile=compiled)
-            json_config = agentModel.to_json()
-            with open(modelPrefix + '.json', 'w') as json_file:
-                json_file.write(json_config)
-            agentModel.save_weights(modelPrefix + 'Weights.h5')
+            # json_config = agentModel.to_json()
+            # with open(modelPrefix + '.json', 'w') as json_file:
+            #     json_file.write(json_config)
+            # agentModel.save_weights(modelPrefix + 'Weights.h5', overwrite=True)
+            # remove(modelPrefix + '.h5')
 
         return agentModel
+
+    def saveAgentModel(self, agentModel, prefix, type='json'):
+        """Save an agent model."""
+
+        if type == 'h5':
+            save_model(modelPrefix + '.h5')
+
+        if type == 'json':
+            json_config = agentModel.to_json()
+            with open(prefix + '.json', 'w') as json_file:
+                json_file.write(json_config)
+            agentModel.save_weights(prefix + 'Weights.h5', overwrite=True)
+
 
     def getAction(self, mode='random', keyPressed=None, agent=None,
             modelNameLoad=None, state=None):
@@ -1044,13 +1074,14 @@ class FloPyAgent():
         self.bestAgentFileName = (f'{MODELNAME}' + '_gen' +
             str(self.geneticGeneration+1).zfill(self.zFill) + '_avg' +
             f'{self.bestAgentReward:_>7.1f}')
-        bestAgent.save(join(self.modelpth, self.bestAgentFileName + '.h5'))
+        bestAgent.save(join(self.modelpth, self.bestAgentFileName + '.h5'), overwrite=True)
 
     def saveBestAgentAnimation(self, env, bestAgentFileName, MODELNAMEGENCOUNT,
         MODELNAME):
         # playing a game with best agent to visualize progress
         game = FloPyArcade(modelNameLoad=bestAgentFileName,
             modelName=MODELNAMEGENCOUNT,
+            modelType=self.hyParams['MODELTYPE'],
             animationFolder=MODELNAME,
             NAGENTSTEPS=self.hyParams['NAGENTSTEPS'],
             PATHMF2005=self.envSettings['PATHMF2005'],
@@ -1262,15 +1293,15 @@ class FloPyEnv():
 
         self.observationsNormalized['particleCoords'] = divide(
             copy(self.particleCoords), self.minX + self.extentX)
-        self.observationsNormalized['headsSampledField'] = divide(self.observations['headsSampledField'],
-            self.maxH)
-        self.observationsNormalized['heads'] = divide(self.observations['heads'],
-            self.maxH)
+        self.observationsNormalized['headsSampledField'] = divide(array(self.observations['headsSampledField']) - self.minH,
+            self.maxH - self.minH)
+        self.observationsNormalized['heads'] = divide(array(self.observations['heads']) - self.minH,
+            self.maxH - self.minH)
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
             self.wellCoords, self.minX + self.extentX)
-        self.observationsNormalizedHeads['heads'] = divide(self.state['heads'],
-            self.maxH)
+        self.observationsNormalizedHeads['heads'] = divide(array(self.heads) - self.minH,
+            self.maxH - self.minH)
 
         self.observationsVector = self.observationsDictToVector(
             self.observations)
@@ -1384,15 +1415,15 @@ class FloPyEnv():
         self.observations['wellCoords'] = self.wellCoords
         self.observationsNormalized['particleCoords'] = divide(
             copy(self.particleCoordsAfter), self.minX + self.extentX)
-        self.observationsNormalized['headsSampledField'] = divide(self.observations['headsSampledField'],
-            self.maxH)
-        self.observationsNormalized['heads'] = divide(self.observations['heads'],
-            self.maxH)
+        self.observationsNormalized['headsSampledField'] = divide(array(self.observations['headsSampledField']) - self.minH,
+            self.maxH - self.minH)
+        self.observationsNormalized['heads'] = divide(array(self.observations['heads']) - self.minH,
+            self.maxH - self.minH)
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
             self.wellCoords, self.minX + self.extentX)
-        self.observationsNormalizedHeads['heads'] = divide(self.state['heads'],
-            self.maxH)
+        self.observationsNormalizedHeads['heads'] = divide(array(self.heads) - self.minH,
+            self.maxH - self.minH)
 
         self.observationsVector = self.observationsDictToVector(
             self.observations)
@@ -2790,8 +2821,8 @@ class FloPyEnvSurrogate():
         self.observationsNormalized = {}
         self.observationsNormalized['particleCoords'] = divide(
             copy(self.particleCoords), self.minX + self.extentX)
-        self.observationsNormalized['heads'] = divide(self.observations['heads'],
-            self.maxH)
+        self.observationsNormalized['heads'] = divide(array(self.observations['heads']) - self.minH,
+            self.maxH - self.minH)
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
             self.wellCoords, self.minX + self.extentX)
@@ -2996,8 +3027,8 @@ class FloPyEnvSurrogate():
             copy(self.particleCoordsAfter), self.minX + self.extentX)
         # self.observationsNormalized['headsSampledField'] = divide(self.observations['headsSampledField'],
         #     self.maxH)
-        self.observationsNormalized['heads'] = divide(self.observations['heads'],
-            self.maxH)
+        self.observationsNormalized['heads'] = divide(array(self.observations['heads']) - self.minH,
+            self.maxH - self.minH)
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
             self.wellCoords, self.minX + self.extentX)
@@ -3169,7 +3200,8 @@ class FloPyArcade():
     Initializes a game agent and environment. Then allows to play the game.
     """
 
-    def __init__(self, agent=None, modelNameLoad=None, modelName='FloPyArcade',
+    def __init__(self, agent=None, modelType='mlp',
+        modelNameLoad=None, modelName='FloPyArcade',
         animationFolder=None, NAGENTSTEPS=200, PATHMF2005=None, PATHMP6=None,
         surrogateSimulator=None, flagSavePlot=False,
         flagManualControl=False, flagRender=False,
@@ -3186,6 +3218,7 @@ class FloPyArcade():
         self.MODELNAME = modelName if modelName is not None else modelNameLoad
         self.ANIMATIONFOLDER = animationFolder if modelName is not None else modelNameLoad
         self.agent = agent
+        self.modelType = modelType
         self.MODELNAMELOAD = modelNameLoad
         self.done = False
         self.keepTimeSeries = keepTimeSeries
@@ -3218,8 +3251,17 @@ class FloPyArcade():
 
         self.wrkspc = self.env.wrkspc
 
+        print('debug', self.modelType)
+        if self.modelType == 'mlp':
+            observations = self.env.observationsVectorNormalizedHeads
+            observations = array(observations).flatten()
+        elif self.modelType == 'conv':
+            observations = self.env.observationsVectorNormalizedHeads
+            observations = rollaxis(array(observations), 1)
+            observations = rollaxis(array(observations), 2)
+
         # self.env.stepInitial()
-        observations, self.done = self.env.observationsVectorNormalized, self.env.done
+        self.done = self.env.done
         if self.keepTimeSeries:
             # collecting time series of game metrices
             statesNormalized, stressesNormalized = [], []
@@ -3241,6 +3283,15 @@ class FloPyArcade():
 
         for self.timeSteps in range(self.NAGENTSTEPS):
             if not self.done:
+
+                if self.modelType == 'mlp':
+                    observations = self.env.observationsVectorNormalizedHeads
+                    observations = array(observations).flatten()
+                elif self.modelType == 'conv':
+                    observations = self.env.observationsVectorNormalizedHeads
+                    observations = rollaxis(array(observations), 1)
+                    observations = rollaxis(array(observations), 2)
+
                 # without user control input: generating random agent action
                 t0getAction = time()
                 if self.MANUALCONTROL:
@@ -3252,27 +3303,27 @@ class FloPyArcade():
                         action = agent.getAction(
                             'modelNameLoad',
                             modelNameLoad=self.MODELNAMELOAD,
-                            state=self.env.observationsVectorNormalized
+                            state=observations
                             )
                     elif self.agent is not None:
                         action = agent.getAction(
                             'model',
                             agent=self.agent,
-                            state=self.env.observationsVectorNormalized
+                            state=observations
                             )
 
                 # print('debug time getAction', time() - t0getAction)
                 # print('debug action', action)
 
                 t0step = time()
-                observations, reward, self.done, _ = self.env.step(
-                    # self.env.observationsVector, action, self.rewardTotal)
-                    self.env.observationsVectorNormalized, action, self.rewardTotal)
+                _, reward, self.done, _ = self.env.step(
+                    # self.env.observationsVectorNormalized, action, self.rewardTotal)
+                    observations, action, self.rewardTotal)
                 # print('debug time step', time() - t0step)
 
                 if self.keepTimeSeries:
                     # collecting time series of game metrices
-                    statesNormalized.append(self.env.observationsVectorNormalized)
+                    statesNormalized.append(observations)
                     stressesNormalized.append(self.env.stressesVectorNormalized)
                     rewards.append(reward)
 
