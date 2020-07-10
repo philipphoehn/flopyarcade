@@ -1202,6 +1202,7 @@ class FloPyEnv():
             self.state['actionValueY'] = self.actionValueY
 
         self.observations = {}
+        self.observationsNormalized, self.observationsNormalizedHeads = {}, {}
         self.observations['particleCoords'] = self.particleCoords
         self.observations['headsSampledField'] = self.heads[0::self.sampleHeadsEvery,
                                                 0::self.sampleHeadsEvery,
@@ -1227,39 +1228,43 @@ class FloPyEnv():
         self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=0.5*self.wellRadius)
         self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=1.5*self.wellRadius)
         self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=2.5*self.wellRadius)
-        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=0.5*self.wellRadius)
         self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=1.5*self.wellRadius)
         self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=2.0*self.wellRadius)
 
         self.observations['wellQ'] = self.wellQ
         self.observations['wellCoords'] = self.wellCoords
 
-        self.observationsNormalized = {}
         self.observationsNormalized['particleCoords'] = divide(
             copy(self.particleCoords), self.minX + self.extentX)
-        self.observationsNormalized['headsSampledField'] = divide(self.observations['headsSampledField'],
-            self.maxH)
-        self.observationsNormalized['heads'] = divide(self.observations['heads'],
-            self.maxH)
+        self.observationsNormalized['headsSampledField'] = divide(array(self.observations['headsSampledField']) - self.minH,
+            self.maxH - self.minH)
+        self.observationsNormalized['heads'] = divide(array(self.observations['heads']) - self.minH,
+            self.maxH - self.minH)
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
             self.wellCoords, self.minX + self.extentX)
+        self.observationsNormalizedHeads['heads'] = divide(array(self.heads) - self.minH,
+            self.maxH - self.minH)
 
         self.observationsVector = self.observationsDictToVector(
             self.observations)
         self.observationsVectorNormalized = self.observationsDictToVector(
             self.observationsNormalized)
+        self.observationsVectorNormalizedHeads = self.observationsDictToVector(
+            self.observationsNormalizedHeads)
 
         if self.ENVTYPE == '1':
-            self.stressesVectorNormalized = [self.actionValueSouth/self.maxH, self.actionValueNorth/self.maxH,
+            self.stressesVectorNormalized = [(self.actionValueSouth - self.minH)/(self.maxH - self.minH),
+                                             (self.actionValueNorth - self.minH)/(self.maxH - self.minH),
                                              self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
                                              self.wellY/(self.minX+self.extentX), self.wellZ/(self.minX+self.extentX)]
         elif self.ENVTYPE == '2':
-            self.stressesVectorNormalized = [self.actionValue,
+            self.stressesVectorNormalized = [(self.actionValue - self.minH)/(self.maxH - self.minH),
                                              self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
                                              self.wellY/(self.minX+self.extentX), self.wellZ/(self.minX+self.extentX)]
         elif self.ENVTYPE == '3':
-            self.stressesVectorNormalized = [self.headSpecSouth/self.maxH, self.headSpecNorth/self.maxH,
+            self.stressesVectorNormalized = [(self.headSpecSouth - self.minH)/(self.maxH - self.minH),
+                                             (self.headSpecNorth - self.minH)/(self.maxH - self.minH),
                                              self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
                                              self.wellY/(self.minX+self.extentX), self.wellZ/(self.minX+self.extentX)]
 
@@ -1323,7 +1328,7 @@ class FloPyEnv():
             self.state['actionValueY'] = self.actionValueY
 
         self.observations = {}
-        self.observationsNormalized = {}
+        self.observationsNormalized, self.observationsNormalizedHeads = {}, {}
         self.observations['particleCoords'] = self.particleCoords
         self.observations['headsSampledField'] = self.heads[0::self.sampleHeadsEvery,
                                                 0::self.sampleHeadsEvery,
@@ -1348,7 +1353,6 @@ class FloPyEnv():
         self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=0.5*self.wellRadius)
         self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=1.5*self.wellRadius)
         self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=2.5*self.wellRadius)
-        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=0.5*self.wellRadius)
         self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=1.5*self.wellRadius)
         self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=2.0*self.wellRadius)
 
@@ -1356,18 +1360,22 @@ class FloPyEnv():
         self.observations['wellCoords'] = self.wellCoords
         self.observationsNormalized['particleCoords'] = divide(
             copy(self.particleCoordsAfter), self.minX + self.extentX)
-        self.observationsNormalized['headsSampledField'] = divide(self.observations['headsSampledField'],
-            self.maxH)
-        self.observationsNormalized['heads'] = divide(self.observations['heads'],
-            self.maxH)
+        self.observationsNormalized['headsSampledField'] = divide(array(self.observations['headsSampledField']) - self.minH,
+            self.maxH - self.minH)
+        self.observationsNormalized['heads'] = divide(array(self.observations['heads']) - self.minH,
+            self.maxH - self.minH)
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
             self.wellCoords, self.minX + self.extentX)
+        self.observationsNormalizedHeads['heads'] = divide(array(self.heads) - self.minH,
+            self.maxH - self.minH)
 
         self.observationsVector = self.observationsDictToVector(
             self.observations)
         self.observationsVectorNormalized = self.observationsDictToVector(
             self.observationsNormalized)
+        self.observationsVectorNormalizedHeads = self.observationsDictToVector(
+            self.observationsNormalizedHeads)
 
         if self.observations['particleCoords'][0] >= self.extentX - self.dCol:
             self.success = True
@@ -1375,15 +1383,17 @@ class FloPyEnv():
             self.success = False
 
         if self.ENVTYPE == '1':
-            self.stressesVectorNormalized = [self.actionValueSouth/self.maxH, self.actionValueNorth/self.maxH,
+            self.stressesVectorNormalized = [(self.actionValueSouth - self.minH)/(self.maxH - self.minH),
+                                             (self.actionValueNorth - self.minH)/(self.maxH - self.minH),
                                              self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
                                              self.wellY/(self.minX+self.extentX), self.wellZ/(self.minX+self.extentX)]
         elif self.ENVTYPE == '2':
-            self.stressesVectorNormalized = [self.actionValue,
+            self.stressesVectorNormalized = [(self.actionValue - self.minH)/(self.maxH - self.minH),
                                              self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
                                              self.wellY/(self.minX+self.extentX), self.wellZ/(self.minX+self.extentX)]
         elif self.ENVTYPE == '3':
-            self.stressesVectorNormalized = [self.headSpecSouth/self.maxH, self.headSpecNorth/self.maxH,
+            self.stressesVectorNormalized = [(self.headSpecSouth - self.minH)/(self.maxH - self.minH),
+                                             (self.headSpecNorth - self.minH)/(self.maxH - self.minH),
                                              self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
                                              self.wellY/(self.minX+self.extentX), self.wellZ/(self.minX+self.extentX)]
 
@@ -2494,17 +2504,21 @@ class FloPyEnv():
     def observationsDictToVector(self, observationsDict):
         """Convert dictionary of observations to list."""
         observationsVector = []
-        for obs in observationsDict['particleCoords']:
-            observationsVector.append(obs)
+        if 'particleCoords' in observationsDict.keys():
+            for obs in observationsDict['particleCoords']:
+                observationsVector.append(obs)
         # full field not longer part of reported state
         # for obs in observationsDict['headsSampledField'].flatten().flatten():
         #     observationsVector.append(obs)
-        for obs in observationsDict['heads']:
-            observationsVector.append(obs)
+        if 'heads' in observationsDict.keys():
+            for obs in observationsDict['heads']:
+                observationsVector.append(obs)
         # print('len(observationsDict[heads])', len(observationsDict['heads']))
-        observationsVector.append(observationsDict['wellQ'])
-        for obs in observationsDict['wellCoords']:
-            observationsVector.append(obs)
+        if 'wellQ' in observationsDict.keys():
+            observationsVector.append(observationsDict['wellQ'])
+        if 'wellCoords' in observationsDict.keys():
+            for obs in observationsDict['wellCoords']:
+                observationsVector.append(obs)
         return observationsVector
 
     def observationsVectorToDict(self, observationsVector):
