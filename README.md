@@ -1,5 +1,8 @@
 ![](banner.png)
 
+[![Build Status](https://travis-ci.org/philipphoehn/FloPyArcade.svg?branch=master)
+[![Binder](https://mybinder.org/v2/gh/philipphoehn/FloPyArcade/master)
+
 FloPyArcade is a [MODFLOW](https://www.usgs.gov/mission-areas/water-resources/science/modflow-and-related-programs?qt-science_center_objects=0#qt-science_center_objects)-powered groundwater arcade-type game. It builds on functionality of the library [FloPy](https://github.com/modflowpy/flopy/), which is a wrapper adding pre- and postprocessing options around MODFLOW as well as its related software.
 
 Too late, with the peak of arcade games a few decades ago, you would think? Obviously. But they received renewed interest with the advent of [OpenAI Gym](https://gym.openai.com/) enabling to score past human performance with reinforcement learning. FloPyArcade offers a set of simple simulated groundwater flow environments, following the style of [environments in OpenAI Gym](https://gym.openai.com/envs/#atari). They allow to experiment with existing or new reinforcement learning algorithms to find neural networks that yield optimal control policies. Two common learning algorithms are readily available. Try and train for yourself. Adding your own simulation environment of arbitrary complexity with your own controls is possible.
