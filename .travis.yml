@@ -4,3 +4,7 @@ matrix:
   include:
   - env: RUN_TYPE=misc
     python: 3.7
+services:
+  - docker
+before_install:
+  - docker pull philipphoehn/FloPyArcade
