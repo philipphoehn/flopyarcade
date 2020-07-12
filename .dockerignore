@@ -1,7 +1,8 @@
-/dev
-/models
+/.git
 /__pycache__
+/dev
+/examples/.ipynb_checkpoints
+/models
 /runs
 /simulators
 /temp
-/.git
