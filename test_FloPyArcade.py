@@ -1,3 +1,6 @@
+require 'coveralls'
+Coveralls.wear!
+
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
