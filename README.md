@@ -1,7 +1,6 @@
 ![](banner.png)
 
 [![PythonInside](https://forthebadge.com/images/badges/made-with-python.svg)](https://www.python.org/)
-
 [![Build Status](https://travis-ci.org/philipphoehn/FloPyArcade.svg?branch=master)](https://travis-ci.org/philipphoehn/FloPyArcade)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/philipphoehn/FloPyArcade/master)
 
