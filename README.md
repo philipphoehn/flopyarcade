@@ -21,10 +21,10 @@ The objective is to safely transport a virtual particle as it follows advection 
 
 [![PythonInside](https://forthebadge.com/images/badges/made-with-python.svg)](https://www.python.org/)
 
-Given [TensorFlow](https://www.tensorflow.org/)'s current compatibility, this project works with [Python3](https://www.python.org/), tested up to version 3.7. 
+Given [TensorFlow](https://www.tensorflow.org/)'s current compatibility, this project works with [Python 3](https://www.python.org/), tested up to version 3.7. 
 The installation is a 2-step procedure:
 
-1) To install all dependencies, create a directory, clone the master branch into it and use the package manager [pip](https://pip.pypa.io/en/stable/) to install the required dependencies as provided:
+1) To install all dependencies, create a directory and clone the master branch into it. The package manager [pip](https://pip.pypa.io/en/stable/) will then install the required dependencies:
 
 ```bash
 git clone -b master https://github.com/philipphoehn/FloPyArcade.git .
@@ -80,7 +80,7 @@ python FloPyArcadeDQN.py
 python FloPyArcadeGeneticNetwork.py
 ```
 
-If using a Docker container, calling works analogously:
+If alternatively using a Docker container, calling works just similarly:
 
 ```bash
 docker run -p 81:81 flopyarcade python FloPyArcadePlay.py
