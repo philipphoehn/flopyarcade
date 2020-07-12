@@ -8,5 +8,3 @@ before_install:
 
 script:
   - docker run -p 81:81 flopyarcade/master python3 /FloPyArcade/test_FloPyArcade.py
-  - name: Coveralls GitHub Action
-    uses: coverallsapp/github-action@master
