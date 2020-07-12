@@ -10,7 +10,6 @@ from FloPyArcade import FloPyArcade, FloPyAgent
 FloPyAgent.suppressTensorFlowWarnings(FloPyAgent)
 from tensorflow.keras.models import load_model as TFload_model
 from matplotlib.pyplot import switch_backend
-switch_backend('TkAgg')
 
 # environment settings
 envSettings = {

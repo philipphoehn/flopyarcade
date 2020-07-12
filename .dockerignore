@@ -1,7 +1,7 @@
-dev/
-models/
-__pycache__/
-runs/
-simulators/
-temp/
-.git/
+/dev
+/models
+/__pycache__
+/runs
+/simulators
+/temp
+/.git
