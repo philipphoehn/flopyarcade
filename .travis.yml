@@ -4,4 +4,4 @@ services:
   - docker
 
 before_install:
-  - docker pull philipphoehn/flopyarcade
+  - docker pull flopyarcade/master
