@@ -1,7 +1,7 @@
+![](banner.png)
+
 [![Build Status](https://travis-ci.org/philipphoehn/FloPyArcade.svg?branch=master)](https://travis-ci.org/philipphoehn/FloPyArcade)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/philipphoehn/FloPyArcade/master)
-
-![](banner.png)
 
 FloPyArcade is a [MODFLOW](https://www.usgs.gov/mission-areas/water-resources/science/modflow-and-related-programs?qt-science_center_objects=0#qt-science_center_objects)-powered groundwater arcade-type game. It builds on functionality of the library [FloPy](https://github.com/modflowpy/flopy/), which is a wrapper adding pre- and postprocessing options around MODFLOW as well as its related software.
 
