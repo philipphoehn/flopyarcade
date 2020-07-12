@@ -5,3 +5,5 @@ services:
 
 before_install:
   - docker build -t flopyarcade/master --no-cache -f Dockerfile .
+
+script: docker run -p 81:81 flopyarcade python3 /FloPyArcade/test_FloPyArcade.py
