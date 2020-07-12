@@ -21,7 +21,7 @@ RUN python3 /usr/local/lib/python3.7/site-packages/pymake/examples/make_mf2005.p
 RUN python3 /usr/local/lib/python3.7/site-packages/pymake/examples/make_mp6.py
 WORKDIR /FloPyArcade
 
-# removing spamming print state in FloPy
+# removing spamming print state in FloPy (https://wiki.ubuntuusers.de/sed/)
 # RUN python3 -c "import subprocess; subprocess.call(['sed', '-i', '/.*write(line).*/write(str())', '/usr/local/lib/python3.7/site-packages/flopy/mbase.py'])"
 
 # removing temporarily required system programs

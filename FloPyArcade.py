@@ -27,7 +27,10 @@ from os import environ, listdir, makedirs, remove, rmdir
 from os.path import abspath, dirname, exists, join
 from platform import system
 from sys import modules
+if 'ipykernel' in modules:
+    from IPython import display
 from time import sleep, time
+
 
 # suppressing TensorFlow output on import, except fatal errors
 # https://stackoverflow.com/questions/40426502/is-there-a-way-to-suppress-the-messages-tensorflow-prints
@@ -2315,9 +2318,15 @@ class FloPyEnv():
         if self.flagFromIPythonNotebook:
             # changing plot updates of IPython notebooks
             # currently unsolved: need to capture key stroke here as well
-            from IPython import display
-            display.clear_output(wait=True)
-            display.display(self.fig)
+            # display.clear_output(wait=True)
+            # display.display(self.fig)
+            # sleep(5)            
+            # waitforbuttonpress(timeout=self.MANUALCONTROLTIME)
+            # display.clear_output(wait=True)
+            self.fig.canvas.mpl_connect(
+                'key_press_event', self.captureKeyPress)
+            show(block=False)
+            waitforbuttonpress(timeout=self.MANUALCONTROLTIME)
         elif not self.flagFromIPythonNotebook:
             self.fig.canvas.mpl_connect(
                 'key_press_event', self.captureKeyPress)
