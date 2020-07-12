@@ -25,7 +25,7 @@ WORKDIR /FloPyArcade
 # RUN python3 -c "import subprocess; subprocess.call(['sed', '-i', '/.*write(line).*/write(str())', '/usr/local/lib/python3.7/site-packages/flopy/mbase.py'])"
 
 # removing temporarily required system programs
-RUN apt-get remove -y gfortran git
+RUN apt-get remove -y git
 RUN apt autoremove -y
 
 EXPOSE 81

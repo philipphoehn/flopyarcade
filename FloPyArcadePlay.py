@@ -10,12 +10,8 @@ from FloPyArcade import FloPyArcade, FloPyAgent
 FloPyAgent.suppressTensorFlowWarnings(FloPyAgent)
 from tensorflow.keras.models import load_model as TFload_model
 from matplotlib.pyplot import switch_backend
-<<<<<<< HEAD
 try: switch_backend('TkAgg')
 except: print('Could not import TkAgg as a backend. Visualization may not show.')
-
-=======
->>>>>>> docker
 
 # environment settings
 envSettings = {

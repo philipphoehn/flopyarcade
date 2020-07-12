@@ -2309,6 +2309,7 @@ class FloPyEnv():
             # determining if called from IPython notebook
             if 'ipykernel' in modules:
                 self.flagFromIPythonNotebook = True
+                print('debug from iPython')
             else:
                 self.flagFromIPythonNotebook = False
 
