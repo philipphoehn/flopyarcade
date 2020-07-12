@@ -1,6 +1,10 @@
 language: python
-os: linux
-matrix:
-  include:
-  - env: RUN_TYPE=misc
-    python: 3.7
+
+services:
+  - docker
+
+before_install:
+  - docker build -t flopyarcade/master --no-cache -f Dockerfile .
+
+script:
+  - docker run -p 81:81 flopyarcade/master python3 /FloPyArcade/test_FloPyArcade.py
