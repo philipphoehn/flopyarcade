@@ -4,4 +4,4 @@ services:
   - docker
 
 before_install:
-  - docker pull flopyarcade/master
+  - docker build -t flopyarcade/master --no-cache -f Dockerfile .
