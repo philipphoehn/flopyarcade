@@ -40,7 +40,7 @@ python examples/make_mf2005.py
 python examples/make_modpath6.py
 ```
 
-With dependencies on compiled simulators, deployment is recommended and easier in a Docker container.. Create a directory first, navigate to it and build the docker:
+Alternatively: With dependencies on compiled simulators, deployment is recommended and easier in a Docker container. Create a directory first, navigate to it and build the container:
 
 ```bash
 docker build -t flopyarcade --no-cache -f Dockerfile .
@@ -78,6 +78,12 @@ python FloPyArcadeDQN.py
 
 ```bash
 python FloPyArcadeGeneticNetwork.py
+```
+
+If using a Docker container, calling works analogously:
+
+```bash
+docker run -p 81:81 flopyarcade python FloPyArcadePlay.py
 ```
 
 Modify settings for the environment and hyperparameters for the provided optimization algorithms at the top of the files. The underlying policy model can easily be exchanged with arbitrary [Keras](https://keras.io/)-based models by replacing the createNNModel function within the FloPyAgent class in FloPyArcade.py. A complete description of current variables and more documentation is planned.
