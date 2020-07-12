@@ -21,11 +21,13 @@ The objective is to safely transport a virtual particle as it follows advection 
 
 [![PythonInside](https://forthebadge.com/images/badges/made-with-python.svg)](https://www.python.org/)
 
-Given [TensorFlow](https://www.tensorflow.org/)'s current compatibility, this project works with [Python3](https://www.python.org/) up to version 3.7. The installation is a 2-step procedure:
+Given [TensorFlow](https://www.tensorflow.org/)'s current compatibility, this project works with [Python3](https://www.python.org/), tested up to version 3.7. 
+The installation is a 2-step procedure:
 
-1) To install all dependencies, change directory to the main project directory and use the package manager [pip](https://pip.pypa.io/en/stable/) to install the required dependencies as provided:
+1) To install all dependencies, create a directory, clone the master branch into it and use the package manager [pip](https://pip.pypa.io/en/stable/) to install the required dependencies as provided:
 
 ```bash
+git clone -b master https://github.com/philipphoehn/FloPyArcade.git .
 pip install -r requirements.txt
 ```
 
@@ -33,8 +35,15 @@ pip install -r requirements.txt
 
 ```bash
 pip install https://github.com/modflowpy/pymake/zipball/master
-python make_mf2005.py
-python make_modpath6.py
+git clone https://github.com/modflowpy/pymake.git .
+python examples/make_mf2005.py
+python examples/make_modpath6.py
+```
+
+With dependencies on compiled simulators, deployment is recommended and easier in a Docker container.. Create a directory first, navigate to it and build the docker:
+
+```bash
+docker build -t flopyarcade --no-cache -f Dockerfile .
 ```
 
 ## Environments
