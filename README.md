@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/philipphoehn/FloPyArcade.svg?branch=master)](https://travis-ci.org/philipphoehn/FloPyArcade)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/philipphoehn/FloPyArcade/master)
-[![Made with Python](https://img.shields.io/badge/made%20with-python-green.svg?style=flat-square)](https://www.python.org/)
+[![Made with Python](https://img.shields.io/badge/made%20with-python-blue.svg?style=flat)](https://www.python.org/)
 [![GitHub version](https://badge.fury.io/gh/philipphoehn%2Fflopyarcade.svg)](https://badge.fury.io/gh/philipphoehn%2Fflopyarcade)
 
 
