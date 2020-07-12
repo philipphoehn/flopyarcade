@@ -2319,13 +2319,14 @@ class FloPyEnv():
             # changing plot updates of IPython notebooks
             # currently unsolved: need to capture key stroke here as well
             # display.clear_output(wait=True)
-            display.display(self.fig)
+            # display.display(self.fig)
             # sleep(5)            
             # waitforbuttonpress(timeout=self.MANUALCONTROLTIME)
-            display.clear_output(wait=True)
-            # show(block=False)
+            # display.clear_output(wait=True)
             self.fig.canvas.mpl_connect(
                 'key_press_event', self.captureKeyPress)
+            show(block=False)
+            waitforbuttonpress(timeout=self.MANUALCONTROLTIME)
         elif not self.flagFromIPythonNotebook:
             self.fig.canvas.mpl_connect(
                 'key_press_event', self.captureKeyPress)
