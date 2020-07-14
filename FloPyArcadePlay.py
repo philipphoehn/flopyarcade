@@ -15,14 +15,14 @@ except: print('Could not import TkAgg as a backend. Visualization may not show.'
 
 # environment settings
 envSettings = {
-    'ENVTYPE': '3',
-    'MODELNAMELOAD': 'test',
+    'ENVTYPE': '4',
+    'MODELNAMELOAD': None,
     'MODELNAME': None,
     'PATHMF2005': None,
     'PATHMP6': None,
     'SURROGATESIMULATOR': None,
     'SAVEPLOT': False,
-    'MANUALCONTROL': True,
+    'MANUALCONTROL': False,
     'RENDER': True,
     'ENVSEED': 1,
     'NLAY': 1,

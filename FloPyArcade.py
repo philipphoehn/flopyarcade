@@ -15,6 +15,7 @@ from flopy.modpath import Modpath, ModpathBas
 from flopy.plot import PlotMapView
 from flopy.utils import CellBudgetFile, HeadFile, PathlineFile
 from imageio import get_writer, imread
+from itertools import product
 from matplotlib.cm import get_cmap
 from matplotlib.pyplot import Circle, close, figure, pause, show
 from matplotlib.pyplot import waitforbuttonpress
@@ -1167,13 +1168,21 @@ class FloPyEnv():
         # this needs to be transformed, yet not understood why
         self.particleCoords[0] = self.extentX - self.particleCoords[0]
 
-        if self.ENVTYPE == '3':
+        if self.ENVTYPE == '3' or self.ENVTYPE == '4':
             self.headSpecNorth = uniform(self.minH, self.maxH)
             self.headSpecSouth = uniform(self.minH, self.maxH)
         self.initializeModel()
-        self.initializeWellRate(self.minQ, self.maxQ)
+
+        self.wellX, self.wellY, self.wellZ, self.wellCoords, self.wellQ = self.initializeWellRate(self.minQ, self.maxQ)
+        if self.ENVTYPE == '4':
+            self.wellX1, self.wellY1, self.wellZ1, self.wellCoords1, self.wellQ1 = self.initializeWellRate(self.minQhelper, self.maxQhelper)
+            self.wellX2, self.wellY2, self.wellZ2, self.wellCoords2, self.wellQ2 = self.initializeWellRate(self.minQhelper, self.maxQhelper)
+            self.wellX3, self.wellY3, self.wellZ3, self.wellCoords3, self.wellQ3 = self.initializeWellRate(self.minQhelper, self.maxQhelper)
+            self.wellX4, self.wellY4, self.wellZ4, self.wellCoords4, self.wellQ4 = self.initializeWellRate(self.minQhelper, self.maxQhelper)
+            self.wellX5, self.wellY5, self.wellZ5, self.wellCoords5, self.wellQ5 = self.initializeWellRate(self.minQhelper, self.maxQhelper)
+
         self.initializeWell()
-        if self.ENVTYPE == '3':
+        if self.ENVTYPE == '3' or self.ENVTYPE == '4':
             self.initializeAction()
         # initializing trajectories container for potential plotting
         self.trajectories = {}
@@ -1203,6 +1212,17 @@ class FloPyEnv():
         elif self.ENVTYPE == '3':
             self.state['actionValueX'] = self.actionValueX
             self.state['actionValueY'] = self.actionValueY
+        elif self.ENVTYPE == '4':
+            self.state['actionValueX1'] = self.actionValueX1
+            self.state['actionValueY1'] = self.actionValueY1
+            self.state['actionValueX2'] = self.actionValueX2
+            self.state['actionValueY2'] = self.actionValueY2
+            self.state['actionValueX3'] = self.actionValueX3
+            self.state['actionValueY3'] = self.actionValueY3
+            self.state['actionValueX4'] = self.actionValueX4
+            self.state['actionValueY4'] = self.actionValueY4
+            self.state['actionValueX5'] = self.actionValueX5
+            self.state['actionValueY5'] = self.actionValueY5
 
         self.observations = {}
         self.observationsNormalized, self.observationsNormalizedHeads = {}, {}
@@ -1223,7 +1243,7 @@ class FloPyEnv():
         elif self.ENVTYPE == '2':
             # this can cause issues with unit testing, as model expects different input 
             self.observations['heads'] = [self.actionValue]
-        elif self.ENVTYPE == '3':
+        elif self.ENVTYPE == '3' or self.ENVTYPE == '4':
             self.observations['heads'] = [self.headSpecNorth,
                                           self.headSpecSouth]
         # note: it sees the surrounding heads of the particle and the well
@@ -1236,7 +1256,17 @@ class FloPyEnv():
 
         self.observations['wellQ'] = self.wellQ
         self.observations['wellCoords'] = self.wellCoords
-
+        if self.ENVTYPE == '4':
+            self.observations['wellQ1'] = self.wellQ1
+            self.observations['wellQ2'] = self.wellQ2
+            self.observations['wellQ3'] = self.wellQ3
+            self.observations['wellQ4'] = self.wellQ4
+            self.observations['wellQ5'] = self.wellQ5
+            self.observations['wellCoords1'] = self.wellCoords1
+            self.observations['wellCoords2'] = self.wellCoords2
+            self.observations['wellCoords3'] = self.wellCoords3
+            self.observations['wellCoords4'] = self.wellCoords4
+            self.observations['wellCoords5'] = self.wellCoords5
         self.observationsNormalized['particleCoords'] = divide(
             copy(self.particleCoords), self.minX + self.extentX)
         self.observationsNormalized['headsSampledField'] = divide(array(self.observations['headsSampledField']) - self.minH,
@@ -1246,6 +1276,22 @@ class FloPyEnv():
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
             self.wellCoords, self.minX + self.extentX)
+        if self.ENVTYPE == '4':
+            self.observationsNormalized['wellQ1'] = self.wellQ1 / self.minQhelper
+            self.observationsNormalized['wellCoords1'] = divide(
+                self.wellCoords1, self.minX + self.extentX)
+            self.observationsNormalized['wellQ2'] = self.wellQ2 / self.minQhelper
+            self.observationsNormalized['wellCoords2'] = divide(
+                self.wellCoords2, self.minX + self.extentX)
+            self.observationsNormalized['wellQ3'] = self.wellQ3 / self.minQhelper
+            self.observationsNormalized['wellCoords3'] = divide(
+                self.wellCoords3, self.minX + self.extentX)
+            self.observationsNormalized['wellQ4'] = self.wellQ4 / self.minQhelper
+            self.observationsNormalized['wellCoords4'] = divide(
+                self.wellCoords4, self.minX + self.extentX)
+            self.observationsNormalized['wellQ5'] = self.wellQ5 / self.minQhelper
+            self.observationsNormalized['wellCoords5'] = divide(
+                self.wellCoords5, self.minX + self.extentX)
         self.observationsNormalizedHeads['heads'] = divide(array(self.heads) - self.minH,
             self.maxH - self.minH)
 
@@ -1256,6 +1302,7 @@ class FloPyEnv():
         self.observationsVectorNormalizedHeads = self.observationsDictToVector(
             self.observationsNormalizedHeads)
 
+        # alternatively normalize well z coordinate to vertical extent
         if self.ENVTYPE == '1':
             self.stressesVectorNormalized = [(self.actionValueSouth - self.minH)/(self.maxH - self.minH),
                                              (self.actionValueNorth - self.minH)/(self.maxH - self.minH),
@@ -1270,6 +1317,19 @@ class FloPyEnv():
                                              (self.headSpecNorth - self.minH)/(self.maxH - self.minH),
                                              self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
                                              self.wellY/(self.minX+self.extentX), self.wellZ/(self.minX+self.extentX)]
+        elif self.ENVTYPE == '4':
+            self.stressesVectorNormalized = [(self.headSpecSouth - self.minH)/(self.maxH - self.minH),
+                                             (self.headSpecNorth - self.minH)/(self.maxH - self.minH),
+                                             self.wellQ1/self.minQ, self.wellX1/(self.minX+self.extentX),
+                                             self.wellY1/(self.minX+self.extentX), self.wellZ1/(self.minX+self.extentX),
+                                             self.wellQ2/self.minQ, self.wellX2/(self.minX+self.extentX),
+                                             self.wellY2/(self.minX+self.extentX), self.wellZ2/(self.minX+self.extentX),
+                                             self.wellQ3/self.minQ, self.wellX3/(self.minX+self.extentX),
+                                             self.wellY3/(self.minX+self.extentX), self.wellZ3/(self.minX+self.extentX),
+                                             self.wellQ4/self.minQ, self.wellX4/(self.minX+self.extentX),
+                                             self.wellY4/(self.minX+self.extentX), self.wellZ4/(self.minX+self.extentX),
+                                             self.wellQ5/self.minQ, self.wellX5/(self.minX+self.extentX),
+                                             self.wellY5/(self.minX+self.extentX), self.wellZ5/(self.minX+self.extentX)]
 
         self.timeStepDuration = []
 
@@ -1287,13 +1347,7 @@ class FloPyEnv():
         self.periodSteadiness = False
         t0total = time()
 
-        if self.ENVTYPE == '1':
-            self.getActionValue(action)
-        elif self.ENVTYPE == '2':
-            self.getActionValue(action)
-        elif self.ENVTYPE == '3':
-            self.getActionValue(action)
-
+        self.getActionValue(action)
         observations = self.observationsVectorToDict(observations)
         self.particleCoordsBefore = observations['particleCoords']
 
@@ -1311,7 +1365,6 @@ class FloPyEnv():
         self.updateModel()
         self.updateWellRate()
         self.updateWell()
-
         self.runMODFLOW()
         self.runMODPATH()
         self.evaluateParticleTracking()
@@ -1329,6 +1382,17 @@ class FloPyEnv():
         elif self.ENVTYPE == '3':
             self.state['actionValueX'] = self.actionValueX
             self.state['actionValueY'] = self.actionValueY
+        elif self.ENVTYPE == '4':
+            self.state['actionValueX1'] = self.actionValueX1
+            self.state['actionValueY1'] = self.actionValueY1
+            self.state['actionValueX2'] = self.actionValueX2
+            self.state['actionValueY2'] = self.actionValueY2
+            self.state['actionValueX3'] = self.actionValueX3
+            self.state['actionValueY3'] = self.actionValueY3
+            self.state['actionValueX4'] = self.actionValueX4
+            self.state['actionValueY4'] = self.actionValueY4
+            self.state['actionValueX5'] = self.actionValueX5
+            self.state['actionValueY5'] = self.actionValueY5
 
         self.observations = {}
         self.observationsNormalized, self.observationsNormalizedHeads = {}, {}
@@ -1348,7 +1412,7 @@ class FloPyEnv():
         elif self.ENVTYPE == '2':
             # this can cause issues with unit testing, as model expects different input 
             self.observations['heads'] = [self.actionValue]
-        elif self.ENVTYPE == '3':
+        elif self.ENVTYPE == '3' or self.ENVTYPE == '4':
             self.observations['heads'] = [self.headSpecNorth,
                                           self.headSpecSouth]
         # note: it sees the surrounding heads of the particle and the well
@@ -1361,6 +1425,17 @@ class FloPyEnv():
 
         self.observations['wellQ'] = self.wellQ
         self.observations['wellCoords'] = self.wellCoords
+        if self.ENVTYPE == '4':
+            self.observations['wellQ1'] = self.wellQ1
+            self.observations['wellQ2'] = self.wellQ2
+            self.observations['wellQ3'] = self.wellQ3
+            self.observations['wellQ4'] = self.wellQ4
+            self.observations['wellQ5'] = self.wellQ5
+            self.observations['wellCoords1'] = self.wellCoords1
+            self.observations['wellCoords2'] = self.wellCoords2
+            self.observations['wellCoords3'] = self.wellCoords3
+            self.observations['wellCoords4'] = self.wellCoords4
+            self.observations['wellCoords5'] = self.wellCoords5
         self.observationsNormalized['particleCoords'] = divide(
             copy(self.particleCoordsAfter), self.minX + self.extentX)
         self.observationsNormalized['headsSampledField'] = divide(array(self.observations['headsSampledField']) - self.minH,
@@ -1370,6 +1445,22 @@ class FloPyEnv():
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
             self.wellCoords, self.minX + self.extentX)
+        if self.ENVTYPE == '4':
+            self.observationsNormalized['wellQ1'] = self.wellQ1 / self.minQhelper
+            self.observationsNormalized['wellCoords1'] = divide(
+                self.wellCoords1, self.minX + self.extentX)
+            self.observationsNormalized['wellQ2'] = self.wellQ2 / self.minQhelper
+            self.observationsNormalized['wellCoords2'] = divide(
+                self.wellCoords2, self.minX + self.extentX)
+            self.observationsNormalized['wellQ3'] = self.wellQ3 / self.minQhelper
+            self.observationsNormalized['wellCoords3'] = divide(
+                self.wellCoords3, self.minX + self.extentX)
+            self.observationsNormalized['wellQ4'] = self.wellQ4 / self.minQhelper
+            self.observationsNormalized['wellCoords4'] = divide(
+                self.wellCoords4, self.minX + self.extentX)
+            self.observationsNormalized['wellQ5'] = self.wellQ5 / self.minQhelper
+            self.observationsNormalized['wellCoords5'] = divide(
+                self.wellCoords5, self.minX + self.extentX)
         self.observationsNormalizedHeads['heads'] = divide(array(self.heads) - self.minH,
             self.maxH - self.minH)
 
@@ -1399,6 +1490,19 @@ class FloPyEnv():
                                              (self.headSpecNorth - self.minH)/(self.maxH - self.minH),
                                              self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
                                              self.wellY/(self.minX+self.extentX), self.wellZ/(self.minX+self.extentX)]
+        elif self.ENVTYPE == '4':
+            self.stressesVectorNormalized = [(self.headSpecSouth - self.minH)/(self.maxH - self.minH),
+                                             (self.headSpecNorth - self.minH)/(self.maxH - self.minH),
+                                             self.wellQ1/self.minQ, self.wellX1/(self.minX+self.extentX),
+                                             self.wellY1/(self.minX+self.extentX), self.wellZ1/(self.minX+self.extentX),
+                                             self.wellQ2/self.minQ, self.wellX2/(self.minX+self.extentX),
+                                             self.wellY2/(self.minX+self.extentX), self.wellZ2/(self.minX+self.extentX),
+                                             self.wellQ3/self.minQ, self.wellX3/(self.minX+self.extentX),
+                                             self.wellY3/(self.minX+self.extentX), self.wellZ3/(self.minX+self.extentX),
+                                             self.wellQ4/self.minQ, self.wellX4/(self.minX+self.extentX),
+                                             self.wellY4/(self.minX+self.extentX), self.wellZ4/(self.minX+self.extentX),
+                                             self.wellQ5/self.minQ, self.wellX5/(self.minX+self.extentX),
+                                             self.wellY5/(self.minX+self.extentX), self.wellZ5/(self.minX+self.extentX)]
 
         # checking if particle is within horizontal distance of well
         dx = self.particleCoords[0] - self.wellCoords[0]
@@ -1408,6 +1512,17 @@ class FloPyEnv():
         if self.distanceWellParticle <= self.wellRadius:
             self.done = True
             self.reward = (self.rewardCurrent) * (-1.0)
+        if self.ENVTYPE == '4':
+            coords = [self.wellCoords1, self.wellCoords2, self.wellCoords3,
+                      self.wellCoords4, self.wellCoords5]
+            for c in coords:
+                dx = self.particleCoords[0] - c[0]
+                # why would the correction for Y coordinate be necessary
+                dy = self.extentY - self.particleCoords[1] - c[1]
+                self.distanceWellParticle = sqrt(dx**2 + dy**2)
+                if self.distanceWellParticle <= self.wellRadius:
+                    self.done = True
+                    self.reward = (self.rewardCurrent) * (-1.0)
 
         # checking if particle has reached eastern boundary
         if self.particleCoordsAfter[0] >= self.minX + self.extentX - self.dCol:
@@ -1418,7 +1533,7 @@ class FloPyEnv():
             self.done = True
             self.reward = (self.rewardCurrent) * (-1.0)
 
-        if self.ENVTYPE == '1' or self.ENVTYPE == '3':
+        if self.ENVTYPE == '1' or self.ENVTYPE == '3' or self.ENVTYPE == '4':
             # checking if particle has reached northern boundary
             if self.particleCoordsAfter[1] >= self.minY + self.extentY - self.dRow:
             # if self.particleCoordsAfter[1] >= self.minY + \
@@ -1473,8 +1588,9 @@ class FloPyEnv():
         # self.nLay, self.nRow, self.nCol = 1, 800, 800
         self.headSpecWest, self.headSpecEast = 60.0, 56.0
         self.minQ = -2000.0
-        # self.minQ = -3000.0
         self.maxQ = -500.0
+        self.minQhelper = -200.0
+        self.maxQhelper = -5.0
         self.wellSpawnBufferXWest, self.wellSpawnBufferXEast = 50.0, 20.0
         self.wellSpawnBufferY = 20.0
         self.periods, self.periodLength, self.periodSteps = 1, 1.0, 11
@@ -1506,6 +1622,14 @@ class FloPyEnv():
             self.minH = 56.0
             self.maxH = 60.0
             self.actionSpace = ['up', 'keep', 'down', 'left', 'right']
+            self.actionRange = 10.0
+            self.deviationPenaltyFactor = 10.0
+        elif self.ENVTYPE == '4':
+            self.minH = 56.0
+            self.maxH = 60.0
+            self.actionSpaceIndividual = ['up', 'keep', 'down', 'left', 'right']
+            # inspired by https://stackoverflow.com/questions/42591283/all-possible-combinations-of-a-set-as-a-list-of-strings
+            self.actionSpace = list(''.join(map(str, comb)) for comb in product(self.actionSpaceIndividual, repeat=5))
             self.actionRange = 10.0
             self.deviationPenaltyFactor = 10.0
 
@@ -1560,6 +1684,18 @@ class FloPyEnv():
             self.action = 'keep'
             self.actionValueX = self.wellX
             self.actionValueY = self.wellY
+        elif self.ENVTYPE == '4':
+            self.action = 'keepkeepkeepkeepkeep'
+            self.actionValueX1 = self.wellX1
+            self.actionValueY1 = self.wellY1
+            self.actionValueX2 = self.wellX2
+            self.actionValueY2 = self.wellY2
+            self.actionValueX3 = self.wellX3
+            self.actionValueY3 = self.wellY3
+            self.actionValueX4 = self.wellX4
+            self.actionValueY4 = self.wellY4
+            self.actionValueX5 = self.wellX5
+            self.actionValueY5 = self.wellY5
 
     def initializeParticle(self):
         """Initialize spawn of particle randomly.
@@ -1588,11 +1724,13 @@ class FloPyEnv():
         xmax = self.extentX - self.wellSpawnBufferXEast
         ymin = 0.0 + self.wellSpawnBufferY
         ymax = self.extentY - self.wellSpawnBufferY
-        self.wellX = uniform(xmin, xmax)
-        self.wellY = uniform(ymin, ymax)
-        self.wellZ = self.zTop
-        self.wellCoords = [self.wellX, self.wellY, self.wellZ]
-        self.wellQ = uniform(minQ, maxQ)
+        wellX = uniform(xmin, xmax)
+        wellY = uniform(ymin, ymax)
+        wellZ = self.zTop
+        wellCoords = [wellX, wellY, wellZ]
+        wellQ = uniform(minQ, maxQ)
+
+        return wellX, wellY, wellZ, wellCoords, wellQ
 
     def initializeWell(self):
         """Implement initialized well as model feature."""
@@ -1601,11 +1739,29 @@ class FloPyEnv():
                                                 self.wellZ]
                                                )
         self.wellCellLayer, self.wellCellColumn, self.wellCellRow = l, c, r
+        if self.ENVTYPE == '4':
+            l1, c1, r1 = self.cellInfoFromCoordinates([self.wellX1,
+                self.wellY1, self.wellZ1])
+            l2, c2, r2 = self.cellInfoFromCoordinates([self.wellX2,
+                self.wellY2, self.wellZ2])
+            l3, c3, r3 = self.cellInfoFromCoordinates([self.wellX3,
+                self.wellY3, self.wellZ3])
+            l4, c4, r4 = self.cellInfoFromCoordinates([self.wellX4,
+                self.wellY4, self.wellZ4])
+            l5, c5, r5 = self.cellInfoFromCoordinates([self.wellX5,
+                self.wellY5, self.wellZ5])
 
         # print('debug well cells', self.wellCellLayer, self.wellCellColumn, self.wellCellRow)
         # adding WEL package to the MODFLOW model
-        lrcq = {0: [[l-1, r - 1, c - 1, self.wellQ]]}
-        ModflowWel(self.mf, stress_period_data=lrcq)
+        lrcq = {0: [[l-1, r-1, c-1, self.wellQ]]}
+        if self.ENVTYPE == '4':
+            lrcq = {0: [[l-1, r-1, c-1, self.wellQ],
+                        [l1-1, r1-1, c1-1, self.wellQ1],
+                        [l2-1, r2-1, c2-1, self.wellQ2],
+                        [l3-1, r3-1, c3-1, self.wellQ3],
+                        [l4-1, r4-1, c4-1, self.wellQ4],
+                        [l5-1, r5-1, c5-1, self.wellQ5]]}
+        self.wel = ModflowWel(self.mf, stress_period_data=lrcq)
 
     def initializeState(self, state):
         """Initialize aquifer hydraulic head with state from previous step."""
@@ -1625,23 +1781,53 @@ class FloPyEnv():
             self.wellX = self.actionValueX
             self.wellY = self.actionValueY
             self.wellZ = self.wellZ
-
             self.wellCoords = [self.wellX, self.wellY, self.wellZ]
 
-            l, c, r = self.cellInfoFromCoordinates([self.wellX,
-                                                    self.wellY,
-                                                    self.wellZ]
-                                                   )
-            self.wellCellLayer = l
-            self.wellCellColumn = c
-            self.wellCellRow = r
+        if self.ENVTYPE == '4':
+            # updating well location from action taken
+            self.wellX1, self.wellX2 = self.actionValueX1, self.actionValueX2
+            self.wellX3, self.wellX4 = self.actionValueX3, self.actionValueX4
+            self.wellX5 = self.actionValueX5
+            self.wellY1, self.wellY2 = self.actionValueY1, self.actionValueY2
+            self.wellY3, self.wellY4 = self.actionValueY3, self.actionValueY4
+            self.wellY5 = self.actionValueY5
+            self.wellZ1, self.wellZ2 = self.wellZ1, self.wellZ2
+            self.wellZ3, self.wellZ4 = self.wellZ3, self.wellZ4
+            self.wellZ5 = self.wellZ5
+            self.wellCoords1 = [self.wellX1, self.wellY1, self.wellZ1]
+            self.wellCoords2 = [self.wellX2, self.wellY2, self.wellZ2]
+            self.wellCoords3 = [self.wellX3, self.wellY3, self.wellZ3]
+            self.wellCoords4 = [self.wellX4, self.wellY4, self.wellZ4]
+            self.wellCoords5 = [self.wellX5, self.wellY5, self.wellZ5]
+            print('debug self.wellX3', self.wellX3, self.actionValueX3)
 
     def updateWell(self):
         # adding WEL package to the MODFLOW model
-        lrcq = {0: [[self.wellCellLayer - 1,
-                     self.wellCellRow - 1,
-                     self.wellCellColumn - 1,
-                     self.wellQ]]}
+        l, c, r = self.cellInfoFromCoordinates([self.wellX,
+            self.wellY, self.wellZ])
+        self.wellCellLayer = l
+        self.wellCellColumn = c
+        self.wellCellRow = r
+        if self.ENVTYPE == '4':
+            l1, c1, r1 = self.cellInfoFromCoordinates([self.wellX1,
+                self.wellY1, self.wellZ1])
+            l2, c2, r2 = self.cellInfoFromCoordinates([self.wellX2,
+                self.wellY2, self.wellZ2])
+            l3, c3, r3 = self.cellInfoFromCoordinates([self.wellX3,
+                self.wellY3, self.wellZ3])
+            l4, c4, r4 = self.cellInfoFromCoordinates([self.wellX4,
+                self.wellY4, self.wellZ4])
+            l5, c5, r5 = self.cellInfoFromCoordinates([self.wellX5,
+                self.wellY5, self.wellZ5])
+
+        lrcq = {0: [[l-1, r-1, c-1, self.wellQ]]}
+        if self.ENVTYPE == '4':
+            lrcq = {0: [[l-1, r-1, c-1, self.wellQ],
+                        [l1-1, r1-1, c1-1, self.wellQ1],
+                        [l2-1, r2-1, c2-1, self.wellQ2],
+                        [l3-1, r3-1, c3-1, self.wellQ3],
+                        [l4-1, r4-1, c4-1, self.wellQ4],
+                        [l5-1, r5-1, c5-1, self.wellQ5]]}
         self.wel = ModflowWel(self.mf, stress_period_data=lrcq)
 
     def constructingModel(self):
@@ -1691,44 +1877,9 @@ class FloPyEnv():
                                   itmuni=4, # time units: days
                                   lenuni=2 # time units: meters
                                   )
-        # print('constructing Model', self.periodSteps, self.periodLength, self.periodSteadiness)
-
-        # defining variables for the BAS package
-        # self.ibound = ones((self.nLay, self.nRow, self.nCol), dtype=int32)
-        # if self.ENVTYPE == '1' or self.ENVTYPE == '3':
-        #     self.ibound[:, 5:-5, 0] = -1
-        #     self.ibound[:, 5:-5, -1] = -1
-        #     self.ibound[:, -1, 5:-5] = -1
-        #     self.ibound[:, 0, 5:-5] = -1
-        # elif self.ENVTYPE == '2':
-        #     self.ibound[:, :-5, 0] = -1
-        #     self.ibound[:, :-5, -1] = -1
-        #     self.ibound[:, -1, 5:-5] = -1
-
-        # if self.periodSteadiness:
-        #     self.strt = ones((self.nLay, self.nRow, self.nCol),
-        #                      dtype=float32
-        #                      )
-        # elif self.periodSteadiness == False:
-        #     self.strt = self.headsPrev
-
-        # if self.ENVTYPE == '1':
-        #     self.strt[:, 5:-5, 0] = self.headSpecWest
-        #     self.strt[:, 5:-5, -1] = self.headSpecEast
-        #     self.strt[:, -1, 5:-5] = self.actionValueSouth
-        #     self.strt[:, 0, 5:-5] = self.actionValueNorth
-        # elif self.ENVTYPE == '2':
-        #     self.strt[:, :-5, 0] = self.headSpecWest
-        #     self.strt[:, :-5, -1] = self.headSpecEast
-        #     self.strt[:, -1, 5:-5] = self.actionValue
-        # elif self.ENVTYPE == '3':
-        #     self.strt[:, 5:-5, 0] = self.headSpecWest
-        #     self.strt[:, 5:-5, -1] = self.headSpecEast
-        #     self.strt[:, -1, 5:-5] = self.headSpecSouth
-        #     self.strt[:, 0, 5:-5] = self.headSpecNorth
 
         self.ibound = ones((self.nLay, self.nRow, self.nCol), dtype=int32)
-        if self.ENVTYPE == '1' or self.ENVTYPE == '3':
+        if self.ENVTYPE == '1' or self.ENVTYPE == '3' or self.ENVTYPE == '4':
             self.ibound[:, 1:-1, 0] = -1
             self.ibound[:, 1:-1, -1] = -1
             self.ibound[:, 0, :] = -1
@@ -1754,7 +1905,7 @@ class FloPyEnv():
             self.strt[:, :-1, 0] = self.headSpecWest
             self.strt[:, :-1, -1] = self.headSpecEast
             self.strt[:, -1, :] = self.actionValue
-        elif self.ENVTYPE == '3':
+        elif self.ENVTYPE == '3' or self.ENVTYPE == '4':
             self.strt[:, 1:-1, 0] = self.headSpecWest
             self.strt[:, 1:-1, -1] = self.headSpecEast
             self.strt[:, 0, :] = self.headSpecSouth
@@ -2177,13 +2328,25 @@ class FloPyEnv():
 
     def renderWellSafetyZone(self, zorder=3):
         """Plot well safety zone."""
-        wellBufferCircle = Circle((self.wellX, self.extentY - self.wellY),
+        wellBufferCircle = Circle((self.wellCoords[0], self.extentY - self.wellCoords[1]),
                                   self.wellRadius,
                                   edgecolor='r', facecolor=None, fill=False,
                                   zorder=zorder, alpha=1.0, lw=2.0,
                                   label='protection zone'
                                   )
         self.ax2.add_artist(wellBufferCircle)
+
+        if self.ENVTYPE == '4':
+            wellCoords = [self.wellCoords1, self.wellCoords2, self.wellCoords3,
+                          self.wellCoords4, self.wellCoords5]
+            for c in wellCoords:
+                wellBufferCircle = Circle((c[0], self.extentY - c[1]),
+                                          self.wellRadius,
+                                          edgecolor='r', facecolor=None, fill=False,
+                                          zorder=zorder, alpha=1.0, lw=2.0,
+                                          label='protection zone'
+                                          )
+                self.ax2.add_artist(wellBufferCircle)
 
     def renderTextOnCanvasPumpingRate(self, zorder=10):
         """Plot pumping rate on figure."""
@@ -2264,7 +2427,7 @@ class FloPyEnv():
         """Remove axes ticks from figure."""
         self.ax.set_xticks([]), self.ax.set_yticks([])
         self.ax2.set_xticks([]), self.ax2.set_yticks([])
-        if self.ENVTYPE == '1' or self.ENVTYPE == '3':
+        if self.ENVTYPE == '1' or self.ENVTYPE == '3' or self.ENVTYPE == '4':
             self.ax3.set_xticks([]), self.ax3.set_yticks([])
 
     def renderSetAxesLimits(self):
@@ -2294,7 +2457,7 @@ class FloPyEnv():
             self.ax.set_xlabel('water level:   ' + str('%.2f' %
                                                        self.actionValue) 
                                                        + ' m', fontsize=12)
-        elif self.ENVTYPE == '3':
+        elif self.ENVTYPE == '3' or self.ENVTYPE == '4':
             self.ax.set_xlabel('water level:   ' + 
                                str('%.2f' %
                                    self.headSpecNorth) +
@@ -2363,7 +2526,7 @@ class FloPyEnv():
             self.ax2.cla()
             self.ax2.clear()
         except: pass
-        if self.ENVTYPE == '1' or self.ENVTYPE == '3':
+        if self.ENVTYPE == '1' or self.ENVTYPE == '3' or self.ENVTYPE == '4':
             try:
                 self.ax3.cla()
                 self.ax3.clear()
@@ -2510,6 +2673,107 @@ class FloPyEnv():
                 if self.wellY < self.extentY - self.dRow - self.actionRange:
                     self.actionValueY = self.wellY + self.actionRange
 
+        elif self.ENVTYPE == '4':
+            # splitting string of actions into list actions
+            actionList = []
+            while len(action) != 0:
+                for action_ in self.actionSpaceIndividual:
+                    if action[:len(action_)] == action_:
+                        actionList.append(action_)
+                        action = action[len(action_):]
+
+            # wellXs = [self.wellY1, self.wellY2, self.wellY3, self.wellY4,
+            #           self.wellY5]
+            # wellYs = [self.wellY1, self.wellY2, self.wellY3, self.wellY4,
+            #           self.wellY5]
+            # actionValueXs = [self.actionValueX1, self.actionValueX2,
+            #                  self.actionValueX3, self.actionValueX4,
+            #                  self.actionValueX5]
+            # actionValueYs = [self.actionValueY1, self.actionValueY2,
+            #                  self.actionValueY3, self.actionValueY4,
+            #                  self.actionValueY5]
+            # for i in range(len(actionList)):
+            #     if actionList[i] == 'up':
+            #         if wellYs[i] > self.dRow + self.actionRange:
+            #             actionValueYs[i] = wellYs[i] - self.actionRange
+            #     elif actionList[i] == 'left':
+            #         if wellXs[i] > self.dCol + self.actionRange:
+            #             print(actionList[i], actionValueXs[i], self.actionValueX1)
+            #             actionValueXs[i] = wellXs[i] - self.actionRange
+            #             print(actionList[i], actionValueXs[i], self.actionValueX1)
+            #             print('---')
+            #     elif actionList[i] == 'right':
+            #         if wellXs[i] < self.extentX - self.dCol - self.actionRange:
+            #             actionValueXs[i] = wellXs[i] + self.actionRange
+            #     elif actionList[i] == 'down':
+            #         if wellYs[i] < self.extentY - self.dRow - self.actionRange:
+            #             actionValueYs[i] = wellYs[i] + self.actionRange
+
+            if actionList[0] == 'up':
+                if self.wellY1 > self.dRow + self.actionRange:
+                    self.actionValueY1 = self.wellY1 - self.actionRange
+            elif actionList[0] == 'left':
+                if self.wellX1 > self.dCol + self.actionRange:
+                    self.actionValueX1 = self.wellX1 - self.actionRange
+            elif actionList[0] == 'right':
+                if self.wellX1 < self.extentX - self.dCol - self.actionRange:
+                    self.actionValueX1 = self.wellX1 + self.actionRange
+            elif actionList[0] == 'down':
+                if self.wellY1 < self.extentY - self.dRow - self.actionRange:
+                    self.actionValueY1 = self.wellY1 + self.actionRange
+
+            if actionList[1] == 'up':
+                if self.wellY2 > self.dRow + self.actionRange:
+                    self.actionValueY2 = self.wellY2 - self.actionRange
+            elif actionList[1] == 'left':
+                if self.wellX2 > self.dCol + self.actionRange:
+                    self.actionValueX2 = self.wellX2 - self.actionRange
+            elif actionList[1] == 'right':
+                if self.wellX2 < self.extentX - self.dCol - self.actionRange:
+                    self.actionValueX2 = self.wellX2 + self.actionRange
+            elif actionList[1] == 'down':
+                if self.wellY2 < self.extentY - self.dRow - self.actionRange:
+                    self.actionValueY2 = self.wellY2 + self.actionRange
+
+            if actionList[2] == 'up':
+                if self.wellY3 > self.dRow + self.actionRange:
+                    self.actionValueY3 = self.wellY3 - self.actionRange
+            elif actionList[2] == 'left':
+                if self.wellX3 > self.dCol + self.actionRange:
+                    self.actionValueX3 = self.wellX3 - self.actionRange
+            elif actionList[2] == 'right':
+                if self.wellX3 < self.extentX - self.dCol - self.actionRange:
+                    self.actionValueX3 = self.wellX3 + self.actionRange
+            elif actionList[2] == 'down':
+                if self.wellY3 < self.extentY - self.dRow - self.actionRange:
+                    self.actionValueY3 = self.wellY3 + self.actionRange
+
+            if actionList[3] == 'up':
+                if self.wellY4 > self.dRow + self.actionRange:
+                    self.actionValueY4 = self.wellY4 - self.actionRange
+            elif actionList[3] == 'left':
+                if self.wellX4 > self.dCol + self.actionRange:
+                    self.actionValueX4 = self.wellX4 - self.actionRange
+            elif actionList[3] == 'right':
+                if self.wellX4 < self.extentX - self.dCol - self.actionRange:
+                    self.actionValueX4 = self.wellX4 + self.actionRange
+            elif actionList[3] == 'down':
+                if self.wellY4 < self.extentY - self.dRow - self.actionRange:
+                    self.actionValueY4 = self.wellY4 + self.actionRange
+
+            if actionList[4] == 'up':
+                if self.wellY5 > self.dRow + self.actionRange:
+                    self.actionValueY5 = self.wellY5 - self.actionRange
+            elif actionList[4] == 'left':
+                if self.wellX5 > self.dCol + self.actionRange:
+                    self.actionValueX5 = self.wellX5 - self.actionRange
+            elif actionList[4] == 'right':
+                if self.wellX5 < self.extentX - self.dCol - self.actionRange:
+                    self.actionValueX5 = self.wellX5 + self.actionRange
+            elif actionList[4] == 'down':
+                if self.wellY5 < self.extentY - self.dRow - self.actionRange:
+                    self.actionValueY5 = self.wellY5 + self.actionRange
+    
     def observationsDictToVector(self, observationsDict):
         """Convert dictionary of observations to list."""
         observationsVector = []
