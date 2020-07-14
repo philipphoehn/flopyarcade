@@ -1589,8 +1589,8 @@ class FloPyEnv():
         self.headSpecWest, self.headSpecEast = 60.0, 56.0
         self.minQ = -2000.0
         self.maxQ = -500.0
-        self.minQhelper = -200.0
-        self.maxQhelper = -5.0
+        self.minQhelper = -500.0
+        self.maxQhelper = -50.0
         self.wellSpawnBufferXWest, self.wellSpawnBufferXEast = 50.0, 20.0
         self.wellSpawnBufferY = 20.0
         self.periods, self.periodLength, self.periodSteps = 1, 1.0, 11
@@ -1799,7 +1799,6 @@ class FloPyEnv():
             self.wellCoords3 = [self.wellX3, self.wellY3, self.wellZ3]
             self.wellCoords4 = [self.wellX4, self.wellY4, self.wellZ4]
             self.wellCoords5 = [self.wellX5, self.wellY5, self.wellZ5]
-            print('debug self.wellX3', self.wellX3, self.actionValueX3)
 
     def updateWell(self):
         # adding WEL package to the MODFLOW model
@@ -2231,8 +2230,8 @@ class FloPyEnv():
             [self.particleCoords[0], self.particleCoords[1], self.particleCoords[2]])
         hParticle = self.heads[lParticle-1, rParticle-1, cParticle-1]
         
-        print('debug head', self.timeStep, hParticle)
-        print('particle coordinates', self.particleCoords)
+        # print('debug head', self.timeStep, hParticle)
+        # print('particle coordinates', self.particleCoords)
 
         if self.timeStep == 0:
             self.ax.scatter(self.minX, self.particleCoords[1], lw=2, c='red',
