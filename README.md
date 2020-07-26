@@ -24,8 +24,6 @@ The objective is to safely transport a virtual particle as it follows advection 
 
 ## Installation
 
-[![PythonInside](https://forthebadge.com/images/badges/made-with-python.svg)](https://www.python.org/)
-
 Given [TensorFlow](https://www.tensorflow.org/)'s current compatibility, this project works with [Python 3](https://www.python.org/), tested up to version 3.7. 
 The installation is a 2-step procedure:
 
