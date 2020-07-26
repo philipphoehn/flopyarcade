@@ -22,7 +22,7 @@ The objective is to safely transport a virtual particle as it follows advection 
 
 ## Game (compiled for Windows)
 
-Easily test yourself in steering the existing environments on Windows and skip installation by downloading these versions:
+Easily test yourself: Steer the existing environments on Windows. Skip installation by downloading these versions:
 
 [![TestOnwinENV3](examples/downloadENV1.png)](https://ipcjxoaf.livedrive.com/item/84e3e23874804621ad6d088e7775a0c8)
 [![TestOnwinENV2](examples/downloadENV2.png)](https://ipcjxoaf.livedrive.com/item/eeae78b5bfd64d83a19ba96d9aaecceb)
