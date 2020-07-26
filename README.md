@@ -20,9 +20,9 @@ Try yourself:
 
 The objective is to safely transport a virtual particle as it follows advection while travelling from a random location at the western boundary to the eastern boundary. You have to protect a well from capturing this particle. The well is randomly located with a random pumping rate. Furthermore, the particle must not flow into cells of specified head in the north and south. The controls you have depend on the environment, but are in total the up/down/left/right key. They allow you to either adjust specified head(s) or the well location. The highest score is achieved if the particle stays on the indicated shortest route, or as close as possible to it.
 
-## Game only (Windows only)
+## Game (compiled for Windows)
 
-Easily test yourself in steering the existing environments and skip installation on Windows by downloading these compiled versions:
+Easily test yourself in steering the existing environments on Windows and skip installation by downloading these versions:
 
 [![TestOnwinENV3](examples/downloadENV1.png)](https://ipcjxoaf.livedrive.com/item/84e3e23874804621ad6d088e7775a0c8)
 [![TestOnwinENV2](examples/downloadENV2.png)](https://ipcjxoaf.livedrive.com/item/eeae78b5bfd64d83a19ba96d9aaecceb)
