@@ -1981,7 +1981,7 @@ class FloPyEnv():
             initWithSolution=initWithSolution)
         close()
 
-    def renderVISPY(self):
+    def render(self):
         """Plot the simulation state at the current timestep.
 
         Displaying and/or saving the visualisation. The active display can take
@@ -2144,7 +2144,7 @@ class FloPyEnv():
 
         # eventually quit()
 
-    def render(self):
+    def render2d(self):
         """Plot the simulation state at the current timestep.
 
         Displaying and/or saving the visualisation. The active display can take

@@ -15,15 +15,13 @@ switch_backend('TkAgg')
 # environment settings
 envSettings = {
     'ENVTYPE': '3',
-    'MODELNAMELOAD': 'gs-e3s1n20000e100g10000av1st200mpr1e-0mpo3e-3ar250x5v1relubn1_res100_ns-ev1e10000_gen000001_avg__734.5',
-    # 'MODELNAMELOAD': None,
+    'MODELNAMELOAD': None,
     'MODELNAME': None,
     'PATHMF2005': None,
     'PATHMP6': None,
     'SURROGATESIMULATOR': None,
-    # 'SURROGATESIMULATOR': 'env3_surrogateSimulator_ar3x500lr1e-04ep10000pat10',
     'SAVEPLOT': False,
-    'MANUALCONTROL': False,
+    'MANUALCONTROL': True,
     'RENDER': True,
     'ENVSEED': 3,
     'NLAY': 1,
@@ -39,9 +37,6 @@ gameSettings = {
 
 
 def main(envSettings, gameSettings):
-
-    # modelSteady = TFload_model('C:\\FloPyArcade\\dev\\surrogateModelInitialState_ar3x100lr6e-04bs32784ep10000pat10.h5')
-    # modelTransient = TFload_model('C:\\FloPyArcade\\dev\\surrogateModelNewwith-1States_ar3x500lr6e-04bs32784ep10000pat10.h5')
 
     game = FloPyArcade(
         modelNameLoad=envSettings['MODELNAMELOAD'],
