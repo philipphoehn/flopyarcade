@@ -14,3 +14,4 @@ script:
 
 after_success:
   - docker run -p 81:81 flopyarcade/master codecov --token="5243a254-feca-4875-ba8d-b09deb44981d"
+  - docker run -p 81:81 flopyarcade/master bash <(curl -s https://codecov.io/bash)
