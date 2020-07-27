@@ -24,7 +24,11 @@ envSettings = {
     'RENDEREVERY': 1000,                        # integer defining runs displayed
     'BESTAGENTANIMATION': True,                 # boolean defining whether to save animation of best agent per generation
     'KEEPMODELHISTORY': True,                   # boolean defining whether to keep all agents throughout evolution
+<<<<<<< HEAD
     'RESUME': False,                             # boolean defining whether to keep all agents throughout evolution
+=======
+    'RESUME': False,                            # boolean defining whether to keep all agents throughout evolution
+>>>>>>> f8aabf65e92fb433e44242bec393e0d158964f31
     'NLAY': 1,                                  # integer defining numbers of model layers
     'NROW': 100,                                # integer defining grid rows
     'NCOL': 100                                 # integer defining grid columns
