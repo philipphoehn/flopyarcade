@@ -8,3 +8,9 @@ before_install:
 
 script:
   - docker run -p 81:81 flopyarcade/master python3 /FloPyArcade/test_FloPyArcade.py
+
+install:
+  - docker run -p 81:81 flopyarcade/master python3 -m pip install codecov coverage
+
+after_success:
+  - docker run -p 81:81 flopyarcade/master codecov --token="5243a254-feca-4875-ba8d-b09deb44981d"
