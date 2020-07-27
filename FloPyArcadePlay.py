@@ -15,7 +15,7 @@ from numpy.random import randint
 
 # environment settings
 envSettings = {
-    'ENVTYPE': '4',
+    'ENVTYPE': '3',
     'MODELNAMELOAD': 'test',
     'MODELNAME': None,
     'PATHMF2005': None,
@@ -59,7 +59,7 @@ def main(envSettings, gameSettings):
         import time
         t0 = time.time()
         randomInteger = randint(100000000, size=1)[0]
-        game.play(
+        game.playApp(
             ENVTYPE=envSettings['ENVTYPE'],
             seed=randomInteger
             )

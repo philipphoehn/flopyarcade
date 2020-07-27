@@ -2775,33 +2775,6 @@ class FloPyEnv():
                         actionList.append(action_)
                         action = action[len(action_):]
 
-            # wellXs = [self.wellY1, self.wellY2, self.wellY3, self.wellY4,
-            #           self.wellY5]
-            # wellYs = [self.wellY1, self.wellY2, self.wellY3, self.wellY4,
-            #           self.wellY5]
-            # actionValueXs = [self.actionValueX1, self.actionValueX2,
-            #                  self.actionValueX3, self.actionValueX4,
-            #                  self.actionValueX5]
-            # actionValueYs = [self.actionValueY1, self.actionValueY2,
-            #                  self.actionValueY3, self.actionValueY4,
-            #                  self.actionValueY5]
-            # for i in range(len(actionList)):
-            #     if actionList[i] == 'up':
-            #         if wellYs[i] > self.dRow + self.actionRange:
-            #             actionValueYs[i] = wellYs[i] - self.actionRange
-            #     elif actionList[i] == 'left':
-            #         if wellXs[i] > self.dCol + self.actionRange:
-            #             print(actionList[i], actionValueXs[i], self.actionValueX1)
-            #             actionValueXs[i] = wellXs[i] - self.actionRange
-            #             print(actionList[i], actionValueXs[i], self.actionValueX1)
-            #             print('---')
-            #     elif actionList[i] == 'right':
-            #         if wellXs[i] < self.extentX - self.dCol - self.actionRange:
-            #             actionValueXs[i] = wellXs[i] + self.actionRange
-            #     elif actionList[i] == 'down':
-            #         if wellYs[i] < self.extentY - self.dRow - self.actionRange:
-            #             actionValueYs[i] = wellYs[i] + self.actionRange
-
             if actionList[0] == 'up':
                 if self.wellY1 > self.dRow + self.actionRange:
                     self.actionValueY1 = self.wellY1 - self.actionRange
@@ -3084,300 +3057,305 @@ class FloPyArcade():
 
         self.runtime = (time() - t0) / 60.
 
-    # def playApp(self, env=None, ENVTYPE='1', seed=None):
-    #     """Play an instance of the Flopy arcade game."""
+    def playApp(self, env=None, ENVTYPE='1', seed=None):
+        """Play an instance of the Flopy arcade game."""
 
-    #     from numpy import linspace, multiply
-    #     from numpy import random
 
-    #     from kivy.config import Config
-    #     # get native screen size and adapt to it?
-    #     # Config.set('graphics', 'fullscreen', 'auto')
-    #     # Config.set('graphics', 'window_state', 'maximized')
+        # python -m pip install kivy
+        # python -m pip install kivy-garden
+        # garden install matplotlib
 
-    #     from matplotlib.pyplot import subplots
-    #     from matplotlib import get_backend
+        from numpy import linspace, multiply
+        from numpy import random
 
-    #     from matplotlib.pyplot import switch_backend
-    #     try: switch_backend('module://kivy.garden.matplotlib.backend_kivy')
-    #     except: print('Could not import kivy-garden as a backend. Visualization may not show.')
+        from kivy.config import Config
+        # get native screen size and adapt to it?
+        # Config.set('graphics', 'fullscreen', 'auto')
+        # Config.set('graphics', 'window_state', 'maximized')
 
-    #     from kivy.app import App
-    #     from kivy.clock import Clock
+        from matplotlib.pyplot import subplots
+        from matplotlib import get_backend
+
+        from matplotlib.pyplot import switch_backend
+        try: switch_backend('module://kivy.garden.matplotlib.backend_kivy')
+        except: print('Could not import kivy-garden as a backend. Visualization may not show.')
+
+        from kivy.app import App
+        from kivy.clock import Clock
         
-    #     from kivy.uix.button import Button
+        from kivy.uix.button import Button
 
-    #     from kivy.core.window import Keyboard
-    #     from kivy.uix.boxlayout import BoxLayout
-    #     from kivy.core.window import Window
-    #     Window.size = (700, 700)
-    #     from kivy.garden.matplotlib.backend_kivyagg import FigureCanvasKivyAgg
-    #     # from kivy.garden.matplotlib.backend_kivyagg import FigureCanvas
+        from kivy.core.window import Keyboard
+        from kivy.uix.boxlayout import BoxLayout
+        from kivy.core.window import Window
+        Window.size = (700, 700)
+        from kivy.garden.matplotlib.backend_kivyagg import FigureCanvasKivyAgg
+        # from kivy.garden.matplotlib.backend_kivyagg import FigureCanvas
 
-    #     from kivy.uix.label import Label
+        from kivy.uix.label import Label
 
-    #     class FloPyArcadeApp(App):
+        class FloPyArcadeApp(App):
 
-    #         # def __init__(self):
-    #         #     pass
+            # def __init__(self):
+            #     pass
 
-    #         def __init__(self):
-    #             # App.__init__(self)
-    #             # super(App, self).__init__()
-    #             super(App, self).__init__() 
-    #             self.keyboard = Keyboard()
-    #             self.box = BoxLayout()
-    #             self.iUpdate = 1
+            def __init__(self):
+                # App.__init__(self)
+                # super(App, self).__init__()
+                super(App, self).__init__() 
+                self.keyboard = Keyboard()
+                self.box = BoxLayout()
+                self.iUpdate = 1
 
-    #         def build(app, game):
+            def build(app, game):
 
-    #             # creating the environment
-    #             if env is None:
-    #                 if game.SURROGATESIMULATOR is None:
-    #                     game.env = FloPyEnv(ENVTYPE, game.PATHMF2005, game.PATHMP6,
-    #                         _seed=seed,
-    #                         MODELNAME=game.MODELNAME if not None else 'FloPyArcade',
-    #                         ANIMATIONFOLDER=game.ANIMATIONFOLDER if not None else 'FloPyArcade',
-    #                         flagSavePlot=game.SAVEPLOT,
-    #                         flagManualControl=game.MANUALCONTROL,
-    #                         flagRender=game.RENDER,
-    #                         NAGENTSTEPS=game.NAGENTSTEPS,
-    #                         nLay=game.nLay,
-    #                         nRow=game.nRow,
-    #                         nCol=game.nCol)
-    #                 elif game.SURROGATESIMULATOR is not None:
-    #                     game.env = FloPyEnvSurrogate(game.SURROGATESIMULATOR, ENVTYPE,
-    #                         MODELNAME=game.MODELNAME if not None else 'FloPyArcade',
-    #                         _seed=seed,
-    #                         NAGENTSTEPS=game.NAGENTSTEPS)
+                # creating the environment
+                if env is None:
+                    if game.SURROGATESIMULATOR is None:
+                        game.env = FloPyEnv(ENVTYPE, game.PATHMF2005, game.PATHMP6,
+                            _seed=seed,
+                            MODELNAME=game.MODELNAME if not None else 'FloPyArcade',
+                            ANIMATIONFOLDER=game.ANIMATIONFOLDER if not None else 'FloPyArcade',
+                            flagSavePlot=game.SAVEPLOT,
+                            flagManualControl=game.MANUALCONTROL,
+                            flagRender=game.RENDER,
+                            NAGENTSTEPS=game.NAGENTSTEPS,
+                            nLay=game.nLay,
+                            nRow=game.nRow,
+                            nCol=game.nCol)
+                    elif game.SURROGATESIMULATOR is not None:
+                        game.env = FloPyEnvSurrogate(game.SURROGATESIMULATOR, ENVTYPE,
+                            MODELNAME=game.MODELNAME if not None else 'FloPyArcade',
+                            _seed=seed,
+                            NAGENTSTEPS=game.NAGENTSTEPS)
 
-    #             app.wrkspc = game.env.wrkspc
+                app.wrkspc = game.env.wrkspc
 
-    #             # game.env.stepInitial()
-    #             observations, game.done = game.env.observationsVectorNormalized, game.env.done
-    #             if game.keepTimeSeries:
-    #                 # collecting time series of game metrices
-    #                 statesNormalized, stressesNormalized = [], []
-    #                 rewards, doneFlags, successFlags = [], [], []
-    #                 heads, actions, wellCoords, trajectories = [], [], [], []
-    #                 statesNormalized.append(observations)
-    #                 rewards.append(0.)
-    #                 doneFlags.append(game.done)
-    #                 successFlags.append(-1)
-    #                 heads.append(game.env.heads)
-    #                 wellCoords.append(game.env.wellCoords)
+                # game.env.stepInitial()
+                observations, game.done = game.env.observationsVectorNormalized, game.env.done
+                if game.keepTimeSeries:
+                    # collecting time series of game metrices
+                    statesNormalized, stressesNormalized = [], []
+                    rewards, doneFlags, successFlags = [], [], []
+                    heads, actions, wellCoords, trajectories = [], [], [], []
+                    statesNormalized.append(observations)
+                    rewards.append(0.)
+                    doneFlags.append(game.done)
+                    successFlags.append(-1)
+                    heads.append(game.env.heads)
+                    wellCoords.append(game.env.wellCoords)
 
-    #             game.actionRange, game.actionSpace = game.env.actionRange, game.env.actionSpace
-    #             app.agent = FloPyAgent(actionSpace=game.actionSpace)
+                game.actionRange, game.actionSpace = game.env.actionRange, game.env.actionSpace
+                app.agent = FloPyAgent(actionSpace=game.actionSpace)
 
-    #             # game loop
-    #             game.success = False
-    #             game.rewardTotal = 0.
-
-
-    #             # Clock.unschedule(app.update)
+                # game loop
+                game.success = False
+                game.rewardTotal = 0.
 
 
-    #             trigger = Clock.create_trigger(app.update)
-    #             # result = Clock.schedule_interval(app.update, 2.)
-
-    #             print('debug BACKEND', get_backend())
-    #             app.fig, app.ax = subplots(1, 2)
-    #             app.ax[0].set_ylim(-500, 500)
-    #             app.ax[1].set_ylim(-500, 500)
-    #             app.randomNumbers1 = random.randint(100, size=(100))
-    #             app.randomNumbers2 = random.randint(100, size=(100))
-    #             app.plot1 = app.ax[0].scatter(linspace(1, len(app.randomNumbers1), len(app.randomNumbers1)), app.randomNumbers1, c='blue')
-    #             app.plot2 = app.ax[1].scatter(linspace(1, len(app.randomNumbers2), len(app.randomNumbers2)), app.randomNumbers2, c='blue')
-    #             # app.fig.canvas.draw()
+                # Clock.unschedule(app.update)
 
 
-    #             # app.fig = game.env.render(returnFigure=True)
-    #             print('debug fig', app.fig)
-    #             print('debug fig', app.plot1)
-    #             app.canvas = app.box.add_widget(FigureCanvasKivyAgg(app.fig))
+                trigger = Clock.create_trigger(app.update)
+                # result = Clock.schedule_interval(app.update, 2.)
 
-    #             app.btn1 = Button(text ='Page 1')
-
-    #             app.canvas2 = app.box.add_widget(app.btn1)
-    #             # print('debug app.canvas', app.canvas1)
-    #             print('debug BACKEND', get_backend())
-
-    #             # https://stackoverflow.com/questions/54252521/python-to-kv-lang-figurecanvaskivyagg
-    #             # app.canvas = app.box.add_widget(FigureCanvasKivyAgg(app.fig))
-    #             Window.bind(on_keyboard=app.on_keyboard_down)
-
-    #             # print('debug dir', dir(app.box))
-    #             print('debug dir', app.box)
-    #             # print('parent window', app.box.get_root_window())
-
-    #             for timeStep in range(game.env.NAGENTSTEPS):
-    #                 # print('debug timeStep', timeStep)
-
-    #                 tr = trigger()
-    #                 # print(tr)
+                print('debug BACKEND', get_backend())
+                app.fig, app.ax = subplots(1, 2)
+                app.ax[0].set_ylim(-500, 500)
+                app.ax[1].set_ylim(-500, 500)
+                app.randomNumbers1 = random.randint(100, size=(100))
+                app.randomNumbers2 = random.randint(100, size=(100))
+                app.plot1 = app.ax[0].scatter(linspace(1, len(app.randomNumbers1), len(app.randomNumbers1)), app.randomNumbers1, c='blue')
+                app.plot2 = app.ax[1].scatter(linspace(1, len(app.randomNumbers2), len(app.randomNumbers2)), app.randomNumbers2, c='blue')
+                # app.fig.canvas.draw()
 
 
-    #             # for timeStep in range(game.env.NAGENTSTEPS):
+                # app.fig = game.env.render(returnFigure=True)
+                print('debug fig', app.fig)
+                print('debug fig', app.plot1)
+                app.canvas = app.box.add_widget(FigureCanvasKivyAgg(app.fig))
 
-    #             #     # print('debug game.env.mf', game.env.mf)
-    #             #     # print(game.env.timeSteps)
+                app.btn1 = Button(text ='Page 1')
 
-    #             #     if not game.env.done:
-    #             #        # Clock.schedule_interval(app.update(game), game.env.MANUALCONTROLTIME)
-    #             #        app.update(game)
+                app.canvas2 = app.box.add_widget(app.btn1)
+                # print('debug app.canvas', app.canvas1)
+                print('debug BACKEND', get_backend())
 
-    #             #     print('done', game.env.done)
+                # https://stackoverflow.com/questions/54252521/python-to-kv-lang-figurecanvaskivyagg
+                # app.canvas = app.box.add_widget(FigureCanvasKivyAgg(app.fig))
+                Window.bind(on_keyboard=app.on_keyboard_down)
 
-    #             #     if game.env.done or timeStep == game.NAGENTSTEPS-1:
+                # print('debug dir', dir(app.box))
+                print('debug dir', app.box)
+                # print('parent window', app.box.get_root_window())
 
-    #             #         if game.MANUALCONTROL:
-    #             #             # freezing screen shortly when game is done
-    #             #             sleep(5)
+                for timeStep in range(game.env.NAGENTSTEPS):
+                    # print('debug timeStep', timeStep)
 
-    #             #         if game.keepTimeSeries:
-    #             #             game.timeSeries = {}
-    #             #             game.timeSeries['statesNormalized'] = statesNormalized
-    #             #             game.timeSeries['stressesNormalized'] = stressesNormalized
-    #             #             game.timeSeries['rewards'] = rewards
-    #             #             game.timeSeries['doneFlags'] = doneFlags
-    #             #             game.timeSeries['successFlags'] = successFlags
-
-    #             #             game.timeSeries['heads'] = heads
-    #             #             game.timeSeries['wellCoords'] = wellCoords
-    #             #             game.timeSeries['actions'] = actions
-    #             #             game.timeSeries['trajectories'] = game.env.trajectories
-
-    #             #         game.success = game.env.success
-    #             #         if game.env.success:
-    #             #             successString = 'won'
-    #             #         elif game.env.success == False:
-    #             #             successString = 'lost'
-    #             #             # total loss of reward if entering well protection zone
-    #             #             game.rewardTotal = 0.0
-
-    #             #         if game.SURROGATESIMULATOR is not None:
-    #             #             stringSurrogate = 'surrogate '
-    #             #             # print('surrogate')
-    #             #         else:
-    #             #             stringSurrogate = ''
-    #             #             # print('not surrogate')
-    #             #         print('The ' + stringSurrogate + 'game was ' +
-    #             #               successString +
-    #             #               ' after ' +
-    #             #               str(timeStep) +
-    #             #               ' timesteps with a reward of ' +
-    #             #               str(int(game.rewardTotal)) +
-    #             #               ' points.')
-    #             #         break
-
-    #             return app.canvas
-
-    #         def update(app):
-
-    #             print('debug self.iUpdate', app.iUpdate)
-
-    #             app.randomNumbers1 = random.randint(100, size=(100))
-    #             app.randomNumbers2 = random.randint(100, size=(100))
-    #             app.plot1.remove()
-    #             app.plot2.remove()
-    #             app.plot1 = app.ax[0].scatter(linspace(1, len(app.randomNumbers1), len(app.randomNumbers1)), app.randomNumbers1, c='blue')
-    #             app.plot2 = app.ax[1].scatter(linspace(1, len(app.randomNumbers2), len(app.randomNumbers2)), app.randomNumbers2, c='blue')
-    #             app.fig.canvas.draw()
-
-    #             if app.iUpdate > 200:
-    #                 Clock.unschedule(app.update)
-    #             app.iUpdate += 1
-
-    #         # def update(app, game, *args):
-
-    #         #     print('debug self.iUpdate', app.iUpdate)
-
-    #         #     # without user control input: generating random agent action
-    #         #     t0getAction = time()
-    #         #     if game.MANUALCONTROL:
+                    tr = trigger()
+                    # print(tr)
 
 
+                # for timeStep in range(game.env.NAGENTSTEPS):
 
-    #         #         # needs update
-    #         #         # needs to take from kivy app
-    #         #         action = app.agent.getAction('manual', game.env.keyPressed)
+                #     # print('debug game.env.mf', game.env.mf)
+                #     # print(game.env.timeSteps)
+
+                #     if not game.env.done:
+                #        # Clock.schedule_interval(app.update(game), game.env.MANUALCONTROLTIME)
+                #        app.update(game)
+
+                #     print('done', game.env.done)
+
+                #     if game.env.done or timeStep == game.NAGENTSTEPS-1:
+
+                #         if game.MANUALCONTROL:
+                #             # freezing screen shortly when game is done
+                #             sleep(5)
+
+                #         if game.keepTimeSeries:
+                #             game.timeSeries = {}
+                #             game.timeSeries['statesNormalized'] = statesNormalized
+                #             game.timeSeries['stressesNormalized'] = stressesNormalized
+                #             game.timeSeries['rewards'] = rewards
+                #             game.timeSeries['doneFlags'] = doneFlags
+                #             game.timeSeries['successFlags'] = successFlags
+
+                #             game.timeSeries['heads'] = heads
+                #             game.timeSeries['wellCoords'] = wellCoords
+                #             game.timeSeries['actions'] = actions
+                #             game.timeSeries['trajectories'] = game.env.trajectories
+
+                #         game.success = game.env.success
+                #         if game.env.success:
+                #             successString = 'won'
+                #         elif game.env.success == False:
+                #             successString = 'lost'
+                #             # total loss of reward if entering well protection zone
+                #             game.rewardTotal = 0.0
+
+                #         if game.SURROGATESIMULATOR is not None:
+                #             stringSurrogate = 'surrogate '
+                #             # print('surrogate')
+                #         else:
+                #             stringSurrogate = ''
+                #             # print('not surrogate')
+                #         print('The ' + stringSurrogate + 'game was ' +
+                #               successString +
+                #               ' after ' +
+                #               str(timeStep) +
+                #               ' timesteps with a reward of ' +
+                #               str(int(game.rewardTotal)) +
+                #               ' points.')
+                #         break
+
+                return app.canvas
+
+            def update(app):
+
+                print('debug self.iUpdate', app.iUpdate)
+
+                app.randomNumbers1 = random.randint(100, size=(100))
+                app.randomNumbers2 = random.randint(100, size=(100))
+                app.plot1.remove()
+                app.plot2.remove()
+                app.plot1 = app.ax[0].scatter(linspace(1, len(app.randomNumbers1), len(app.randomNumbers1)), app.randomNumbers1, c='blue')
+                app.plot2 = app.ax[1].scatter(linspace(1, len(app.randomNumbers2), len(app.randomNumbers2)), app.randomNumbers2, c='blue')
+                app.fig.canvas.draw()
+
+                if app.iUpdate > 200:
+                    Clock.unschedule(app.update)
+                app.iUpdate += 1
+
+            # def update(app, game, *args):
+
+            #     print('debug self.iUpdate', app.iUpdate)
+
+            #     # without user control input: generating random agent action
+            #     t0getAction = time()
+            #     if game.MANUALCONTROL:
 
 
 
-    #         #     elif game.MANUALCONTROL == False:
-    #         #         if game.MODELNAMELOAD is None and game.agent is None:
-    #         #             action = app.agent.getAction('random')
-    #         #         elif game.MODELNAMELOAD is not None:
-    #         #             action = app.agent.getAction(
-    #         #                 'modelNameLoad',
-    #         #                 modelNameLoad=game.MODELNAMELOAD,
-    #         #                 state=game.env.observationsVectorNormalized
-    #         #                 )
-    #         #         elif game.agent is not None:
-    #         #             action = app.agent.getAction(
-    #         #                 'model',
-    #         #                 agent=game.agent,
-    #         #                 state=game.env.observationsVectorNormalized
-    #         #                 )
+            #         # needs update
+            #         # needs to take from kivy app
+            #         action = app.agent.getAction('manual', game.env.keyPressed)
 
-    #         #     t0step = time()
-    #         #     observations, reward, game.done, _ = game.env.step(
-    #         #         game.env.observationsVectorNormalized, action, game.rewardTotal)
 
-    #         #     if game.keepTimeSeries:
-    #         #         # collecting time series of game metrices
-    #         #         statesNormalized.append(game.env.observationsVectorNormalized)
-    #         #         stressesNormalized.append(game.env.stressesVectorNormalized)
-    #         #         rewards.append(reward)
 
-    #         #         heads.append(game.env.heads)
-    #         #         doneFlags.append(game.done)
-    #         #         wellCoords.append(game.env.wellCoords)
-    #         #         actions.append(action)
-    #         #         if not game.done:
-    #         #             successFlags.append(-1)
-    #         #         if game.done:
-    #         #             if game.env.success:
-    #         #                 successFlags.append(1)
-    #         #             elif not game.env.success:
-    #         #                 successFlags.append(0)
-    #         #     game.rewardTotal += reward
+            #     elif game.MANUALCONTROL == False:
+            #         if game.MODELNAMELOAD is None and game.agent is None:
+            #             action = app.agent.getAction('random')
+            #         elif game.MODELNAMELOAD is not None:
+            #             action = app.agent.getAction(
+            #                 'modelNameLoad',
+            #                 modelNameLoad=game.MODELNAMELOAD,
+            #                 state=game.env.observationsVectorNormalized
+            #                 )
+            #         elif game.agent is not None:
+            #             action = app.agent.getAction(
+            #                 'model',
+            #                 agent=game.agent,
+            #                 state=game.env.observationsVectorNormalized
+            #                 )
 
-    #         #     app.fig, app.ax = subplots(1, 2)
-    #         #     app.ax[0].set_ylim(-500, 500)
-    #         #     app.ax[1].set_ylim(-500, 500)
-    #         #     app.randomNumbers1 = random.randint(100, size=(100))
-    #         #     app.randomNumbers2 = random.randint(100, size=(100))
-    #         #     app.plot1 = app.ax[0].scatter(linspace(1, len(app.randomNumbers1), len(app.randomNumbers1)), app.randomNumbers1, c='blue')
-    #         #     app.plot2 = app.ax[1].scatter(linspace(1, len(app.randomNumbers2), len(app.randomNumbers2)), app.randomNumbers2, c='blue')
-    #         #     app.fig.canvas.draw()
+            #     t0step = time()
+            #     observations, reward, game.done, _ = game.env.step(
+            #         game.env.observationsVectorNormalized, action, game.rewardTotal)
 
-    #         #     # app.fig = game.env.render(returnFigure=True)
+            #     if game.keepTimeSeries:
+            #         # collecting time series of game metrices
+            #         statesNormalized.append(game.env.observationsVectorNormalized)
+            #         stressesNormalized.append(game.env.stressesVectorNormalized)
+            #         rewards.append(reward)
 
-    #         #     # if app.iUpdate > 200:
-    #         #     #     Clock.unschedule(app.update)
-    #         #     app.iUpdate += 1
+            #         heads.append(game.env.heads)
+            #         doneFlags.append(game.done)
+            #         wellCoords.append(game.env.wellCoords)
+            #         actions.append(action)
+            #         if not game.done:
+            #             successFlags.append(-1)
+            #         if game.done:
+            #             if game.env.success:
+            #                 successFlags.append(1)
+            #             elif not game.env.success:
+            #                 successFlags.append(0)
+            #     game.rewardTotal += reward
 
-    #         def on_keyboard_down(self, instance, keyboard, keycode, text, modifiers):
+            #     app.fig, app.ax = subplots(1, 2)
+            #     app.ax[0].set_ylim(-500, 500)
+            #     app.ax[1].set_ylim(-500, 500)
+            #     app.randomNumbers1 = random.randint(100, size=(100))
+            #     app.randomNumbers2 = random.randint(100, size=(100))
+            #     app.plot1 = app.ax[0].scatter(linspace(1, len(app.randomNumbers1), len(app.randomNumbers1)), app.randomNumbers1, c='blue')
+            #     app.plot2 = app.ax[1].scatter(linspace(1, len(app.randomNumbers2), len(app.randomNumbers2)), app.randomNumbers2, c='blue')
+            #     app.fig.canvas.draw()
 
-    #             key = self.keyboard.keycode_to_string(keyboard)
-    #             if key == 'up':
-    #                 if key in self.env.actionSpace:
-    #                     self.update()
-    #             elif key == 'down':
-    #                 if key in self.env.actionSpace:
-    #                     self.update()
-    #             elif key == 'left':
-    #                 if key in self.env.actionSpace:
-    #                     self.update()
-    #             elif key == 'right':
-    #                 if key in self.env.actionSpace:
-    #                     self.update()
-    #             elif key == 'escape' or key == 'q':
-    #                 self.get_running_app().stop()
-    #             from kivy.config import Config
+            #     # app.fig = game.env.render(returnFigure=True)
 
-    #     app = FloPyArcadeApp()
-    #     app.build(game=self)
-    #     # app.run()
+            #     # if app.iUpdate > 200:
+            #     #     Clock.unschedule(app.update)
+            #     app.iUpdate += 1
+
+            def on_keyboard_down(self, instance, keyboard, keycode, text, modifiers):
+
+                key = self.keyboard.keycode_to_string(keyboard)
+                if key == 'up':
+                    if key in self.env.actionSpace:
+                        self.update()
+                elif key == 'down':
+                    if key in self.env.actionSpace:
+                        self.update()
+                elif key == 'left':
+                    if key in self.env.actionSpace:
+                        self.update()
+                elif key == 'right':
+                    if key in self.env.actionSpace:
+                        self.update()
+                elif key == 'escape' or key == 'q':
+                    self.get_running_app().stop()
+                from kivy.config import Config
+
+        app = FloPyArcadeApp()
+        # app.build(game=self)
+        app.run()
