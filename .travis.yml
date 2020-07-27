@@ -12,6 +12,8 @@ install:
 script:
   - docker run -p 81:81 flopyarcade/master python3 /FloPyArcade/test_FloPyArcade.py
 
+ci_env1=`codecov --token="5243a254-feca-4875-ba8d-b09deb44981d"`
+ci_env2=`bash <(curl -s https://codecov.io/env)`
 after_success:
-  - docker run -p 81:81 flopyarcade/master codecov --token="5243a254-feca-4875-ba8d-b09deb44981d"
-  - docker run -p 81:81 flopyarcade/master bash <(curl -s https://codecov.io/bash)
+  - docker run -p 81:81 flopyarcade/master $ci_env1
+  - docker run -p 81:81 flopyarcade/master $ci_env2
