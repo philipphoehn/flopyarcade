@@ -9,7 +9,7 @@ FloPyArcade provides simple [MODFLOW](https://www.usgs.gov/mission-areas/water-r
 [![Made with Python](https://img.shields.io/badge/made%20with-python-blue.svg?style=flat)](https://www.python.org/)
 [![GitHub version](https://badge.fury.io/gh/philipphoehn%2Fflopyarcade.svg)](https://badge.fury.io/gh/philipphoehn%2Fflopyarcade)
 
-Why this matters, in a nutshell: What is encapsulated in a game here, can be envisioned to be a real-world operation of an arbitrary groundwater system given a model (ensemble). You can similarly optimize policy models for near real-time site operation.
+Why this matters, in a nutshell: What is encapsulated in a game here, can be envisioned to be a real-world operation of an arbitrary groundwater system given a model (ensemble). You can similarly optimize policy models, e.g. for real-time site operation.
 
 Too late, with the peak of arcade games a few decades ago, you would think? Obviously. But they received renewed interest with the advent of [OpenAI Gym](https://gym.openai.com/) enabling to score past human performance with reinforcement learning. FloPyArcade offers a set of simple simulated groundwater flow environments, following the style of [environments in OpenAI Gym](https://gym.openai.com/envs/#atari). They allow to experiment with existing or new reinforcement learning algorithms to find neural networks that yield optimal control policies. Two common learning algorithms are readily available. Try and train for yourself. Adding your own simulation environment of arbitrary complexity with your own controls is possible.
 
