@@ -41,7 +41,7 @@ hyParams = {
     'NAGENTSTEPS': 200,                         # integer defining number of episodes per agent
     'MUTATIONPROBABILITY': 1.0,                # float defining fraction of mutated parameters
     'MUTATIONPOWER': 0.005,                     # float defining mutation, 0.02 after https://arxiv.org/pdf/1712.06567.pdf
-    'MODELTYPE': 'mlp',
+    'MODELTYPE': 'conv',
     'NHIDDENNODES': [250] * 5,                   # list of integers of nodes per hidden layer to define architecture
     'ARCHITECTUREVARY': True,                   # boolean defining to allow architecture variation
     'HIDDENACTIVATIONS': ['relu'] * 5,          # list of strings defining hidden nodal activations
