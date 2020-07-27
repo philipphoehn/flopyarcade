@@ -16,20 +16,21 @@ from shutil import rmtree
 import unittest
 
 
-class TestFloPyEnvPlay(unittest.TestCase):
+class TestFloPyEnv1Play(unittest.TestCase):
 
     def test_FloPyEnvPlay_noExceptionRaised(self):
         """Test a game run of every existing environment."""
 
-        failed = []
-        for i in range(1, 4):
+        nEnvs, failed = 4, []
+        for i in range(1, nEnvs+1):
             raised = False
             try:
                 from FloPyArcadePlay import envSettings, gameSettings
                 envSettings['ENVTYPE'] = str(i)
-                # envSettings['MODELNAMELOAD'] = 'unittestAgent' + str(i)
                 envSettings['MODELNAMELOAD'] = None
+                envSettings['MODELNAME'] = 'unittest' + str(i)
                 envSettings['SAVEPLOT'] = False
+                envSettings['SAVEPLOTALLAGENTS'] = False
                 envSettings['MANUALCONTROL'] = False
                 envSettings['RENDER'] = False
                 gameSettings['NGAMES'] = 1
@@ -89,7 +90,6 @@ class TestFloPyAgentGenetic(unittest.TestCase):
             # environment settings
             envSettings['ENVTYPE'] = '1'
             envSettings['MODELNAME'] = 'unittestGenetic'
-            envSettings['SURROGATESIMULATOR'] = None
             envSettings['NAGENTSPARALLEL'] = 2
             envSettings['RENDER'] = False
             envSettings['BESTAGENTANIMATION'] = True
@@ -97,15 +97,17 @@ class TestFloPyAgentGenetic(unittest.TestCase):
             envSettings['RESUME'] = False
             # hyperparameters
             hyParams['NAGENTS'] = 4
-            hyParams['NAGENTELITES'] = 2
+            hyParams['NAGENTELITES'] = 3
             hyParams['NGENERATIONS'] = 2
             hyParams['NGAMESAVERAGED'] = 2
             hyParams['NAGENTSTEPS'] = 2
             hyParams['NHIDDENNODES'] = [5] * 2
             hyParams['HIDDENACTIVATIONS'] = ['relu'] * 2
+            hyParams['BATCHNORMALIZATION'] = True
             hyParams['NOVELTYSEARCH'] = True
             hyParams['ADDNOVELTYEVERY'] = 1
-            hyParams['NNOVELTYELITES'] = 1
+            hyParams['NNOVELTYELITES'] = 2
+            hyParams['NNOVELTYNEIGHBORS'] = 5
             FloPyArcadeGeneticNetwork.main(envSettings, hyParams)
             print('Successfully tested genetic agent.')
         except Exception as e:

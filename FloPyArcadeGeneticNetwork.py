@@ -24,7 +24,7 @@ envSettings = {
     'RENDEREVERY': 1000,                        # integer defining runs displayed
     'BESTAGENTANIMATION': True,                 # boolean defining whether to save animation of best agent per generation
     'KEEPMODELHISTORY': True,                   # boolean defining whether to keep all agents throughout evolution
-    'RESUME': True,                             # boolean defining whether to keep all agents throughout evolution
+    'RESUME': False,                             # boolean defining whether to keep all agents throughout evolution
     'NLAY': 1,                                  # integer defining numbers of model layers
     'NROW': 100,                                # integer defining grid rows
     'NCOL': 100                                 # integer defining grid columns
@@ -35,7 +35,7 @@ hyParams = {
     'NAGENTS': 2000,                            # integer defining number of agents
     'NAGENTELITES': 100,                        # integer defining number of agents considered as parents
     'NGENERATIONS': 10000,                      # integer defining number of generations for evolution
-    'NGAMESAVERAGED': 50,                       # integer defining number of games played for averaging
+    'NGAMESAVERAGED': 5,                        # integer defining number of games played for averaging
     'NAGENTSTEPS': 200,                         # integer defining number of episodes per agent
     'MUTATIONPROBABILITY': 1.0,                 # float defining fraction of mutated parameters
     'MUTATIONPOWER': 0.003,                     # float defining mutation, 0.02 after https://arxiv.org/pdf/1712.06567.pdf
