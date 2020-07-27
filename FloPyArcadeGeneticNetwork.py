@@ -12,13 +12,13 @@ from FloPyArcade import FloPyEnv
 # environment settings
 envSettings = {
     'ENVTYPE': '4',                             # string defining environment
-    'MODELNAME': 'testENV4',                    # string defining model basename
+    'MODELNAME': 'gs-e4s1n2000e100g10000av50st200mpr1e-0mpo3e-3ar250x5v1relubn1_res100_ns-ev1e1000',                    # string defining model basename
     'PATHMF2005': None,                         # string of local path to MODFLOW 2005 executable
     'PATHMP6': None,                            # string of local path to MODPATH 6 executable
     'SURROGATESIMULATOR': None,
     'SEEDAGENT': 1,                             # integer enabling reproducibility of the agents
-    'SEEDENV': 3,                               # integer enabling reproducibility of the environments
-    'NAGENTSPARALLEL': 16,                      # integer defining parallelized agent runs
+    'SEEDENV': 1,                               # integer enabling reproducibility of the environments
+    'NAGENTSPARALLEL': 6,                      # integer defining parallelized agent runs
     'REWARDMINTOSAVE': 0.0,                     # float defining minimal reward to save a model
     'RENDER': False,                            # boolean to define if displaying runs
     'RENDEREVERY': 1000,                        # integer defining runs displayed
@@ -35,7 +35,7 @@ hyParams = {
     'NAGENTS': 2000,                            # integer defining number of agents
     'NAGENTELITES': 100,                        # integer defining number of agents considered as parents
     'NGENERATIONS': 10000,                      # integer defining number of generations for evolution
-    'NGAMESAVERAGED': 1,                       # integer defining number of games played for averaging
+    'NGAMESAVERAGED': 50,                       # integer defining number of games played for averaging
     'NAGENTSTEPS': 200,                         # integer defining number of episodes per agent
     'MUTATIONPROBABILITY': 1.0,                 # float defining fraction of mutated parameters
     'MUTATIONPOWER': 0.003,                     # float defining mutation, 0.02 after https://arxiv.org/pdf/1712.06567.pdf

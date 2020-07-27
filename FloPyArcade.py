@@ -1247,12 +1247,13 @@ class FloPyEnv():
             self.observations['heads'] = [self.headSpecNorth,
                                           self.headSpecSouth]
         # note: it sees the surrounding heads of the particle and the well
-        self.observations['heads'] += [self.heads[lParticle-1, rParticle-1, cParticle-1]]
-        self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=0.5*self.wellRadius)
-        self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=1.5*self.wellRadius)
-        self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=2.5*self.wellRadius)
-        self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=1.5*self.wellRadius)
-        self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=2.0*self.wellRadius)
+        # self.observations['heads'] += [self.heads[lParticle-1, rParticle-1, cParticle-1]]
+        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=0.5*self.wellRadius)
+        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=1.5*self.wellRadius)
+        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=2.5*self.wellRadius)
+        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=1.5*self.wellRadius)
+        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=2.0*self.wellRadius)
+        self.observations['heads'] = self.heads.flatten()
 
         self.observations['wellQ'] = self.wellQ
         self.observations['wellCoords'] = self.wellCoords
@@ -1416,12 +1417,13 @@ class FloPyEnv():
             self.observations['heads'] = [self.headSpecNorth,
                                           self.headSpecSouth]
         # note: it sees the surrounding heads of the particle and the well
-        self.observations['heads'] += [self.heads[lParticle-1, rParticle-1, cParticle-1]]
-        self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=0.5*self.wellRadius)
-        self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=1.5*self.wellRadius)
-        self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=2.5*self.wellRadius)
-        self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=1.5*self.wellRadius)
-        self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=2.0*self.wellRadius)
+        # self.observations['heads'] += [self.heads[lParticle-1, rParticle-1, cParticle-1]]
+        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=0.5*self.wellRadius)
+        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=1.5*self.wellRadius)
+        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=2.5*self.wellRadius)
+        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=1.5*self.wellRadius)
+        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=2.0*self.wellRadius)
+        self.observations['heads'] = self.heads.flatten()
 
         self.observations['wellQ'] = self.wellQ
         self.observations['wellCoords'] = self.wellCoords
@@ -1589,7 +1591,7 @@ class FloPyEnv():
         self.headSpecWest, self.headSpecEast = 60.0, 56.0
         self.minQ = -2000.0
         self.maxQ = -500.0
-        self.minQhelper = -500.0
+        self.minQhelper = -1000.0
         self.maxQhelper = -50.0
         self.wellSpawnBufferXWest, self.wellSpawnBufferXEast = 50.0, 20.0
         self.wellSpawnBufferY = 20.0
@@ -2917,7 +2919,6 @@ class FloPyArcade():
                             agent=self.agent,
                             state=self.env.observationsVectorNormalized
                             )
-
                 # print('debug time getAction', time() - t0getAction)
                 # print('debug action', action)
 

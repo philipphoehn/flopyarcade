@@ -32,7 +32,7 @@ envSettings = {
 
 # game settings
 gameSettings = {
-    'NGAMES': 1,
+    'NGAMES': 10,
     'NAGENTSTEPS': 200
 }
 
