@@ -8,7 +8,7 @@
 
 # imports for environments
 from matplotlib import use as matplotlibBackend
-matplotlibBackend('Agg')
+matplotlibBackend('TkAgg')
 from flopy.modflow import Modflow, ModflowBas, ModflowDis, ModflowLpf
 from flopy.modflow import ModflowOc, ModflowPcg, ModflowWel
 from flopy.modpath import Modpath, ModpathBas
@@ -20,6 +20,7 @@ from math import ceil, floor
 from matplotlib.cm import get_cmap
 from matplotlib.pyplot import Circle, close, figure, pause, show
 from matplotlib.pyplot import waitforbuttonpress
+from matplotlib.pyplot import get_current_fig_manager
 from numpy import add, arange, argmax, argsort, array, ceil, copy, divide
 from numpy import extract, float32, int32, linspace, max, maximum, min, minimum
 from numpy import mean, ones, shape, sqrt, sum, zeros
@@ -34,6 +35,7 @@ if 'ipykernel' in modules:
 from time import sleep, time
 
 
+'''
 # suppressing TensorFlow output on import, except fatal errors
 # https://stackoverflow.com/questions/40426502/is-there-a-way-to-suppress-the-messages-tensorflow-prints
 from logging import getLogger, FATAL
@@ -89,6 +91,7 @@ pathosHelpers.mp.context._force_start_method('spawn')
 # from kivy.core.window import Keyboard
 # from kivy.garden.matplotlib.backend_kivyagg import FigureCanvasKivyAgg
 # from kivy.uix.boxlayout import BoxLayout
+'''
 
 
 class FloPyAgent():
@@ -259,7 +262,7 @@ class FloPyAgent():
         if self.hyParams['NAGENTS'] <= self.hyParams['NNOVELTYELITES']:
             raise ValueError('Settings and hyperparameters require changes: ' + \
                              'The number of novelty elites considered during novelty search ' + \
-                             'should be lower than the number of agents considered.' + \
+                             'should be lower than the number of agents to elite agents ' + \
                              'to evolve.')
 
         # setting environment and number of games
@@ -2250,6 +2253,8 @@ class FloPyEnv():
             self.extent = (self.dRow / 2., self.extentX - self.dRow / 2.,
                            self.extentY - self.dCol / 2., self.dCol / 2.
                            )
+            self.figManager = get_current_fig_manager()
+            self.figManager.window.state('zoomed')
 
         self.modelmap = PlotMapView(model=self.mf, layer=0)
         # self.grid = self.modelmap.plot_grid(zorder=1, lw=0.1)
@@ -2276,7 +2281,11 @@ class FloPyEnv():
 
         self.renderRemoveAxesTicks()
         self.renderSetAxesLimits()
-        self.renderSetAxesLabels()
+        self.renderAddAxesTextLabels()
+        # self.renderSetAxesLabels()
+
+        for ax in [self.ax, self.ax2, self.ax3]:
+            ax.axis('off')
 
         if returnFigure:
             return self.fig
@@ -2463,16 +2472,13 @@ class FloPyEnv():
     def renderTextOnCanvasTimeAndScore(self, zorder=10):
         """Plot final game outcome on figure."""
         timeString = '%.0f' % (float(self.timeStep) *
-                               (self.periodLength - 1.0))
+                               (self.periodLength))
         self.ax2.text(5, 92,
-                      'FloPy Arcade game'
-                      + ', timestep '
-                      + str(int(self.timeStep))
-                      + '\nscore: '
+                      'score: '
                       + str(int(self.rewardCurrent))
-                      + '     '
+                      + '\ntime: '
                       + timeString
-                      + ' d elapsed',
+                      + ' d',
                       fontsize=12,
                       zorder=zorder
                       )
@@ -2532,35 +2538,51 @@ class FloPyEnv():
         self.ax3.set_xlim(left=self.minX, right=self.minX + self.extentX)
         self.ax3.set_ylim(bottom=self.minY, top=self.minY + self.extentY)
 
-    def renderSetAxesLabels(self):
-        """Set labels to axes."""
-        self.ax.set_ylabel('Start\nwater level:   ' + str('%.2f' %
-                                                          self.headSpecWest) + ' m', fontsize=12)
-        self.ax3.set_ylabel('water level:   ' + str('%.2f' %
-                                                    self.headSpecEast) + ' m\nDestination', fontsize=12)
+    def renderAddAxesTextLabels(self):
+        """Add labeling text to axes."""
+        left, width = self.minX, self.minX + self.extentX
+        bottom, height = self.minY, self.minY + self.extentY
+        top = bottom + height
+
+        textRight = 'Destination:   ' + str('%.2f' % self.headSpecEast) + ' m'
+        textLeft = 'Start:   ' + str('%.2f' % self.headSpecWest) + ' m'
         if self.ENVTYPE == '1':
-            self.ax.set_xlabel('water level:   ' + str('%.2f' %
-                                                       self.actionValueNorth) 
-                                                       + ' m', fontsize=12)
-            self.ax2.set_xlabel('water level:   ' +
-                                str('%.2f' %
-                                    self.actionValueSouth) +
-                                ' m', fontsize=12)
+            textTop = str('%.2f' % self.actionValueNorth) + ' m'
+            textBottom = str('%.2f' % self.actionValueSouth) + ' m'
         elif self.ENVTYPE == '2':
-            self.ax.set_xlabel('water level:   ' + str('%.2f' %
-                                                       self.actionValue) 
-                                                       + ' m', fontsize=12)
+            textTop = ''
+            textBottom = str('%.2f' % self.actionValue) + ' m'
         elif self.ENVTYPE == '3' or self.ENVTYPE == '4':
-            self.ax.set_xlabel('water level:   ' + 
-                               str('%.2f' %
-                                   self.headSpecNorth) +
-                               ' m',
-                               fontsize=12)
-            self.ax2.set_xlabel('water level:   ' +
-                                str('%.2f' %
-                                    self.headSpecSouth) +
-                                ' m',
-                                fontsize=12)
+            textTop = str('%.2f' % self.headSpecNorth) + ' m'
+            textBottom = str('%.2f' % self.headSpecSouth) + ' m'
+
+        self.ax2.text(self.minX + 2*self.dCol, 0.5 * (bottom + top), textLeft,
+            horizontalalignment='left',
+            verticalalignment='center',
+            rotation='vertical',
+            zorder=10,
+            fontsize=12)
+
+        self.ax2.text(self.extentX - 2*self.dCol, 0.5 * (bottom + top), textRight,
+            horizontalalignment='right',
+            verticalalignment='center',
+            rotation='vertical',
+            zorder=10,
+            fontsize=12)
+
+        self.ax2.text(0.5 * (left + width), self.extentY - 2*self.dRow, textTop,
+            horizontalalignment='center',
+            verticalalignment='top',
+            rotation='horizontal',
+            zorder=10,
+            fontsize=12)
+
+        self.ax2.text(0.5 * (left + width), self.minY + 2*self.dRow, textBottom,
+            horizontalalignment='center',
+            verticalalignment='bottom',
+            rotation='horizontal',
+            zorder=10,
+            fontsize=12)
 
     def renderUserInterAction(self):
         """Enable user control of the environment."""
