@@ -12,12 +12,13 @@ from FloPyArcade import FloPyEnv
 # environment settings
 envSettings = {
     'ENVTYPE': '3',						# string defining environment
-    'MODELNAME': 'agentDQNseed2_LR0-0001_units20_512',	# string defining model basename
+    'MODELNAME': 'test',	            # string defining model basename
     'PATHMF2005': None,					# string of local path to MODFLOW 2005 executable
     'PATHMP6': None,					# string of local path to MODPATH 6 executable
-    'SEED': 2,							# integer enabling reproducibility
-    'SEEDCROSSVALIDATION': 1,			# integer enabling reproducibility during cross-validation
-    'RENDER': False,					# boolean to define if displaying runs
+    'SURROGATESIMULATOR': None,
+    'SEEDAGENT': 2,						# integer enabling reproducibility
+    'SEEDENV': 2,			            # integer enabling reproducibility of environments during cross-validation
+    'RENDER': True,				     	# boolean to define if displaying runs
     'RENDEREVERY': 1000,				# integer defining runs displayed
     'REWARDMINTOSAVE': 0  				# float defining minimal reward to save a model
 }
@@ -31,9 +32,9 @@ hyParams = {
     'REPLAYMEMORYSIZEMIN': 512,			# integer defining the minimum number of steps required for training
     'MINIBATCHSIZE': 512,				# integer defining the number of sampled steps used for training
     'UPDATEPREDICTIVEMODELEVERY': 5, 	# integer defining after how many games the predictive model is updated
-    'NHIDDENNODES': [20] * 3,			# list of integers of nodes per hidden layer to define architecture
-    'HIDDENACTIVATIONS': ['relu'] * 3,	# list of strings defining hidden nodal activations
-    'DROPOUTS': [0.0] * 3,				# list of floats defining hidden layer dropouts
+    'NHIDDENNODES': [40] * 5,			# list of integers of nodes per hidden layer to define architecture
+    'HIDDENACTIVATIONS': ['relu'] * 5,	# list of strings defining hidden nodal activations
+    'DROPOUTS': [0.0] * 5,				# list of floats defining hidden layer dropouts
     'BATCHNORMALIZATION': True,			# boolean defining batch normalization
     'LEARNINGRATE': 0.000025,			# float defining the learning rate
     'EPSILONINITIAL': 1.0,				# float defining the exploration fraction
