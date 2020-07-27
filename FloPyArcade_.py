@@ -66,7 +66,7 @@ class FloPyAgent():
 
     def __init__(self, observationsVector=None, actionSpace=['keep'],
                  hyParams=None, envSettings=None, mode='random',
-                 maxTasksPerWorker=25, maxTasksPerWorkerMutate=100, zFill=6):
+                 maxTasksPerWorker=100, maxTasksPerWorkerMutate=1000, zFill=6):
         """Constructor"""
 
         self.wrkspc = dirname(abspath(__file__))
@@ -1338,8 +1338,6 @@ class FloPyEnv():
         elif self.ENVTYPE == '3':
             self.observations['heads'] = [self.headSpecNorth,
                                           self.headSpecSouth]
-
-        print('debug self.particleCoords', self.particleCoords)
         # note: it sees the surrounding heads of the particle and the well
         self.observations['heads'] += [self.heads[lParticle-1, rParticle-1, cParticle-1]]
         self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=0.5*self.wellRadius)
@@ -1982,169 +1980,6 @@ class FloPyEnv():
         close()
 
     def render(self):
-        """Plot the simulation state at the current timestep.
-
-        Displaying and/or saving the visualisation. The active display can take
-        user input from the keyboard to control the environment.
-        """
-
-        import numpy as np
-        from vispy import app, scene
-        from vispy.util.filter import gaussian_filter
-        from vispy import color, visuals
-        from vispy.visuals import isoline
-        from vispy import gloo, app
-
-        class Canvas(scene.SceneCanvas):
-
-            def __init__(self, env, size=(800, 400), *args, **kwargs):
-                self.env = env
-                scene.SceneCanvas.__init__(self, size=size, *args, **kwargs)
-                self.unfreeze()
-                self.title = 'FloPyArcade'
-
-                # subdividing canvas into regions
-                self.vispyGrid = self.central_widget.add_grid()
-                self.viewGame = self.vispyGrid.add_view(row=0, col=0, row_span=7, col_span=2, camera='panzoom', border_color='grey')
-                self.viewScore = self.vispyGrid.add_view(row=7, col=0, col_span=2, camera='panzoom', border_color='grey')
-                self.viewGame.camera = scene.TurntableCamera(up='z', fov=60)
-    
-                self.show()
-                self.app.sleep(1)
-                self._timer = app.Timer('auto', connect=self.frame, start=True) # iterations=2
-                # self._timer = app.Timer('auto', connect=self.frame, start=True) # iterations=2
-
-            def on_key_press(self, event):
-                modifiers = [key.name for key in event.modifiers]
-                keyPress = event.key.name
-                print('debug keyPress', keyPress)
-                if 'Up' == keyPress:
-                    a = 1
-                if 'Escape' == keyPress:
-                    self.app.quit()
-                    exit()
-
-            def trajectory(self):
-                from vispy.visuals.transforms import STTransform
-
-                Plot3D = scene.visuals.create_visual_node(visuals.LinePlotVisual)
-
-                xs, ys = self.env.trajectories['x'], self.env.trajectories['y']
-                zs = self.env.trajectories['z']
-                xsFull, ysFull, zsFull, hsFull = [], [], [], []
-                for i in range(len(xs)):
-                    xsFull += list(xs[i])
-                    ysFull += list(ys[i])
-                    zsFull += list(zs[i])
-                for i in range(len(zsFull)):
-                    lParticle, cParticle, rParticle = self.env.cellInfoFromCoordinates(
-                        [xsFull[i], ysFull[i], zsFull[i]])
-                    hParticle = self.env.heads[lParticle-1, rParticle-1, cParticle-1]
-                    hsFull.append(hParticle)
-                for i in range(len(xsFull)):
-                    pos = np.c_[xsFull[i], ysFull[i], hsFull[i]]
-                    # line = Plot3D(pos, width=20., color='red',
-                    #        edge_color='w', symbol='o', face_color=(0.2, 0.2, 1, 0.8))
-                    pos = np.c_[xsFull, ysFull, hsFull]
-                    line = scene.Line(pos=pos, method='gl')
-                    self.viewGame.add(line)
-
-                print('hParticle', self.env.timeStep, hParticle)
-
-                # self.viewGame.add(line)
-
-                # line = scene.Line(pos=pos, color=color.get_colormap('cubehelix'), method='gl')
-                # line.transform = STTransform(translate=[0, 140])
-                # line.parent = self.central_widget
-
-                # text = scene.Text(color, bold=True, font_size=24, color='w',
-                #                   pos=(200, 40), parent=self.central_widget)
-
-            def frame(self, event):
-                print('self.env.timeStep', self.env.timeStep)
-                self.viewGame.camera = scene.TurntableCamera(up='z', fov=60)
-
-                # x, y values are not specified, so assumed to be 0:50
-                # x = 
-                # y = 
-                z = self.env.heads[0]
-                p1 = scene.visuals.SurfacePlot(z=z)
-
-                # p_c = isoline.iso_mesh_line(vertices=z) # [[0., 100.], [0., 100.]]
-                # p1.transform = scene.transforms.MatrixTransform()
-                # p1.transform.scale([1/249., 1/249., 1/249.])
-                # p1.transform.translate([-0.5, -0.5, 0])
-
-                self.trajectory()
-
-                cmap = color.get_colormap('cubehelix')
-                cnorm = z / abs(np.amax(z))
-                c = cmap.map(cnorm).reshape(z.shape + (-1,))
-                c = c.flatten().tolist()
-                c = list(map(lambda x,y,z,w:(x,y,z,w), c[0::4],c[1::4],c[2::4],c[3::4]))
-                p1.mesh_data.set_vertex_colors(c)
-                self.viewGame.add(p1)
-
-                self.update()
-                self.app.sleep(10)
-
-        if self.timeStep == 0:
-            self.vispyCanvas = Canvas(self, keys='interactive', bgcolor='white', show=False, fullscreen=False, resizable=True, always_on_top=True)
-            self.vispyApp = self.vispyCanvas.app
-            # self.vispyApp.run()
-        elif self.timeStepDuration != 0:
-        #     # gloo.clear()
-            self.vispyApp.reuse()
-            self.vispyApp.process_events()
-
-
-        print('debug timestep', self.timeStep)
-
-        # def on_resize(self, event):
-        #     # Set canvas viewport and reconfigure visual transforms to match.
-        #     vp = (0, 0, self.physical_size[0], self.physical_size[1])
-        #     self.context.set_viewport(*vp)
-        #     self.cube.transforms.configure(canvas=self, viewport=vp)
-
-        # colormaps = ['autumn', 'blues', 'cool', 'greens', 'reds', 'spring', 'summer', 'fire', 'grays', 'hot', 'ice', 'winter', 'light_blues', 'orange', 'viridis', 'coolwarm', 'PuGr', 'GrBu', 'GrBu_d', 'RdBu', 'cubehelix', 'single_hue', 'hsl', 'husl', 'diverging', 'RdYeBuCy']
-        # cnorm = z / abs(np.amax(z))
-        # c = color.get_colormap('cubehelix').map(cnorm).reshape(z.shape + (-1,))
-        # c = c.flatten().tolist()
-        # c = list(map(lambda x,y,z,w:(x,y,z,w), c[0::4],c[1::4],c[2::4],c[3::4]))
-        # p1.mesh_data.set_vertex_colors(c)
-
-        # self.viewGame.add(p1)
-
-        # # sphere
-        # radius = 50.
-        # u = np.linspace(0, 2 * np.pi, 100)
-        # v = np.linspace(0, np.pi, 100)
-        # x_sphere = radius * np.outer(np.cos(u), np.sin(v))
-        # y_sphere = radius * np.outer(np.sin(u), np.sin(v))
-        # z_sphere = 2.0 + radius * np.outer(np.ones(np.size(u)), np.cos(v))
-
-        # p2 = scene.visuals.SurfacePlot(z=z_sphere, color=(0.3, 0.3, 1, 1))
-        # self.viewGame.add(p2)
-
-        # xax = scene.Axis(pos=[[0., 100.], [0., 100.]], tick_direction=(0, -1),
-        #                  font_size=16, axis_color='k', tick_color='k', text_color='k',
-        #                  parent=view.scene)
-        # xax.transform = scene.STTransform(translate=(0, 0, -0.2))
-
-        # yax = scene.Axis(pos=[[0., 100.], [0., 100.]], tick_direction=(-1, 0),
-        #                  font_size=16, axis_color='k', tick_color='k', text_color='k',
-        #                  parent=view.scene)
-        # yax.transform = scene.STTransform(translate=(0, 0, -0.2))
-
-        # Add a 3D axis to keep us oriented
-        # axis = scene.visuals.XYZAxis(parent=self.viewGame.scene)
-
-        # this can be saved
-        # img = self.vispyCanvas.render()
-
-        # eventually quit()
-
-    def render_(self):
         """Plot the simulation state at the current timestep.
 
         Displaying and/or saving the visualisation. The active display can take
