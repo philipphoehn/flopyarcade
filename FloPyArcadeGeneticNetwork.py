@@ -8,18 +8,15 @@
 
 from FloPyArcade import FloPyAgent
 from FloPyArcade import FloPyEnv
-from FloPyArcade import FloPyEnvSurrogate
 
 # environment settings
 envSettings = {
-    'ENVTYPE': '1',                             # string defining environment
-    'MODELNAME': 'gs-e1s1n2000e100g10000av50st200mpr1e-0mpo3e-3ar250x5v1relubn1_res100_ns-ev1e1000', # string defining model basename
-    # 'MODELNAME': 'test2', # string defining model basename
+    'ENVTYPE': '3',                             # string defining environment
+    'MODELNAME': 'test',                        # string defining model basename
     'PATHMF2005': None,                         # string of local path to MODFLOW 2005 executable
     'PATHMP6': None,                            # string of local path to MODPATH 6 executable
     'SURROGATESIMULATOR': None,
-    # 'SURROGATESIMULATOR': ['bestModelUnweightedInitial', 'bestModelUnweighted'],   # current best fit 0.000619
-    'SEEDAGENT': 1,                                  # integer enabling reproducibility of the agents
+    'SEEDAGENT': 1,                             # integer enabling reproducibility of the agents
     'SEEDENV': 3,                               # integer enabling reproducibility of the environments
     'NAGENTSPARALLEL': 16,                      # integer defining parallelized agent runs
     'REWARDMINTOSAVE': 0.0,                     # float defining minimal reward to save a model
@@ -27,53 +24,45 @@ envSettings = {
     'RENDEREVERY': 1000,                        # integer defining runs displayed
     'BESTAGENTANIMATION': True,                 # boolean defining whether to save animation of best agent per generation
     'KEEPMODELHISTORY': True,                   # boolean defining whether to keep all agents throughout evolution
-    'RESUME': False,                              # boolean defining whether to keep all agents throughout evolution
-    'NLAY': 1,
-    'NROW': 100,
-    'NCOL': 100
+    'RESUME': False,                            # boolean defining whether to keep all agents throughout evolution
+    'NLAY': 1,                                  # integer defining numbers of model layers
+    'NROW': 100,                                # integer defining grid rows
+    'NCOL': 100                                 # integer defining grid columns
 }
 
 # hyperparameters
 hyParams = {
-    'NAGENTS': 2000,                              # integer defining number of agents
-    'NAGENTELITES': 100,                         # integer defining number of agents considered as parents
-    'NGENERATIONS': 10000,                          # integer defining number of generations for evolution
-    'NGAMESAVERAGED': 50,                       # integer defining number of games played for averaging
+    'NAGENTS': 2000,                            # integer defining number of agents
+    'NAGENTELITES': 100,                        # integer defining number of agents considered as parents
+    'NGENERATIONS': 10000,                      # integer defining number of generations for evolution
+    'NGAMESAVERAGED': 5,                        # integer defining number of games played for averaging
     'NAGENTSTEPS': 200,                         # integer defining number of episodes per agent
-    'MUTATIONPROBABILITY': 1.0,                # float defining fraction of mutated parameters
-    'MUTATIONPOWER': 0.005,                     # float defining mutation, 0.02 after https://arxiv.org/pdf/1712.06567.pdf
-    'NHIDDENNODES': [250] * 5,                   # list of integers of nodes per hidden layer to define architecture
+    'MUTATIONPROBABILITY': 1.0,                 # float defining fraction of mutated parameters
+    'MUTATIONPOWER': 0.003,                     # float defining mutation, 0.02 after https://arxiv.org/pdf/1712.06567.pdf
+    'NHIDDENNODES': [250] * 5,                  # list of integers of nodes per hidden layer to define architecture
     'ARCHITECTUREVARY': True,                   # boolean defining to allow architecture variation
     'HIDDENACTIVATIONS': ['relu'] * 5,          # list of strings defining hidden nodal activations
-    'BATCHNORMALIZATION': True,                  # boolean defining batch normalization
-    'NOVELTYSEARCH': True,                       # boolean
-    'ADDNOVELTYEVERY': 1,
-    'NNOVELTYELITES': 1000,
-    'NNOVELTYNEIGHBORS': 100
+    'BATCHNORMALIZATION': True,                 # boolean defining batch normalization
+    'NOVELTYSEARCH': True,                      # boolean defining novelty search
+    'ADDNOVELTYEVERY': 1,                       # generational interval to add novelty agents
+    'NNOVELTYELITES': 1000,                     # number of novelty elites
+    'NNOVELTYNEIGHBORS': 100                    # number of novelty neighbors considered
 }
 
 
 def main(envSettings, hyParams):
     # initializing environment
 
-    if envSettings['SURROGATESIMULATOR'] is None:
-        env = FloPyEnv(
-            envSettings['ENVTYPE'],
-            envSettings['PATHMF2005'],
-            envSettings['PATHMP6'],
-            MODELNAME=envSettings['MODELNAME'],
-            flagRender=envSettings['RENDER'],
-            NAGENTSTEPS=hyParams['NAGENTSTEPS'],
-            nLay=envSettings['NLAY'],
-            nRow=envSettings['NROW'],
-            nCol=envSettings['NCOL'])
-
-    elif envSettings['SURROGATESIMULATOR'] is not None:
-        env = FloPyEnvSurrogate(
-            SURROGATESIMULATOR=envSettings['SURROGATESIMULATOR'],
-            ENVTYPE=envSettings['ENVTYPE'],
-            MODELNAME=envSettings['MODELNAME'],
-            NAGENTSTEPS=hyParams['NAGENTSTEPS'])
+    env = FloPyEnv(
+        envSettings['ENVTYPE'],
+        envSettings['PATHMF2005'],
+        envSettings['PATHMP6'],
+        MODELNAME=envSettings['MODELNAME'],
+        flagRender=envSettings['RENDER'],
+        NAGENTSTEPS=hyParams['NAGENTSTEPS'],
+        nLay=envSettings['NLAY'],
+        nRow=envSettings['NROW'],
+        nCol=envSettings['NCOL'])
 
     # initializing agent
     agent = FloPyAgent(
