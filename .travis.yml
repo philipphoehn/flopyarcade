@@ -9,14 +9,6 @@ before_install:
 install:
   - docker run -p 81:81 flopyarcade/master python3 -m pip install codecov coverage
 
-# script:
-#  - docker run -p 81:81 flopyarcade/master coverage run /FloPyArcade/test_FloPyArcade.py
-
-# environment variables if calling code coverage check from within docker
-# ci_env1=`codecov --token="5243a254-feca-4875-ba8d-b09deb44981d"`
-ci_env1=`coverage run /FloPyArcade/test_FloPyArcade.py`
-ci_env2=`codecov`
-# ci_env3=`bash <(curl -s https://codecov.io/env)`
 after_success:
-  - docker run -p 81:81 flopyarcade/master $ci_env1
-  - docker run -p 81:81 flopyarcade/master $ci_env2
+  - docker run -p 81:81 flopyarcade/master $(coverage run /FloPyArcade/test_FloPyArcade.py)
+  - docker run -p 81:81 flopyarcade/master ${codecov}
