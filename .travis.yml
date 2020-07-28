@@ -10,5 +10,5 @@ install:
   - docker run -p 81:81 flopyarcade/master python3 -m pip install codecov coverage
 
 script:
-  - docker run -p 81:81 flopyarcade/master $(coverage run /FloPyArcade/test_FloPyArcade.py)
+  - docker run -p 81:81 flopyarcade/master $(python3 -m coverage run /FloPyArcade/test_FloPyArcade.py)
   - docker run -p 81:81 flopyarcade/master ${codecov}
