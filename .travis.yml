@@ -7,4 +7,4 @@ before_install:
   - docker build -t flopyarcade/master --no-cache -f Dockerfile .
 
 script:
-  - docker run -p 81:81 flopyarcade/master $(python3 -m pip install codecov coverage) $(python3 -m coverage run /FloPyArcade/test_FloPyArcade.py) && ${codecov}
+  - docker run -p 81:81 flopyarcade/master $(python3 -m pip install codecov coverage) && $(python3 -m coverage run /FloPyArcade/test_FloPyArcade.py) && ${codecov}
