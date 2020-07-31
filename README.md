@@ -100,7 +100,7 @@ Modify settings for the environment and hyperparameters for the provided optimiz
 
 ## Benchmarks
 
-![](examples/banner.png)
+![](examples/benchmarksBars.png)
 
 ## Notes
 
