@@ -98,10 +98,6 @@ docker run -p 81:81 flopyarcade python FloPyArcadePlay.py
 
 Modify settings for the environment and hyperparameters for the provided optimization algorithms at the top of the files. The underlying policy model can easily be exchanged with arbitrary [Keras](https://keras.io/)-based models by replacing the createNNModel function within the FloPyAgent class in FloPyArcade.py. A complete description of current variables and more documentation is planned.
 
-[comment]: <> (## Benchmarks)
-
-[comment]: <> (![benchmarks](examples/benchmarksBars.png))
-
 ## Notes
 
 This project is meant to demonstrate a new avenue of applying FloPy. It is experimental and is developed only during spare time. The code is envisioned to ultimately be [PEP-8](https://www.python.org/dev/peps/pep-0008/)-compliant, but this has smaller priority than improving and optimizing functionality.
