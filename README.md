@@ -1,14 +1,14 @@
-![](examples/banner.png)
+![banner](examples/banner.png)
 
 
 FloPyArcade provides simple [MODFLOW](https://www.usgs.gov/mission-areas/water-resources/science/modflow-and-related-programs?qt-science_center_objects=0#qt-science_center_objects)-powered groundwater arcade-type simulation environments. It builds on the functionality of [FloPy](https://github.com/modflowpy/flopy/), empowering pre- and postprocessing of MODFLOW and its related software. The idea is to showcase and provide ways to optimize neural network policy models in these environments.
 
-[![Build Status](https://api.travis-ci.org/philipphoehn/FloPyArcade.svg?branch=master)](https://travis-ci.org/philipphoehn/FloPyArcade)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/philipphoehn/FloPyArcade/master)
-[![Gitter](https://img.shields.io/gitter/room/thunder-project/thunder.svg?style=flat-flat)](https://gitter.im/FloPyArcade/community)
-[![Made with Python](https://img.shields.io/badge/made%20with-python-blue.svg?style=flat)](https://www.python.org/)
-[![Code Coverage](https://codecov.io/gh/philipphoehn/FloPyArcade/branch/master/graph/badge.svg)](https://codecov.io/gh/philipphoehn/FloPyArcade)
-[![GitHub version](https://badge.fury.io/gh/philipphoehn%2Fflopyarcade.svg)](https://badge.fury.io/gh/philipphoehn%2Fflopyarcade)
+[![build status](https://api.travis-ci.org/philipphoehn/FloPyArcade.svg?branch=master)](https://travis-ci.org/philipphoehn/FloPyArcade)
+[![binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/philipphoehn/FloPyArcade/master)
+[![gitter](https://img.shields.io/gitter/room/thunder-project/thunder.svg?style=flat-flat)](https://gitter.im/FloPyArcade/community)
+[![made with python](https://img.shields.io/badge/made%20with-python-blue.svg?style=flat)](https://www.python.org/)
+[![code coverage](https://codecov.io/gh/philipphoehn/FloPyArcade/branch/master/graph/badge.svg)](https://codecov.io/gh/philipphoehn/FloPyArcade)
+[![github version](https://badge.fury.io/gh/philipphoehn%2Fflopyarcade.svg)](https://badge.fury.io/gh/philipphoehn%2Fflopyarcade)
 
 Why this matters, in a nutshell: What is encapsulated in a game here, can be envisioned to be a real-world operation of an arbitrary groundwater system given a model (ensemble). You can similarly optimize and test policy models, e.g. for real-time operation of your sites.
 
@@ -16,7 +16,7 @@ Too late, with the peak of arcade games a few decades ago, you would think? Obvi
 
 Examples of machine-controlled actions taken in the same environment by the highest-scoring agent of genetic optimization after various generations:
 
-![](examples/geneticoptimization.gif)
+![genetic optimization](examples/geneticoptimization.gif)
 Try yourself:
 
 The objective is to safely transport a virtual particle as it follows advection while travelling from a random location at the western boundary to the eastern boundary. You have to protect a well from capturing this particle. The well is randomly located with a random pumping rate. Furthermore, the particle must not flow into cells of specified head in the north and south. The controls you have depend on the environment, but are in total the up/down/left/right key. They allow you to either adjust specified head(s) or the well location. The highest score is achieved if the particle stays on the indicated shortest route, or as close as possible to it.
@@ -62,7 +62,7 @@ Four environments are currently included, three of which can be user-controlled 
 
 Examples of human actions taken on a keyboard: Environment 1 (left) allows to adjust the northern and southern specified heads synchronously. Environment 2 (center) allows to adjust the southern specified heads. Environment 3 (right) allows to move the pumping well.
 
-![](examples/envtypes.gif)
+![environment types](examples/envtypes.gif)
 ## Optimization
 
 Two algorithms are currently provided along with the environments for training deep neural networks as policy models. These are implementions of (1) [double Q-learning](https://arxiv.org/abs/1509.06461) and (2) a weights-evolving [genetic algorithm](https://arxiv.org/abs/1712.06567), optionally combined with a simple implementation of [novelty search](https://arxiv.org/abs/1304.3362) to help avoiding convergence towards local minima. They reside in the FloPyAgent class.
@@ -97,6 +97,10 @@ docker run -p 81:81 flopyarcade python FloPyArcadePlay.py
 ```
 
 Modify settings for the environment and hyperparameters for the provided optimization algorithms at the top of the files. The underlying policy model can easily be exchanged with arbitrary [Keras](https://keras.io/)-based models by replacing the createNNModel function within the FloPyAgent class in FloPyArcade.py. A complete description of current variables and more documentation is planned.
+
+## Benchmarks
+
+![](examples/banner.png)
 
 ## Notes
 
