@@ -86,6 +86,19 @@ class TestFloPyAgentGenetic(unittest.TestCase):
 
         raised = False
         try:
+            envSettings['KEEPMODELHISTORY'] = False
+            FloPyArcadeGeneticNetwork.main(envSettings, hyParams)
+            from FloPyArcadeGeneticNetwork import envSettings, hyParams
+            # environment settings
+            envSettings['KEEPMODELHISTORY'] = True
+            envSettings['RESUME'] = True
+            hyParams['NGENERATIONS'] = 4
+            FloPyArcadeGeneticNetwork.main(envSettings, hyParams)
+            print('Successfully tested genetic agent.')
+        except Exception as e:
+            raised = True
+            print('error FloPyArcadeGeneticNetwork', e)
+        try:
             from FloPyArcadeGeneticNetwork import envSettings, hyParams
             # environment settings
             envSettings['ENVTYPE'] = '1'
