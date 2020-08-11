@@ -1,0 +1,127 @@
+# development in bullet points
+
+- improved discretization
+- retrieved head in circles looking ahead a few meters, not directly at well
+
+- implement novelty search
+- runtime offset genetic current to all in print
+- visualize generational trajectories ensemble
+- add resume function from weights of previously good model for genetic algorithm and DQN
+- graph with actions on y axis and rewards on x axis (--> store action sequences, reward sequences)
+- store and plot well trajectories, currently only stored for last played game
+- store other stuff for other envs and incremental changes to initial state?
+
+- is it not better to give reward and not reset all rewards to 0?
+- try many hyperparameters or hyperparameter optimisation
+- how should discount be set here (as the relationship between earlier steps and future rewards aimed for)
+- shouldn't the get_qs() use the target model instead of the main model for predictions?
+- check how actions differ with given mutationPower
+- add fully independent test dataset (i.e. seeds)
+- complete human performance assessment
+- add auto-documentation
+- gif documenting command line installation
+- for more repetitive results: np.random.seed(seed), tf.set_random_seed(seed)
+- reproduce memory increase with DQN sometimes that slows everything down?
+
+- surrogate models: test for sim boost factor?
+- surrogate models: genetic hyperparameter sampling?
+- surrogate models: compare trajectories with best model to true simulation
+
+- novelty search hyperparameters
+  https://arxiv.org/pdf/1207.6682.pdf
+
+- profile runtimes
+	- does map run in async? will async change results order?
+	- running in memory filesystem? https://docs.pyfilesystem.org/en/latest/concepts.html
+	on Windows creating RAMDISK using https://www.osforensics.com/tools/mount-disk-images.html
+	speeds tested with https://www.raymond.cc/blog/12-ram-disk-software-benchmarked-for-fastest-read-and-write-speed/
+	- speed up step()?
+	- in run_model function don't go for buff and readlines only for success message,
+	but this needs edit to flopy source code
+- functionalize run function
+- include network architecture in genetic search?
+
+- is the initialization triggering a limited number of actions? try shuffling within layer after initialization.
+- for DQN: scale rewards between 0 and 1?
+- have DQN replayMemory stored that is then only updated during run?
+- add 3d with differences for particleCoordsAfter
+- debug flexibility if changing mesh resolution
+
+- how is made sure it always converges? with success flag?
+- not all reward in ENVTYPE 3 is reset in case of game loss? in case of no loss before end, score is kept.
+
+load model differently for speed-up
+more initial data
+create json and weights file if non-existent
+save test game dataset
+check prediction dataset?
+
+test multiple best models for recall and so on
+
+- why is order of novelties potentially off at generations larger than 1?
+- why is novelty increasing with length of actions?!
+- why is best reward agent not consistent?
+(is best agent overruled with last novelty child? e.g. agent 1000 as agent 1000)
+- duplicate agents after restart?
+
+- implement a threshold of max neighbours considered?
+- save agent/load with Weights and JSON?
+
+- display fps, show trajectory smoother by showing inbetween steps from particle tracking
+
+- weighted novelty / fitness score?
+http://people.idsia.ch/~tino/papers/cuccu.evostar11.pdf
+- other novelty metrices?
+https://dataaspirant.com/2015/04/11/five-most-popular-similarity-measures-implementation-in-python/
+- approximate novelty and replace?
+https://books.google.de/books?id=wJiRDwAAQBAJ&pg=PA67&lpg=PA67&dq=novelty+search+distance&source=bl&ots=0U5ry9jq51&sig=ACfU3U1wV8srRL6RprHV2YE3qFgpK2VchQ&hl=de&sa=X&ved=2ahUKEwigq4Kt6-fpAhX1lFwKHYzzCWcQ6AEwBHoECAkQAQ#v=onepage&q=novelty%20search%20distance&f=false
+- stop novelty approximation when below threshold (to speed it up), maybe use a low percentage after x consecutive increases?
+- differentiate between novelty-based new children and novelty elites
+
+- split screen with 4 motions: random, inexperienced, experienced, agent
+- genetic evolution with well locations as dots and trajectories
+- actions at top progress bar, colormap scaled with reward
+- calculate prognostic/auxiliary particle trajectory with longer MODPATH run?
+
+- try coupling a typical Arcade-beating convolutional network to observations of the full flow field
+  (and all stresses?)
+- combine multiple initial runs to find initial agent set of high action variability?
+- create logo as GIF dynamically
+- avoid overlap of protection zones for multi-well environments
+- edit white line of highest reward, keep initial line with large transparency
+
+- add some really random noise to boundaries to allow for uncertain future during the game
+- add ENV with randomly moving "predatory well" (time-based seed for good random motion)
+
+- generate gifs of progress on this during evolution
+- indicated flow barriers / k regions
+- go button
+- avoid keep-winning scenaris by max distance from well Y
+
+- make sure to use same set of models for training all the time and for cross-validation or will this overfit?
+- hyperparameters for genetic algorithm
+- syntax consistency genetic algorithm
+- JuPyter notebook with pre-prepared solutions
+- test averaging behaviour with same model
+- save all models with id for visuals
+
+
+# way to independent BinderHub
+The Littlest JupyterHub installation
+https://the-littlest-jupyterhub.readthedocs.io/en/latest/install/custom-server.html
+https://tljh.jupyter.org/en/latest/howto/auth/firstuse.html
+https://the-littlest-jupyterhub.readthedocs.io/en/latest/howto/admin/https.html
+
+JupyterHub installation
+https://github.com/jupyterhub/jupyterhub/wiki/Installation-of-Jupyterhub-on-remote-server
+https://binderhub.readthedocs.io/en/latest/create-cloud-resources.html
+https://binderhub.readthedocs.io/en/latest/
+
+example Jupyter notebooks
+https://hub.gke.mybinder.org/user/rlabbe-kalman-a-lters-in-python-s3cac3kw/tree
+
+
+# dev to remove prints from FloPy and TensorFlow
+changing model workspace --> flopy --> mbase
+using tensorflow --> keras --> init?
+is installed in --> mf6 utils generate_classes.py
