@@ -93,6 +93,17 @@ https://books.google.de/books?id=wJiRDwAAQBAJ&pg=PA67&lpg=PA67&dq=novelty+search
 - add some really random noise to boundaries to allow for uncertain future during the game
 - add ENV with randomly moving "predatory well" (time-based seed for good random motion)
 
+- generate gifs of progress on this during evolution
+- indicated flow barriers / k regions
+- go button
+- avoid keep-winning scenaris by max distance from well Y
+
+- make sure to use same set of models for training all the time and for cross-validation or will this overfit?
+- hyperparameters for genetic algorithm
+- syntax consistency genetic algorithm
+- JuPyter notebook with pre-prepared solutions
+- test averaging behaviour with same model
+- save all models with id for visuals
 
 # dev to remove prints from FloPy and TensorFlow
 changing model workspace --> flopy --> mbase
