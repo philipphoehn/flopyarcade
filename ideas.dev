@@ -92,3 +92,9 @@ https://books.google.de/books?id=wJiRDwAAQBAJ&pg=PA67&lpg=PA67&dq=novelty+search
 
 - add some really random noise to boundaries to allow for uncertain future during the game
 - add ENV with randomly moving "predatory well" (time-based seed for good random motion)
+
+
+# dev to remove prints from FloPy and TensorFlow
+changing model workspace --> flopy --> mbase
+using tensorflow --> keras --> init?
+is installed in --> mf6 utils generate_classes.py
