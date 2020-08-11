@@ -105,6 +105,22 @@ https://books.google.de/books?id=wJiRDwAAQBAJ&pg=PA67&lpg=PA67&dq=novelty+search
 - test averaging behaviour with same model
 - save all models with id for visuals
 
+
+# way to independent BinderHub
+The Littlest JupyterHub installation
+https://the-littlest-jupyterhub.readthedocs.io/en/latest/install/custom-server.html
+https://tljh.jupyter.org/en/latest/howto/auth/firstuse.html
+https://the-littlest-jupyterhub.readthedocs.io/en/latest/howto/admin/https.html
+
+JupyterHub installation
+https://github.com/jupyterhub/jupyterhub/wiki/Installation-of-Jupyterhub-on-remote-server
+https://binderhub.readthedocs.io/en/latest/create-cloud-resources.html
+https://binderhub.readthedocs.io/en/latest/
+
+example Jupyter notebooks
+https://hub.gke.mybinder.org/user/rlabbe-kalman-a-lters-in-python-s3cac3kw/tree
+
+
 # dev to remove prints from FloPy and TensorFlow
 changing model workspace --> flopy --> mbase
 using tensorflow --> keras --> init?
