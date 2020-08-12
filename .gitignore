@@ -1,0 +1,11 @@
+dev/
+models/
+__pycache__/
+runs/
+simulators/
+temp/
+www/
+.git/
+.coverage
+coverage.xml
+FloPyArcadeGeneticNetwork_localRun.py
