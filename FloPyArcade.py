@@ -49,6 +49,7 @@ from pathos import helpers as pathosHelpers
 from pathos.pools import _ProcessPool as Pool
 from pathos.pools import _ThreadPool as ThreadPool
 from pickle import dump, load
+from pickle import HIGHEST_PROTOCOL as pickleHighestProtocol
 from tensorflow.keras.initializers import glorot_uniform
 from tensorflow.keras.layers import Activation, BatchNormalization, Dense
 from tensorflow.keras.layers import Dropout
@@ -68,6 +69,27 @@ from uuid import uuid4
 # https://github.com/keras-team/keras/issues/9964
 # https://stackoverflow.com/questions/40615795/pathos-enforce-spawning-on-linux
 pathosHelpers.mp.context._force_start_method('spawn')
+
+
+# from kivy.config import Config
+# # get native screen size and adapt to it?
+# # Window.size = (300, 100)
+# # Config.set('graphics', 'fullscreen', 'auto')
+# Config.set('graphics', 'window_state', 'maximized')
+
+# # from matplotlib import use as switchBackend
+# # # switchBackend('module://kivy.garden.matplotlib.backend_kivy')
+# # import matplotlib.pyplot as plt
+
+# from numpy import linspace, multiply
+# from numpy import random
+
+# from kivy.app import App
+# from kivy.clock import Clock
+# from kivy.core.window import Window
+# from kivy.core.window import Keyboard
+# from kivy.garden.matplotlib.backend_kivyagg import FigureCanvasKivyAgg
+# from kivy.uix.boxlayout import BoxLayout
 
 
 class FloPyAgent():
@@ -164,7 +186,7 @@ class FloPyAgent():
         chunksTotal = self.yieldChunks(arange(self.hyParams['NAGENTS']),
             self.envSettings['NAGENTSPARALLEL']*self.maxTasksPerWorker)
         for chunk in chunksTotal:
-            _ = self.multiprocessChunks(self.randomAgentGenetic, chunk)
+            _ = self.multiprocessChunks(self.randomAgentGenetic, chunk, dumpLargeObjects=False)
 
     # to avoid thread erros
     # https://stackoverflow.com/questions/52839758/matplotlib-and-runtimeerror-main-thread-is-not-in-main-loop
@@ -238,7 +260,7 @@ class FloPyAgent():
         if self.hyParams['NAGENTS'] <= self.hyParams['NNOVELTYELITES']:
             raise ValueError('Settings and hyperparameters require changes: ' + \
                              'The number of novelty elites considered during novelty search ' + \
-                             'should be lower than the number of agents considered.' + \
+                             'should be lower than the number of agents to elite agents ' + \
                              'to evolve.')
 
         # setting environment and number of games
@@ -254,7 +276,7 @@ class FloPyAgent():
         self.pid = str(uuid4())
 
         agentCounts = [iAgent for iAgent in range(self.hyParams['NAGENTS'])]
-        self.rereturnChildrenGenetic = False
+        self.rereturnChildrenGenetic, gamesFinished = False, 0
         for self.geneticGeneration in range(self.hyParams['NGENERATIONS']):
             self.flagSkipGeneration = False
             self.generatePathPrefixes()
@@ -262,10 +284,11 @@ class FloPyAgent():
             if self.envSettings['RESUME']:
                 if self.noveltySearch:
                     if self.geneticGeneration > 0:
+                        # print('Loading novelty archive')
                         self.noveltyArchive = self.pickleLoad(join(
                             self.tempPrevModelPrefix + '_noveltyArchive.p'))
                         self.noveltyItemCount = len(self.noveltyArchive.keys())
-                sortedParentIdxs, continueFlag, breakFlag = self.resumeGenetic()
+                continueFlag, breakFlag, gamesFinished = self.resumeGenetic()
                 if continueFlag: continue
                 if breakFlag: break
 
@@ -288,8 +311,10 @@ class FloPyAgent():
                         else:
                             self.agentsDuplicate.append(iAgent)
 
+            # gamesFinished
             # simulating agents in environment, returning average of n runs
-            self.rewards = self.runAgentsRepeatedlyGenetic(agentCounts, n, env)
+            self.rewards = self.runAgentsRepeatedlyGenetic(agentCounts, n, env,
+                gamesFinished)
             # sorting by rewards in reverse, starting with indices of top reward
             # https://stackoverflow.com/questions/16486252/is-it-possible-to-use-argsort-in-descending-order
             sortedParentIdxs = argsort(
@@ -354,7 +379,8 @@ class FloPyAgent():
                     cores*self.maxTasksPerWorkerMutate)
                 for chunk in chunksTotal:
                     noveltiesPerAgent = self.multiprocessChunks(
-                        self.calculateNoveltyPerAgent, chunk)
+                        self.calculateNoveltyPerAgent, chunk, chunksize=len(chunk), dumpLargeObjects=False)
+
                     noveltiesUniqueAgents += noveltiesPerAgent
                 # calculating novelty of unique agents
                 for iUniqueAgent in self.agentsUnique:
@@ -406,6 +432,27 @@ class FloPyAgent():
                 for agentIdx in range(self.hyParams['NAGENTS']):
                     remove(join(self.tempModelPrefix + '_agent' +
                         str(agentIdx + 1).zfill(self.zFill) + '.h5'))
+
+    def dumpLargeObjects(self):
+        # without dumping multiprocessing would slow down drastically over time
+        # from transfering large objects, e.g. such as the novelty archive
+        try:
+            if self.geneticGeneration != 0:
+                if self.hyParams['NOVELTYSEARCH']:
+                    self.pickleDump(join(self.tempModelPrefix +
+                        '_noveltyArchive.p'), self.noveltyArchive)
+                    del self.noveltyArchive
+        except:
+            pass
+
+    def loadLargeObjects(self):
+        try:
+            if self.geneticGeneration != 0:
+                if self.hyParams['NOVELTYSEARCH']:
+                    self.noveltyArchive = self.pickleLoad(join(self.tempModelPrefix +
+                        '_noveltyArchive.p'))
+        except:
+            pass
 
     def createNNModel(self, seed=None):
         """Create fully-connected feed-forward multi-layer neural network."""
@@ -657,7 +704,8 @@ class FloPyAgent():
                       runtimeGensEstimate + ' h for all generations')
                 print('----------')
                 reward_chunks = self.multiprocessChunks(
-                    self.runAgentsGeneticSingleRun, chunk)
+                    self.runAgentsGeneticSingleRun, chunk,
+                    chunksize=floor(len(chunk)/self.envSettings['NAGENTSPARALLEL']), dumpLargeObjects=True)
                 reward_agents += reward_chunks
                 runtimes.append(time() - t0)
                 nChunksRemaining -= 1
@@ -737,24 +785,35 @@ class FloPyAgent():
 
         return r
 
-    def runAgentsRepeatedlyGenetic(self, agentCounts, n, env):
+    def runAgentsRepeatedlyGenetic(self, agentCounts, n, env, skipGames=0):
         """Run all agents within genetic optimisation for a defined number of
         games.
         """
 
+        if skipGames > 0:
+            print('Resuming by skipping', skipGames,'games')
         reward_agentsMin = zeros(len(agentCounts))
         reward_agentsMax = zeros(len(agentCounts))
         reward_agentsMean = zeros(len(agentCounts))
+        self.dumpLargeObjects()
+        agentIdxs = [iAgent for iAgent in range(self.hyParams['NAGENTS'])]
         for game in range(n):
             self.currentGame = game + 1
             print('Currently: ' + str(game + 1) + '/' + str(n) + ' games, ' +
                   str(self.geneticGeneration + 1) + '/' +
                   str(self.hyParams['NGENERATIONS']) + ' generations')
-            rewardsAgentsCurrent = self.runAgentsGenetic(agentCounts, env)
+            # allowing to skip already investigated games when resuming
+            if game+1 > skipGames:
+                rewardsAgentsCurrent = self.runAgentsGenetic(agentCounts, env)
+            # loading rewards from stored results
+            else:
+                rewardsAgentsCurrent = self.multiprocessChunks(self.loadReward,
+                    agentIdxs, chunksize=len(agentIdxs), dumpLargeObjects=False)
             reward_agentsMin = minimum(reward_agentsMin, rewardsAgentsCurrent)
             reward_agentsMax = maximum(reward_agentsMax, rewardsAgentsCurrent)
             reward_agentsMean = add(reward_agentsMean, rewardsAgentsCurrent)
         reward_agentsMean = divide(reward_agentsMean, n)
+        self.loadLargeObjects()
 
         prefix = self.tempModelPrefix
         self.pickleDump(prefix + '_agentsRewardsMin.p', reward_agentsMin)
@@ -804,6 +863,7 @@ class FloPyAgent():
                 recalculateNovelties = True
 
             if recalculateNovelties:
+                print('Recalculating novelties')
                 self.novelties, self.noveltyFilenames = [], []
                 for k in range(self.noveltyItemCount):
                     agentStr = 'agent' + str(k+1)
@@ -828,9 +888,11 @@ class FloPyAgent():
             self.candidateParentIdxs = sortedParentIdxs[:nAgentElites]
             chunksTotal = self.yieldChunks(arange(self.hyParams['NAGENTS']-1),
                 self.envSettings['NAGENTSPARALLEL']*self.maxTasksPerWorkerMutate)
+            print('Returning children')
             for chunk in chunksTotal:
+                print('chunksize', floor(len(chunk)/self.envSettings['NAGENTSPARALLEL']))
                 _ = self.multiprocessChunks(self.returnChildrenGeneticSingleRun,
-                    chunk)
+                    chunk, chunksize=floor(len(chunk)/self.envSettings['NAGENTSPARALLEL']), dumpLargeObjects=True)
 
         if self.rereturnChildrenGenetic:
             # resetting temporarily changed prefixes
@@ -919,6 +981,15 @@ class FloPyAgent():
         return agentModel.predict_on_batch(
             array(state).reshape(-1, (*shape(state))))[0]
 
+    def loadReward(self, iAgent):
+        """Load reward of an agent in a game from pickled results dictionary."""
+
+        iGame = self.currentGame-1
+        resultspth = join(self.tempModelPrefix + '_agent' + str(iAgent+1).zfill(6) + '_results.p')
+        rewardLoaded = sum(self.pickleLoad(resultspth)['rewards'][iGame])
+
+        return rewardLoaded
+
     def loadAgentModel(self, modelNameLoad=None, compiled=False):
         """Load an agent model."""
 
@@ -975,7 +1046,8 @@ class FloPyAgent():
     def resumeGenetic(self):
         # checking if bestModel already exists for current generation
         # skipping calculations then to to resume at a later stage
-        continueFlag, breakFlag = False, False
+        continueFlag, breakFlag, gamesFinished = False, False, 0
+        existResultsForAllAgents, existAllAgents, regenerateChildren = True, True, False
         bestAgentpth = join(self.tempModelPrefix + '_agentBest.h5')
         if exists(bestAgentpth):
             indexespth = join(self.tempModelPrefix +
@@ -994,8 +1066,29 @@ class FloPyAgent():
                 self.noveltyFilenames.append(
                     self.noveltyArchive[agentStr]['modelFile'])
 
+        # checking if at least preliminary results from generation exist
+        # beware: needs to skip generation to resume from
+        elif not exists(bestAgentpth):
+            for iAgent in range(self.hyParams['NAGENTS']):
+                resultspth = join(self.tempModelPrefix + '_agent' + str(iAgent+1).zfill(6) + '_results.p')
+                agentpth = join(self.tempModelPrefix + '_agent' + str(iAgent+1).zfill(6) + '.h5')
+                if not exists(resultspth):
+                    existResultsForAllAgents = False
+                if not exists(agentpth):
+                    existAllAgents = False
+            if not existResultsForAllAgents or not existAllAgents:
+                regenerateChildren = True
+
+            if existResultsForAllAgents and existAllAgents:
+                lensTemp = []
+                for iAgent in range(self.hyParams['NAGENTS']):
+                    resultspth = join(self.tempModelPrefix + '_agent' + str(iAgent+1).zfill(6) + '_results.p')
+                    resultsTemp = self.pickleLoad(resultspth)
+                    lensTemp.append(len(resultsTemp['rewards']))
+                    gamesFinished = min(lensTemp)
+
         # regenerating children for generation to resume at
-        else:
+        if regenerateChildren:
             if self.envSettings['KEEPMODELHISTORY']:
                 with Pool(1) as executor:
                     self.rereturnChildrenGenetic = True
@@ -1007,7 +1100,7 @@ class FloPyAgent():
             # changing resume flag if resuming
             self.envSettings['RESUME'] = False
 
-        return self.sortedParentIdxs, continueFlag, breakFlag
+        return continueFlag, breakFlag, gamesFinished
 
     def calculateNoveltyPerPair(self, args):
         agentStr = 'agent' + str(args[0]+1)
@@ -1028,7 +1121,7 @@ class FloPyAgent():
         if self.noveltyItemCount <= self.hyParams['NNOVELTYNEIGHBORS']:
             neighborLimitReached = False
             for iAgent2 in range(self.noveltyItemCount):
-                if iAgent != iAgent2: 
+                if iAgent != iAgent2:
                     novelties.append(self.calculateNoveltyPerPair([iAgent, iAgent2]))
 
         if self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS']:
@@ -1125,7 +1218,7 @@ class FloPyAgent():
         for i in range(0, len(lst), n):
             yield lst[i:i + n]
 
-    def multiprocessChunks(self, function, chunk, parallelProcesses=None, wait=False):
+    def multiprocessChunks(self, function, chunk, parallelProcesses=None, chunksize=1, wait=False, dumpLargeObjects=False):
         """Process function in parallel given a chunk of arguments."""
 
         # Pool object from pathos instead of multiprocessing library necessary
@@ -1133,17 +1226,22 @@ class FloPyAgent():
         # https://github.com/tensorflow/tensorflow/issues/32159
         if parallelProcesses == None:
             parallelProcesses = self.envSettings['NAGENTSPARALLEL']
-        p = Pool(processes=parallelProcesses)
-        pasync = p.map_async(function, chunk)
-        # waiting is important to order results correctly when running
-        # -- really?
-        # in asynchronous mode (correct reward order is validated)
-        pasync = pasync.get()
-        if wait:
-            pasync.wait()
-        p.close()
-        p.join()
-        p.terminate()
+
+        if dumpLargeObjects:
+            self.dumpLargeObjects()
+        with Pool(processes=parallelProcesses) as p:
+            pasync = p.map_async(function, chunk, chunksize=chunksize)
+            # waiting is important to order results correctly when running
+            # -- really?
+            # in asynchronous mode (correct reward order is validated)
+            pasync = pasync.get()
+            if wait:
+                pasync.wait()
+            p.close()
+            # p.join()
+            p.terminate()
+        if dumpLargeObjects:
+            self.loadLargeObjects()
 
         return pasync
 
@@ -1157,7 +1255,7 @@ class FloPyAgent():
     def pickleDump(self, path, objectToDump):
         """Store object to file using pickle."""
         filehandler = open(path, 'wb')
-        dump(objectToDump, filehandler)
+        dump(objectToDump, filehandler, protocol=pickleHighestProtocol)
         filehandler.close()
 
     def GPUAllowMemoryGrowth(self):
@@ -2754,6 +2852,33 @@ class FloPyEnv():
                         actionList.append(action_)
                         action = action[len(action_):]
 
+            # wellXs = [self.wellY1, self.wellY2, self.wellY3, self.wellY4,
+            #           self.wellY5]
+            # wellYs = [self.wellY1, self.wellY2, self.wellY3, self.wellY4,
+            #           self.wellY5]
+            # actionValueXs = [self.actionValueX1, self.actionValueX2,
+            #                  self.actionValueX3, self.actionValueX4,
+            #                  self.actionValueX5]
+            # actionValueYs = [self.actionValueY1, self.actionValueY2,
+            #                  self.actionValueY3, self.actionValueY4,
+            #                  self.actionValueY5]
+            # for i in range(len(actionList)):
+            #     if actionList[i] == 'up':
+            #         if wellYs[i] > self.dRow + self.actionRange:
+            #             actionValueYs[i] = wellYs[i] - self.actionRange
+            #     elif actionList[i] == 'left':
+            #         if wellXs[i] > self.dCol + self.actionRange:
+            #             print(actionList[i], actionValueXs[i], self.actionValueX1)
+            #             actionValueXs[i] = wellXs[i] - self.actionRange
+            #             print(actionList[i], actionValueXs[i], self.actionValueX1)
+            #             print('---')
+            #     elif actionList[i] == 'right':
+            #         if wellXs[i] < self.extentX - self.dCol - self.actionRange:
+            #             actionValueXs[i] = wellXs[i] + self.actionRange
+            #     elif actionList[i] == 'down':
+            #         if wellYs[i] < self.extentY - self.dRow - self.actionRange:
+            #             actionValueYs[i] = wellYs[i] + self.actionRange
+
             if actionList[0] == 'up':
                 if self.wellY1 > self.dRow + self.actionRange:
                     self.actionValueY1 = self.wellY1 - self.actionRange
@@ -2894,7 +3019,7 @@ class FloPyArcade():
         self.keepTimeSeries = keepTimeSeries
         self.nLay, self.nRow, self.nCol = nLay, nRow, nCol
 
-    def play(self, env=None, ENVTYPE='1', seed=None):
+    def play(self, env=None, ENVTYPE='1', seed=None, returnReward=False, verbose=False):
         """Play an instance of the Flopy arcade game."""
 
         t0 = time()
@@ -3024,14 +3149,316 @@ class FloPyArcade():
                 else:
                     stringSurrogate = ''
                     # print('not surrogate')
-                print('The ' + stringSurrogate + 'game was ' +
-                      successString +
-                      ' after ' +
-                      str(self.timeSteps) +
-                      ' timesteps with a reward of ' +
-                      str(int(self.rewardTotal)) +
-                      ' points.')
+                if verbose:
+                    print('The ' + stringSurrogate + 'game was ' +
+                          successString +
+                          ' after ' +
+                          str(self.timeSteps) +
+                          ' timesteps with a reward of ' +
+                          str(int(self.rewardTotal)) +
+                          ' points.')
                 close('all')
                 break
 
         self.runtime = (time() - t0) / 60.
+
+        if returnReward:
+            return self.rewardTotal
+
+    # def playApp(self, env=None, ENVTYPE='1', seed=None):
+    #     """Play an instance of the Flopy arcade game."""
+
+    #     from numpy import linspace, multiply
+    #     from numpy import random
+
+    #     from kivy.config import Config
+    #     # get native screen size and adapt to it?
+    #     # Config.set('graphics', 'fullscreen', 'auto')
+    #     # Config.set('graphics', 'window_state', 'maximized')
+
+    #     from matplotlib.pyplot import subplots
+    #     from matplotlib import get_backend
+
+    #     from matplotlib.pyplot import switch_backend
+    #     try: switch_backend('module://kivy.garden.matplotlib.backend_kivy')
+    #     except: print('Could not import kivy-garden as a backend. Visualization may not show.')
+
+    #     from kivy.app import App
+    #     from kivy.clock import Clock
+        
+    #     from kivy.uix.button import Button
+
+    #     from kivy.core.window import Keyboard
+    #     from kivy.uix.boxlayout import BoxLayout
+    #     from kivy.core.window import Window
+    #     Window.size = (700, 700)
+    #     from kivy.garden.matplotlib.backend_kivyagg import FigureCanvasKivyAgg
+    #     # from kivy.garden.matplotlib.backend_kivyagg import FigureCanvas
+
+    #     from kivy.uix.label import Label
+
+    #     class FloPyArcadeApp(App):
+
+    #         # def __init__(self):
+    #         #     pass
+
+    #         def __init__(self):
+    #             # App.__init__(self)
+    #             # super(App, self).__init__()
+    #             super(App, self).__init__() 
+    #             self.keyboard = Keyboard()
+    #             self.box = BoxLayout()
+    #             self.iUpdate = 1
+
+    #         def build(app, game):
+
+    #             # creating the environment
+    #             if env is None:
+    #                 if game.SURROGATESIMULATOR is None:
+    #                     game.env = FloPyEnv(ENVTYPE, game.PATHMF2005, game.PATHMP6,
+    #                         _seed=seed,
+    #                         MODELNAME=game.MODELNAME if not None else 'FloPyArcade',
+    #                         ANIMATIONFOLDER=game.ANIMATIONFOLDER if not None else 'FloPyArcade',
+    #                         flagSavePlot=game.SAVEPLOT,
+    #                         flagManualControl=game.MANUALCONTROL,
+    #                         flagRender=game.RENDER,
+    #                         NAGENTSTEPS=game.NAGENTSTEPS,
+    #                         nLay=game.nLay,
+    #                         nRow=game.nRow,
+    #                         nCol=game.nCol)
+    #                 elif game.SURROGATESIMULATOR is not None:
+    #                     game.env = FloPyEnvSurrogate(game.SURROGATESIMULATOR, ENVTYPE,
+    #                         MODELNAME=game.MODELNAME if not None else 'FloPyArcade',
+    #                         _seed=seed,
+    #                         NAGENTSTEPS=game.NAGENTSTEPS)
+
+    #             app.wrkspc = game.env.wrkspc
+
+    #             # game.env.stepInitial()
+    #             observations, game.done = game.env.observationsVectorNormalized, game.env.done
+    #             if game.keepTimeSeries:
+    #                 # collecting time series of game metrices
+    #                 statesNormalized, stressesNormalized = [], []
+    #                 rewards, doneFlags, successFlags = [], [], []
+    #                 heads, actions, wellCoords, trajectories = [], [], [], []
+    #                 statesNormalized.append(observations)
+    #                 rewards.append(0.)
+    #                 doneFlags.append(game.done)
+    #                 successFlags.append(-1)
+    #                 heads.append(game.env.heads)
+    #                 wellCoords.append(game.env.wellCoords)
+
+    #             game.actionRange, game.actionSpace = game.env.actionRange, game.env.actionSpace
+    #             app.agent = FloPyAgent(actionSpace=game.actionSpace)
+
+    #             # game loop
+    #             game.success = False
+    #             game.rewardTotal = 0.
+
+
+    #             # Clock.unschedule(app.update)
+
+
+    #             trigger = Clock.create_trigger(app.update)
+    #             # result = Clock.schedule_interval(app.update, 2.)
+
+    #             print('debug BACKEND', get_backend())
+    #             app.fig, app.ax = subplots(1, 2)
+    #             app.ax[0].set_ylim(-500, 500)
+    #             app.ax[1].set_ylim(-500, 500)
+    #             app.randomNumbers1 = random.randint(100, size=(100))
+    #             app.randomNumbers2 = random.randint(100, size=(100))
+    #             app.plot1 = app.ax[0].scatter(linspace(1, len(app.randomNumbers1), len(app.randomNumbers1)), app.randomNumbers1, c='blue')
+    #             app.plot2 = app.ax[1].scatter(linspace(1, len(app.randomNumbers2), len(app.randomNumbers2)), app.randomNumbers2, c='blue')
+    #             # app.fig.canvas.draw()
+
+
+    #             # app.fig = game.env.render(returnFigure=True)
+    #             print('debug fig', app.fig)
+    #             print('debug fig', app.plot1)
+    #             app.canvas = app.box.add_widget(FigureCanvasKivyAgg(app.fig))
+
+    #             app.btn1 = Button(text ='Page 1')
+
+    #             app.canvas2 = app.box.add_widget(app.btn1)
+    #             # print('debug app.canvas', app.canvas1)
+    #             print('debug BACKEND', get_backend())
+
+    #             # https://stackoverflow.com/questions/54252521/python-to-kv-lang-figurecanvaskivyagg
+    #             # app.canvas = app.box.add_widget(FigureCanvasKivyAgg(app.fig))
+    #             Window.bind(on_keyboard=app.on_keyboard_down)
+
+    #             # print('debug dir', dir(app.box))
+    #             print('debug dir', app.box)
+    #             # print('parent window', app.box.get_root_window())
+
+    #             for timeStep in range(game.env.NAGENTSTEPS):
+    #                 # print('debug timeStep', timeStep)
+
+    #                 tr = trigger()
+    #                 # print(tr)
+
+
+    #             # for timeStep in range(game.env.NAGENTSTEPS):
+
+    #             #     # print('debug game.env.mf', game.env.mf)
+    #             #     # print(game.env.timeSteps)
+
+    #             #     if not game.env.done:
+    #             #        # Clock.schedule_interval(app.update(game), game.env.MANUALCONTROLTIME)
+    #             #        app.update(game)
+
+    #             #     print('done', game.env.done)
+
+    #             #     if game.env.done or timeStep == game.NAGENTSTEPS-1:
+
+    #             #         if game.MANUALCONTROL:
+    #             #             # freezing screen shortly when game is done
+    #             #             sleep(5)
+
+    #             #         if game.keepTimeSeries:
+    #             #             game.timeSeries = {}
+    #             #             game.timeSeries['statesNormalized'] = statesNormalized
+    #             #             game.timeSeries['stressesNormalized'] = stressesNormalized
+    #             #             game.timeSeries['rewards'] = rewards
+    #             #             game.timeSeries['doneFlags'] = doneFlags
+    #             #             game.timeSeries['successFlags'] = successFlags
+
+    #             #             game.timeSeries['heads'] = heads
+    #             #             game.timeSeries['wellCoords'] = wellCoords
+    #             #             game.timeSeries['actions'] = actions
+    #             #             game.timeSeries['trajectories'] = game.env.trajectories
+
+    #             #         game.success = game.env.success
+    #             #         if game.env.success:
+    #             #             successString = 'won'
+    #             #         elif game.env.success == False:
+    #             #             successString = 'lost'
+    #             #             # total loss of reward if entering well protection zone
+    #             #             game.rewardTotal = 0.0
+
+    #             #         if game.SURROGATESIMULATOR is not None:
+    #             #             stringSurrogate = 'surrogate '
+    #             #             # print('surrogate')
+    #             #         else:
+    #             #             stringSurrogate = ''
+    #             #             # print('not surrogate')
+    #             #         print('The ' + stringSurrogate + 'game was ' +
+    #             #               successString +
+    #             #               ' after ' +
+    #             #               str(timeStep) +
+    #             #               ' timesteps with a reward of ' +
+    #             #               str(int(game.rewardTotal)) +
+    #             #               ' points.')
+    #             #         break
+
+    #             return app.canvas
+
+    #         def update(app):
+
+    #             print('debug self.iUpdate', app.iUpdate)
+
+    #             app.randomNumbers1 = random.randint(100, size=(100))
+    #             app.randomNumbers2 = random.randint(100, size=(100))
+    #             app.plot1.remove()
+    #             app.plot2.remove()
+    #             app.plot1 = app.ax[0].scatter(linspace(1, len(app.randomNumbers1), len(app.randomNumbers1)), app.randomNumbers1, c='blue')
+    #             app.plot2 = app.ax[1].scatter(linspace(1, len(app.randomNumbers2), len(app.randomNumbers2)), app.randomNumbers2, c='blue')
+    #             app.fig.canvas.draw()
+
+    #             if app.iUpdate > 200:
+    #                 Clock.unschedule(app.update)
+    #             app.iUpdate += 1
+
+    #         # def update(app, game, *args):
+
+    #         #     print('debug self.iUpdate', app.iUpdate)
+
+    #         #     # without user control input: generating random agent action
+    #         #     t0getAction = time()
+    #         #     if game.MANUALCONTROL:
+
+
+
+    #         #         # needs update
+    #         #         # needs to take from kivy app
+    #         #         action = app.agent.getAction('manual', game.env.keyPressed)
+
+
+
+    #         #     elif game.MANUALCONTROL == False:
+    #         #         if game.MODELNAMELOAD is None and game.agent is None:
+    #         #             action = app.agent.getAction('random')
+    #         #         elif game.MODELNAMELOAD is not None:
+    #         #             action = app.agent.getAction(
+    #         #                 'modelNameLoad',
+    #         #                 modelNameLoad=game.MODELNAMELOAD,
+    #         #                 state=game.env.observationsVectorNormalized
+    #         #                 )
+    #         #         elif game.agent is not None:
+    #         #             action = app.agent.getAction(
+    #         #                 'model',
+    #         #                 agent=game.agent,
+    #         #                 state=game.env.observationsVectorNormalized
+    #         #                 )
+
+    #         #     t0step = time()
+    #         #     observations, reward, game.done, _ = game.env.step(
+    #         #         game.env.observationsVectorNormalized, action, game.rewardTotal)
+
+    #         #     if game.keepTimeSeries:
+    #         #         # collecting time series of game metrices
+    #         #         statesNormalized.append(game.env.observationsVectorNormalized)
+    #         #         stressesNormalized.append(game.env.stressesVectorNormalized)
+    #         #         rewards.append(reward)
+
+    #         #         heads.append(game.env.heads)
+    #         #         doneFlags.append(game.done)
+    #         #         wellCoords.append(game.env.wellCoords)
+    #         #         actions.append(action)
+    #         #         if not game.done:
+    #         #             successFlags.append(-1)
+    #         #         if game.done:
+    #         #             if game.env.success:
+    #         #                 successFlags.append(1)
+    #         #             elif not game.env.success:
+    #         #                 successFlags.append(0)
+    #         #     game.rewardTotal += reward
+
+    #         #     app.fig, app.ax = subplots(1, 2)
+    #         #     app.ax[0].set_ylim(-500, 500)
+    #         #     app.ax[1].set_ylim(-500, 500)
+    #         #     app.randomNumbers1 = random.randint(100, size=(100))
+    #         #     app.randomNumbers2 = random.randint(100, size=(100))
+    #         #     app.plot1 = app.ax[0].scatter(linspace(1, len(app.randomNumbers1), len(app.randomNumbers1)), app.randomNumbers1, c='blue')
+    #         #     app.plot2 = app.ax[1].scatter(linspace(1, len(app.randomNumbers2), len(app.randomNumbers2)), app.randomNumbers2, c='blue')
+    #         #     app.fig.canvas.draw()
+
+    #         #     # app.fig = game.env.render(returnFigure=True)
+
+    #         #     # if app.iUpdate > 200:
+    #         #     #     Clock.unschedule(app.update)
+    #         #     app.iUpdate += 1
+
+    #         def on_keyboard_down(self, instance, keyboard, keycode, text, modifiers):
+
+    #             key = self.keyboard.keycode_to_string(keyboard)
+    #             if key == 'up':
+    #                 if key in self.env.actionSpace:
+    #                     self.update()
+    #             elif key == 'down':
+    #                 if key in self.env.actionSpace:
+    #                     self.update()
+    #             elif key == 'left':
+    #                 if key in self.env.actionSpace:
+    #                     self.update()
+    #             elif key == 'right':
+    #                 if key in self.env.actionSpace:
+    #                     self.update()
+    #             elif key == 'escape' or key == 'q':
+    #                 self.get_running_app().stop()
+    #             from kivy.config import Config
+
+    #     app = FloPyArcadeApp()
+    #     app.build(game=self)
+    #     # app.run()
