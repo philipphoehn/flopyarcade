@@ -15,13 +15,13 @@ from numpy.random import randint
 
 # environment settings
 envSettings = {
-    'ENVTYPE': '4',
+    'ENVTYPE': '3',
     'MODELNAMELOAD': 'test',
     'MODELNAME': None,
     'PATHMF2005': None,
     'PATHMP6': None,
     'SURROGATESIMULATOR': None,
-    'SAVEPLOT': False,
+    'SAVEPLOT': True,
     'MANUALCONTROL': True,
     'RENDER': True,
     'ENVSEED': 1,

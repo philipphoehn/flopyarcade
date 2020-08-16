@@ -2585,7 +2585,7 @@ class FloPyEnv():
                               + str(self.timeStep).zfill(len(str(abs(self.NAGENTSTEPS)))+1)
                               + '.png'
                               )
-        self.fig.savefig(plotfile, dpi=70)
+        self.fig.savefig(plotfile, dpi=50)
         self.plotfilesSaved.append(plotfile)
 
     def renderClearAxes(self):
