@@ -1,0 +1,31 @@
+# MPI install instructions for DOCKERFILE
+
+# installing mpich
+
+sudo apt-get install -y gfortran
+sudo apt autoremove -y
+mkdir ~/mpich3
+cd ~/mpich3
+wget http://www.mpich.org/static/downloads/3.3.2/mpich-3.3.2.tar.gz
+tar xfz mpich-3.3.2.tar.gz
+sudo mkdir /home/mpi/
+sudo mkdir /home/mpi/mpich3-install
+sudo mkdir ~/mpich_build
+cd ~/mpich_build
+sudo ~/mpich3/mpich-3.3.2/configure -prefix=/home/mpi/mpich3-install
+sudo make
+sudo make install
+rm ~/mpich3/mpich-3.3.2.tar.gz
+rm -r ~/mpich3/
+
+ # adding MPI to PATH
+echo '' >> ~/.profile
+echo '# Adding MPI to PATH' >> ~/.profile
+echo 'PATH="$PATH:/home/mpi/mpich3-install/bin"' >> ~/.profile
+source ~/.profile
+
+cd /home/mpi/mpich3-install/bin
+
+python -m pip install mpi4py
+
+# remove files and folders
