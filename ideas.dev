@@ -105,6 +105,8 @@ https://books.google.de/books?id=wJiRDwAAQBAJ&pg=PA67&lpg=PA67&dq=novelty+search
 - test averaging behaviour with same model
 - save all models with id for visuals
 
+- pruning and ensemble validation test with archived models
+
 
 # way to independent BinderHub
 The Littlest JupyterHub installation
