@@ -2,6 +2,7 @@
 
 - improved discretization
 - retrieved head in circles looking ahead a few meters, not directly at well
+- ENV: previous head field really applied? (no depressions remain)
 
 - runtime offset genetic current to all in print
 - visualize generational trajectories ensemble
@@ -16,18 +17,18 @@
 - shouldn't the get_qs() use the target model instead of the main model for predictions?
 - check how actions differ with given mutationPower
 - add fully independent test dataset (i.e. seeds)
-- complete human performance assessment
-- add auto-documentation
-- gif documenting command line installation
-- for more repetitive results: np.random.seed(seed), tf.set_random_seed(seed)
-- reproduce memory increase with DQN sometimes that slows everything down?
 
-- surrogate models: test for sim boost factor?
-- surrogate models: genetic hyperparameter sampling?
-- surrogate models: compare trajectories with best model to true simulation
+- BENCHMARKS: complete inexperienced human performance assessment
+- DOCS: gif/video to document command line installation?
+- DOCS: complete docstrings properly
+- DOCS: add auto-documentation from docstrings
+- DQN: able to reproduce memory increase that slows everything down?
 
-- novelty search hyperparameters
-  https://arxiv.org/pdf/1207.6682.pdf
+- SURROGATE: test for sim boost factor?
+- SURROGATE: genetic hyperparameter sampling?
+- SURROGATE: compare trajectories with best model to true simulation
+
+- NOVELTY: example of hyperparameters https://arxiv.org/pdf/1207.6682.pdf
 
 - profile runtimes
 	- does map run in async? will async change results order?
