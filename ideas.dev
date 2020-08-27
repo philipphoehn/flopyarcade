@@ -3,7 +3,6 @@
 - improved discretization
 - retrieved head in circles looking ahead a few meters, not directly at well
 
-- implement novelty search
 - runtime offset genetic current to all in print
 - visualize generational trajectories ensemble
 - add resume function from weights of previously good model for genetic algorithm and DQN
@@ -94,8 +93,9 @@ https://books.google.de/books?id=wJiRDwAAQBAJ&pg=PA67&lpg=PA67&dq=novelty+search
 - add ENV with randomly moving "predatory well" (time-based seed for good random motion)
 
 - generate gifs of progress on this during evolution
-- indicated flow barriers / k regions
-- go button
+- GUI: start button
+- ENV: indicated flow barriers
+- ENV: k regions
 - avoid keep-winning scenaris by max distance from well Y
 
 - make sure to use same set of models for training all the time and for cross-validation or will this overfit?
@@ -106,6 +106,7 @@ https://books.google.de/books?id=wJiRDwAAQBAJ&pg=PA67&lpg=PA67&dq=novelty+search
 - save all models with id for visuals
 
 - pruning and ensemble validation test with archived models
+- build a upload function for an autograder
 
 
 # way to independent BinderHub
