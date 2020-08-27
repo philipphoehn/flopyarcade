@@ -5,7 +5,6 @@
 
 - runtime offset genetic current to all in print
 - visualize generational trajectories ensemble
-- add resume function from weights of previously good model for genetic algorithm and DQN
 - graph with actions on y axis and rewards on x axis (--> store action sequences, reward sequences)
 - store and plot well trajectories, currently only stored for last played game
 - store other stuff for other envs and incremental changes to initial state?
@@ -35,6 +34,7 @@
 - DQN: scale rewards between 0 and 1?
 - DQN: replayMemory stored that is then only updated during run?
 - DQN: able to reproduce memory increase that slows everything down?
+- DQN: add resume function
 - GS: include network architecture in genetic search?
 - NOVELTY: example of hyperparameters https://arxiv.org/pdf/1207.6682.pdf
 - ENV: previous head field really applied? (no cones of depression seem to remain)
