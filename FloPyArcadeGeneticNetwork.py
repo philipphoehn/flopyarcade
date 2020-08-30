@@ -11,20 +11,20 @@ from FloPyArcade import FloPyEnv
 
 # environment settings
 envSettings = {
-    'ENVTYPE': '3',                             # string defining environment
-    'MODELNAME': 'test',                        # string defining model basename
+    'ENVTYPE': '2',                             # string defining environment
+    'MODELNAME': 'gs-e2s1n1000e50g10000av200st200mpr1e-0mpo3e-3ar300x3v1relubn1_res100_ns-ev1e100nn5e5', # string defining model basename
     'PATHMF2005': None,                         # string of local path to MODFLOW 2005 executable
     'PATHMP6': None,                            # string of local path to MODPATH 6 executable
     'SURROGATESIMULATOR': None,
     'SEEDAGENT': 1,                             # integer enabling reproducibility of the agents
-    'SEEDENV': 3,                               # integer enabling reproducibility of the environments
+    'SEEDENV': 1,                               # integer enabling reproducibility of the environments
     'NAGENTSPARALLEL': 16,                      # integer defining parallelized agent runs
     'REWARDMINTOSAVE': 0.0,                     # float defining minimal reward to save a model
     'RENDER': False,                            # boolean to define if displaying runs
     'RENDEREVERY': 1000,                        # integer defining runs displayed
     'BESTAGENTANIMATION': True,                 # boolean defining whether to save animation of best agent per generation
     'KEEPMODELHISTORY': True,                   # boolean defining whether to keep all agents throughout evolution
-    'RESUME': False,                            # boolean defining whether to keep all agents throughout evolution
+    'RESUME': True,                            # boolean defining whether to keep all agents throughout evolution
     'NLAY': 1,                                  # integer defining numbers of model layers
     'NROW': 100,                                # integer defining grid rows
     'NCOL': 100                                 # integer defining grid columns
@@ -32,21 +32,21 @@ envSettings = {
 
 # hyperparameters
 hyParams = {
-    'NAGENTS': 2000,                            # integer defining number of agents
-    'NAGENTELITES': 100,                        # integer defining number of agents considered as parents
+    'NAGENTS': 1000,                            # integer defining number of agents
+    'NAGENTELITES': 50,                         # integer defining number of agents considered as parents
     'NGENERATIONS': 10000,                      # integer defining number of generations for evolution
-    'NGAMESAVERAGED': 5,                        # integer defining number of games played for averaging
+    'NGAMESAVERAGED': 200,                       # integer defining number of games played for averaging
     'NAGENTSTEPS': 200,                         # integer defining number of episodes per agent
     'MUTATIONPROBABILITY': 1.0,                 # float defining fraction of mutated parameters
     'MUTATIONPOWER': 0.003,                     # float defining mutation, 0.02 after https://arxiv.org/pdf/1712.06567.pdf
-    'NHIDDENNODES': [250] * 5,                  # list of integers of nodes per hidden layer to define architecture
+    'NHIDDENNODES': [300] * 3,                  # list of integers of nodes per hidden layer to define architecture
     'ARCHITECTUREVARY': True,                   # boolean defining to allow architecture variation
-    'HIDDENACTIVATIONS': ['relu'] * 5,          # list of strings defining hidden nodal activations
+    'HIDDENACTIVATIONS': ['relu'] * 3,          # list of strings defining hidden nodal activations
     'BATCHNORMALIZATION': True,                 # boolean defining batch normalization
     'NOVELTYSEARCH': True,                      # boolean defining novelty search
     'ADDNOVELTYEVERY': 1,                       # generational interval to add novelty agents
-    'NNOVELTYELITES': 1000,                     # number of novelty elites
-    'NNOVELTYNEIGHBORS': 100                    # number of novelty neighbors considered
+    'NNOVELTYELITES': 100,                      # number of novelty elites
+    'NNOVELTYNEIGHBORS': 500000                 # number of novelty neighbors considered
 }
 
 

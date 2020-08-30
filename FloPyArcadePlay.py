@@ -16,7 +16,7 @@ from numpy.random import randint
 # environment settings
 envSettings = {
     'ENVTYPE': '3',
-    'MODELNAMELOAD': 'test',
+    'MODELNAMELOAD': 'ENV3',
     'MODELNAME': None,
     'PATHMF2005': None,
     'PATHMP6': None,

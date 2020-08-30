@@ -19,6 +19,7 @@ from itertools import product
 from math import ceil, floor
 from matplotlib.cm import get_cmap
 from matplotlib.pyplot import Circle, close, figure, pause, show
+from matplotlib.pyplot import get_current_fig_manager
 from matplotlib.pyplot import waitforbuttonpress
 from numpy import add, arange, argmax, argsort, array, ceil, copy, divide
 from numpy import extract, float32, int32, linspace, max, maximum, min, minimum
@@ -2226,24 +2227,20 @@ class FloPyEnv():
         if self.timeStep == 0:
             self.renderInitializeCanvas()
             self.plotfilesSaved = []
-            self.extent = (self.dRow / 2., self.extentX - self.dRow / 2.,
-                           self.extentY - self.dCol / 2., self.dCol / 2.
-                           )
-
-        self.modelmap = PlotMapView(model=self.mf, layer=0)
-        # self.grid = self.modelmap.plot_grid(zorder=1, lw=0.1)
-        self.headsplot = self.modelmap.plot_array(self.heads,
-                                                  masked_values=[999.],
-                                                  alpha=0.5, zorder=2,
-                                                  cmap=get_cmap('terrain')
-                                                  )
+            self.extent = (self.dRow / 2.0, self.extentX - self.dRow / 2.0,
+             self.extentY - self.dCol / 2.0, self.dCol / 2.0)
+            self.figManager = get_current_fig_manager()
+            try:
+                self.figManager.window.state('zoomed')
+            except:
+                self.figManager.full_screen_toggle()
+        self.modelmap = PlotMapView(model=(self.mf), layer=0)
+        self.headsplot = self.modelmap.plot_array((self.heads), masked_values=[
+         999.0],
+          alpha=0.5,
+          zorder=2,
+          cmap=(get_cmap('terrain')))
         self.quadmesh = self.modelmap.plot_ibound(zorder=3)
-        # plotting discharge vectors can be computationally expensive
-        # self.quiver = self.modelmap.plot_discharge(self.frf, self.fff,
-        #                                            head=self.heads,
-        #                                            alpha=0.1, zorder=4
-        #                                            )
-
         self.renderWellSafetyZone(zorder=3)
         self.renderContourLines(n=30, zorder=4)
         self.renderIdealParticleTrajectory(zorder=5)
@@ -2252,129 +2249,89 @@ class FloPyEnv():
         self.renderParticle(zorder=6)
         self.renderParticleTrajectory(zorder=6)
         self.renderTextOnCanvasTimeAndScore(zorder=10)
-
         self.renderRemoveAxesTicks()
         self.renderSetAxesLimits()
-        self.renderSetAxesLabels()
+        self.renderAddAxesTextLabels()
+        for ax in [self.ax, self.ax2, self.ax3]:
+            ax.axis('off')
 
         if returnFigure:
             return self.fig
-
         if not returnFigure:
             if self.MANUALCONTROL:
                 self.renderUserInterAction()
-            elif not self.MANUALCONTROL:
-                if self.RENDER:
-                    show(block=False)
-                    pause(self.MANUALCONTROLTIME)
+            else:
+                if not self.MANUALCONTROL:
+                    if self.RENDER:
+                        show(block=False)
+                        pause(self.MANUALCONTROLTIME)
             if self.SAVEPLOT:
                 self.renderSavePlot()
-                if self.done or self.timeStep==self.NAGENTSTEPS:
+                if self.done or self.timeStep == self.NAGENTSTEPS:
                     self.renderAnimationFromFiles()
-
             self.renderClearAxes()
             del self.headsplot
 
     def render3d(self):
         """Render environment in 3 dimensions."""
-
         from mpl_toolkits import mplot3d
         import numpy as np
         from numpy import mgrid, pi
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import axes3d
         from matplotlib import cm
-
         if self.timeStep == 0:
             self.fig = figure(figsize=(15, 12))
             self.ax = self.fig.gca(projection='3d')
             self.ax.view_init(22.5, 90)
             self.plotfilesSaved = []
-
         test = self.dis.get_node_coordinates()
-        # xx, yy = np.meshgrid(test[0], test[1], sparse=True)
         x1, y1 = np.meshgrid(test[0], test[1])
         z1 = np.reshape(np.ndarray.flatten(self.heads), (self.nRow, self.nCol))
-        # self.ax.plot_surface(x1, y1, z1, cmap='viridis', edgecolor='none')
-        # self.ax.scatter(self.trajectories['x'][-1][-1], self.trajectories['y'][-1][-1],
-        #     lw=2, c='red', zorder=6)
-
-        lParticle, cParticle, rParticle = self.cellInfoFromCoordinates(
-            [self.particleCoords[0], self.particleCoords[1], self.particleCoords[2]])
-        hParticle = self.heads[lParticle-1, rParticle-1, cParticle-1]
-        
-        # print('debug head', self.timeStep, hParticle)
-        # print('particle coordinates', self.particleCoords)
-
+        lParticle, cParticle, rParticle = self.cellInfoFromCoordinates([
+         self.particleCoords[0], self.particleCoords[1], self.particleCoords[2]])
+        hParticle = self.heads[(lParticle - 1, rParticle - 1, cParticle - 1)]
         if self.timeStep == 0:
-            self.ax.scatter(self.minX, self.particleCoords[1], lw=2, c='red',
-                zorder=6, alpha=1.0)
+            self.ax.scatter((self.minX), (self.particleCoords[1]), lw=2, c='red', zorder=6,
+              alpha=1.0)
         if self.timeStep > 0:
-            self.ax.scatter(self.trajectories['x'][-1][-1], self.trajectories['y'][-1][-1],
-                 lw=2, c='red', zorder=6, alpha=1.0
-                 )
-            xs = [self.trajectories['x'][-1][-1], self.trajectories['x'][-1][-1]]
-            ys = [self.trajectories['y'][-1][-1], self.trajectories['y'][-1][-1]]
+            self.ax.scatter((self.trajectories['x'][(-1)][(-1)]), (self.trajectories['y'][(-1)][(-1)]), lw=2,
+              c='red',
+              zorder=6,
+              alpha=1.0)
+            xs = [
+             self.trajectories['x'][(-1)][(-1)], self.trajectories['x'][(-1)][(-1)]]
+            ys = [self.trajectories['y'][(-1)][(-1)], self.trajectories['y'][(-1)][(-1)]]
             zs = [hParticle, 12]
             self.ax.plot(xs, ys, zs, 'red', alpha=0.8, linewidth=2.5, zorder=2)
-
-        self.modelmap = PlotMapView(model=self.mf, layer=0, ax=self.ax)
-        # # self.grid = self.modelmap.plot_grid(zorder=1, lw=0.1)
-        # self.headsplot = self.modelmap.plot_array(self.heads,
-        #                                           masked_values=[999.],
-        #                                           alpha=0.5, zorder=2,
-        #                                           cmap=get_cmap('terrain'),
-        #                                           ax=self.ax
-        #                                           )
-        # self.quadmesh = self.modelmap.plot_ibound(zorder=3, ax=self.ax)
-        # ax.scatter(x, y, zs=0, zdir='y', c=c_list, label='points in (x,z)')
-
-        # bug in zordering may be fixed soon:
-        # https://github.com/matplotlib/matplotlib/pull/14508
-        # meanwhile use rendering?
-        # https://laurentperrinet.github.io/sciblog/posts/2015-01-16-rendering-3d-scenes-in-python.html
-        
-
-        # https://stackoverflow.com/questions/13932150/matplotlib-wrong-overlapping-when-plotting-two-3d-surfaces-on-the-same-axes/43004221
-        # plotting a sphere representing the particle on top of the surface
+        self.modelmap = PlotMapView(model=(self.mf), layer=0, ax=(self.ax))
         from numpy import cos, sin
         u = np.linspace(0, 2 * np.pi, 100)
         v = np.linspace(0, np.pi, 100)
         x2 = 1 * np.outer(np.cos(u), np.sin(v)) + self.particleCoords[0]
         y2 = 1 * np.outer(np.sin(u), np.sin(v)) + self.particleCoords[1]
         z2 = 0.2 * np.outer(np.ones(np.size(u)), np.cos(v)) + hParticle
-        
-        # self.ax.plot_surface(x1, y1, z1, rstride=8, cstride=8, alpha=0.3, antialiased=False, zorder=-1)
-        # self.ax.plot_surface(x2, y2, z2, rstride=1, cstride=1, color='b', alpha=1, antialiased=False, zorder=1)
-
-        self.ax.plot_surface(x1, y2, np.where(z1<z2, z1, np.nan))
+        self.ax.plot_surface(x1, y2, np.where(z1 < z2, z1, np.nan))
         self.ax.plot_surface(x2, y2, z2)
-        self.ax.plot_surface(x1, y1, np.where(z1>=z2, z1, np.nan))
-
-
-        cset = self.ax.contour(x1, y1, z1, zdir='z', offset=-0.5,
-            cmap=get_cmap('terrain'))
-        cset = self.ax.contour(x1, y1, z1, zdir='x', offset=0.,
-            cmap=get_cmap('terrain'))
-        cset = self.ax.contour(x1, y1, z1, zdir='y', offset=0.,
-            cmap=get_cmap('terrain'))
+        self.ax.plot_surface(x1, y1, np.where(z1 >= z2, z1, np.nan))
+        cset = self.ax.contour(x1, y1, z1, zdir='z', offset=(-0.5), cmap=(get_cmap('terrain')))
+        cset = self.ax.contour(x1, y1, z1, zdir='x', offset=0.0, cmap=(get_cmap('terrain')))
+        cset = self.ax.contour(x1, y1, z1, zdir='y', offset=0.0, cmap=(get_cmap('terrain')))
         self.ax.plot([50], [50], [8], 'k--', alpha=0.5, linewidth=2.5)
-        self.ax.set_xlim(0., 100.)
-        self.ax.set_ylim(0., 100.)
-        self.ax.set_zlim(0., 20.)
-        # plotting normal plot as projection at the bottom
-
+        self.ax.set_xlim(0.0, 100.0)
+        self.ax.set_ylim(0.0, 100.0)
+        self.ax.set_zlim(0.0, 20.0)
         if self.MANUALCONTROL:
             self.renderUserInterAction()
-        elif not self.MANUALCONTROL:
-            if self.RENDER:
-                show(block=False)
-                pause(self.MANUALCONTROLTIME)
+        else:
+            if not self.MANUALCONTROL:
+                if self.RENDER:
+                    show(block=False)
+                    pause(self.MANUALCONTROLTIME)
         if self.SAVEPLOT:
             self.renderSavePlot()
-            if self.done or self.timeStep==self.NAGENTSTEPS:
+            if self.done or self.timeStep == self.NAGENTSTEPS:
                 self.renderAnimationFromFiles()
-
         self.renderClearAxes()
 
     def renderInitializeCanvas(self):
@@ -2386,46 +2343,53 @@ class FloPyEnv():
 
     def renderIdealParticleTrajectory(self, zorder=5):
         """Plot ideal particle trajectory associated with maximum reward."""
-        self.ax2.plot([self.minX, self.minX + self.extentX],
-                      [self.particleY, self.particleY],
-                      lw=1.5, c='white', linestyle='--', zorder=zorder,
-                      alpha=0.5
-                      )
+        self.ax2.plot([self.minX, self.minX + self.extentX], [
+         self.particleY, self.particleY],
+          lw=1.5,
+          c='white',
+          linestyle='--',
+          zorder=zorder,
+          alpha=0.5)
 
     def renderContourLines(self, n=30, zorder=4):
         """Plot n contour lines of the head field."""
         self.levels = linspace(min(self.heads), max(self.heads), n)
-        self.contours = self.modelmap.contour_array(self.heads,
-            levels=self.levels, alpha=0.5, zorder=zorder)
+        self.contours = self.modelmap.contour_array((self.heads), levels=(self.levels),
+          alpha=0.5,
+          zorder=zorder)
 
     def renderWellSafetyZone(self, zorder=3):
         """Plot well safety zone."""
-        wellBufferCircle = Circle((self.wellCoords[0], self.extentY - self.wellCoords[1]),
-                                  self.wellRadius,
-                                  edgecolor='r', facecolor=None, fill=False,
-                                  zorder=zorder, alpha=1.0, lw=2.0,
-                                  label='protection zone'
-                                  )
+        wellBufferCircle = Circle((self.wellCoords[0], self.extentY - self.wellCoords[1]), (self.wellRadius),
+          edgecolor='r',
+          facecolor=None,
+          fill=False,
+          zorder=zorder,
+          alpha=1.0,
+          lw=2.0,
+          label='protection zone')
         self.ax2.add_artist(wellBufferCircle)
-
         if self.ENVTYPE == '4':
-            wellCoords = [self.wellCoords1, self.wellCoords2, self.wellCoords3,
-                          self.wellCoords4, self.wellCoords5]
+            wellCoords = [
+             self.wellCoords1, self.wellCoords2, self.wellCoords3,
+             self.wellCoords4, self.wellCoords5]
             for c in wellCoords:
-                wellBufferCircle = Circle((c[0], self.extentY - c[1]),
-                                          self.wellRadius,
-                                          edgecolor='r', facecolor=None, fill=False,
-                                          zorder=zorder, alpha=0.5, lw=2.0,
-                                          label='protection zone'
-                                          )
+                wellBufferCircle = Circle((c[0], self.extentY - c[1]), (self.wellRadius),
+                  edgecolor='r',
+                  facecolor=None,
+                  fill=False,
+                  zorder=zorder,
+                  alpha=0.5,
+                  lw=2.0,
+                  label='protection zone')
                 self.ax2.add_artist(wellBufferCircle)
 
     def renderTextOnCanvasPumpingRate(self, zorder=10):
         """Plot pumping rate on figure."""
-        self.ax2.text(self.wellX + 3., self.extentY - self.wellY,
-            str(int(self.wellQ)) + '\nm3/d',
-            fontsize=12, color='black', zorder=zorder
-            )
+        self.ax2.text((self.wellX + 3.0), (self.extentY - self.wellY), (str(int(self.wellQ)) + '\nm3/d'),
+          fontsize=12,
+          color='black',
+          zorder=zorder)
 
     def renderTextOnCanvasGameOutcome(self, zorder=10):
         """Plot final game outcome on figure."""
@@ -2435,156 +2399,132 @@ class FloPyEnv():
                 gameResult = 'You won.'
             elif self.success == False:
                 gameResult = 'You lost.'
-        self.ax2.text(35, 80, gameResult,
-                      fontsize=30, color='red', zorder=zorder
-                      )
+        self.ax2.text(35, 80, gameResult, fontsize=30,
+          color='red',
+          zorder=zorder)
 
     def renderTextOnCanvasTimeAndScore(self, zorder=10):
         """Plot final game outcome on figure."""
-        timeString = '%.0f' % (float(self.timeStep) *
-                               (self.periodLength - 1.0))
-        self.ax2.text(5, 92,
-                      'FloPy Arcade game'
-                      + ', timestep '
-                      + str(int(self.timeStep))
-                      + '\nscore: '
-                      + str(int(self.rewardCurrent))
-                      + '     '
-                      + timeString
-                      + ' d elapsed',
-                      fontsize=12,
-                      zorder=zorder
-                      )
+        timeString = '%.0f' % (float(self.timeStep) * self.periodLength)
+        self.ax2.text(5, 92, ('score: ' + str(int(self.rewardCurrent)) + '\ntime: ' + timeString + ' d'),
+          fontsize=12,
+          zorder=zorder)
 
     def renderParticle(self, zorder=6):
         """Plot particle at current current state."""
         if self.timeStep == 0:
-            self.ax2.scatter(self.minX,
-                 self.particleCoords[1],
-                 lw=4,
-                 c='red',
-                 zorder=zorder)
+            self.ax2.scatter((self.minX), (self.particleCoords[1]),
+              lw=4,
+              c='red',
+              zorder=zorder)
         elif self.timeStep > 0:
-            self.ax2.scatter(self.trajectories['x'][-1][-1],
-                             self.trajectories['y'][-1][-1],
-                             lw=2,
-                             c='red',
-                             zorder=zorder)
+            self.ax2.scatter((self.trajectories['x'][(-1)][(-1)]), (self.trajectories['y'][(-1)][(-1)]),
+              lw=2,
+              c='red',
+              zorder=zorder)
 
     def renderParticleTrajectory(self, zorder=6):
         """Plot particle trajectory until current state."""
         if self.timeStep > 0:
-
-            # generating fading colors
             countCoords, colorsLens = 0, []
             for i in range(len(self.trajectories['x'])):
                 countCoords += len(self.trajectories['x'][i])
                 colorsLens.append(len(self.trajectories['x'][i]))
+
             colorsFadeAlphas = linspace(0.1, 1.0, countCoords)
             colorsRGBA = zeros((countCoords, 4))
             colorsRGBA[:, 0] = 1.0
             colorsRGBA[:, 3] = colorsFadeAlphas
-
             idxCount = 0
             for i in range(len(self.trajectories['x'])):
-                self.ax2.plot(self.trajectories['x'][i],
-                              self.trajectories['y'][i],
-                              lw=2,
-                              c=colorsRGBA[idxCount + colorsLens[i] - 1,
-                                           :],
-                              zorder=zorder)
+                self.ax2.plot((self.trajectories['x'][i]), (self.trajectories['y'][i]),
+                  lw=2,
+                  c=(colorsRGBA[idxCount + colorsLens[i] - 1, :]),
+                  zorder=zorder)
                 idxCount += 1
 
     def renderRemoveAxesTicks(self):
         """Remove axes ticks from figure."""
-        self.ax.set_xticks([]), self.ax.set_yticks([])
-        self.ax2.set_xticks([]), self.ax2.set_yticks([])
+        (self.ax.set_xticks([]), self.ax.set_yticks([]))
+        (self.ax2.set_xticks([]), self.ax2.set_yticks([]))
         if self.ENVTYPE == '1' or self.ENVTYPE == '3' or self.ENVTYPE == '4':
-            self.ax3.set_xticks([]), self.ax3.set_yticks([])
+            (
+             self.ax3.set_xticks([]), self.ax3.set_yticks([]))
 
     def renderSetAxesLimits(self):
         """Set limits of axes from given extents of environment domain."""
-        self.ax.set_xlim(left=self.minX, right=self.minX + self.extentX)
-        self.ax.set_ylim(bottom=self.minY, top=self.minY + self.extentY)
-        self.ax2.set_xlim(left=self.minX, right=self.minX + self.extentX)
-        self.ax2.set_ylim(bottom=self.minY, top=self.minY + self.extentY)
-        self.ax3.set_xlim(left=self.minX, right=self.minX + self.extentX)
-        self.ax3.set_ylim(bottom=self.minY, top=self.minY + self.extentY)
+        self.ax.set_xlim(left=(self.minX), right=(self.minX + self.extentX))
+        self.ax.set_ylim(bottom=(self.minY), top=(self.minY + self.extentY))
+        self.ax2.set_xlim(left=(self.minX), right=(self.minX + self.extentX))
+        self.ax2.set_ylim(bottom=(self.minY), top=(self.minY + self.extentY))
+        self.ax3.set_xlim(left=(self.minX), right=(self.minX + self.extentX))
+        self.ax3.set_ylim(bottom=(self.minY), top=(self.minY + self.extentY))
 
-    def renderSetAxesLabels(self):
-        """Set labels to axes."""
-        self.ax.set_ylabel('Start\nwater level:   ' + str('%.2f' %
-                                                          self.headSpecWest) + ' m', fontsize=12)
-        self.ax3.set_ylabel('water level:   ' + str('%.2f' %
-                                                    self.headSpecEast) + ' m\nDestination', fontsize=12)
+    def renderAddAxesTextLabels(self):
+        """Add labeling text to axes."""
+        left, width = self.minX, self.minX + self.extentX
+        bottom, height = self.minY, self.minY + self.extentY
+        top = bottom + height
+        textRight = 'Destination:   ' + str('%.2f' % self.headSpecEast) + ' m'
+        textLeft = 'Start:   ' + str('%.2f' % self.headSpecWest) + ' m'
         if self.ENVTYPE == '1':
-            self.ax.set_xlabel('water level:   ' + str('%.2f' %
-                                                       self.actionValueNorth) 
-                                                       + ' m', fontsize=12)
-            self.ax2.set_xlabel('water level:   ' +
-                                str('%.2f' %
-                                    self.actionValueSouth) +
-                                ' m', fontsize=12)
-        elif self.ENVTYPE == '2':
-            self.ax.set_xlabel('water level:   ' + str('%.2f' %
-                                                       self.actionValue) 
-                                                       + ' m', fontsize=12)
-        elif self.ENVTYPE == '3' or self.ENVTYPE == '4':
-            self.ax.set_xlabel('water level:   ' + 
-                               str('%.2f' %
-                                   self.headSpecNorth) +
-                               ' m',
-                               fontsize=12)
-            self.ax2.set_xlabel('water level:   ' +
-                                str('%.2f' %
-                                    self.headSpecSouth) +
-                                ' m',
-                                fontsize=12)
+            textTop = str('%.2f' % self.actionValueNorth) + ' m'
+            textBottom = str('%.2f' % self.actionValueSouth) + ' m'
+        else:
+            if self.ENVTYPE == '2':
+                textTop = ''
+                textBottom = str('%.2f' % self.actionValue) + ' m'
+            else:
+                if self.ENVTYPE == '3' or self.ENVTYPE == '4':
+                    textTop = str('%.2f' % self.headSpecNorth) + ' m'
+                    textBottom = str('%.2f' % self.headSpecSouth) + ' m'
+        self.ax2.text((self.minX + 2 * self.dCol), (0.5 * (bottom + top)), textLeft, horizontalalignment='left',
+          verticalalignment='center',
+          rotation='vertical',
+          zorder=10,
+          fontsize=12)
+        self.ax2.text((self.extentX - 2 * self.dCol), (0.5 * (bottom + top)), textRight, horizontalalignment='right',
+          verticalalignment='center',
+          rotation='vertical',
+          zorder=10,
+          fontsize=12)
+        self.ax2.text((0.5 * (left + width)), (self.extentY - 2 * self.dRow), textTop, horizontalalignment='center',
+          verticalalignment='top',
+          rotation='horizontal',
+          zorder=10,
+          fontsize=12)
+        self.ax2.text((0.5 * (left + width)), (self.minY + 2 * self.dRow), textBottom, horizontalalignment='center',
+          verticalalignment='bottom',
+          rotation='horizontal',
+          zorder=10,
+          fontsize=12)
 
     def renderUserInterAction(self):
         """Enable user control of the environment."""
         if self.timeStep == 0:
-            # determining if called from IPython notebook
             if 'ipykernel' in modules:
                 self.flagFromIPythonNotebook = True
             else:
                 self.flagFromIPythonNotebook = False
-
         if self.flagFromIPythonNotebook:
-            # changing plot updates of IPython notebooks
-            # currently unsolved: need to capture key stroke here as well
-            # display.clear_output(wait=True)
-            # display.display(self.fig)
-            # sleep(5)            
-            # waitforbuttonpress(timeout=self.MANUALCONTROLTIME)
-            # display.clear_output(wait=True)
-            self.fig.canvas.mpl_connect(
-                'key_press_event', self.captureKeyPress)
+            self.fig.canvas.mpl_connect('key_press_event', self.captureKeyPress)
             show(block=False)
-            waitforbuttonpress(timeout=self.MANUALCONTROLTIME)
+            waitforbuttonpress(timeout=(self.MANUALCONTROLTIME))
         elif not self.flagFromIPythonNotebook:
-            self.fig.canvas.mpl_connect(
-                'key_press_event', self.captureKeyPress)
+            self.fig.canvas.mpl_connect('key_press_event', self.captureKeyPress)
             show(block=False)
-            waitforbuttonpress(timeout=self.MANUALCONTROLTIME)
+            waitforbuttonpress(timeout=(self.MANUALCONTROLTIME))
 
     def renderSavePlot(self):
         """Save plot of the currently rendered timestep."""
         if self.timeStep == 0:
-            # setting up the path to save results plots in
             self.plotsfolderpth = join(self.wrkspc, 'runs')
             self.plotspth = join(self.wrkspc, 'runs', self.ANIMATIONFOLDER)
-            # ensuring directories exists
             if not exists(self.plotsfolderpth):
                 makedirs(self.plotsfolderpth)
             if not exists(self.plotspth):
                 makedirs(self.plotspth)
-
-        plotfile = join(self.plotspth,
-                              self.MODELNAME + '_'
-                              + str(self.timeStep).zfill(len(str(abs(self.NAGENTSTEPS)))+1)
-                              + '.png'
-                              )
+        plotfile = join(self.plotspth, self.MODELNAME + '_' + str(self.timeStep).zfill(len(str(abs(self.NAGENTSTEPS))) + 1) + '.png')
         self.fig.savefig(plotfile, dpi=70)
         self.plotfilesSaved.append(plotfile)
 
@@ -2593,24 +2533,29 @@ class FloPyEnv():
         try:
             self.ax.cla()
             self.ax.clear()
-        except: pass
+        except:
+            pass
+
         try:
             self.ax2.cla()
             self.ax2.clear()
-        except: pass
+        except:
+            pass
+
         if self.ENVTYPE == '1' or self.ENVTYPE == '3' or self.ENVTYPE == '4':
             try:
                 self.ax3.cla()
                 self.ax3.clear()
-            except: pass
+            except:
+                pass
 
     def renderAnimationFromFiles(self):
         """Create animation of fulll game run.
         Code taken from and credit to:
         https://stackoverflow.com/questions/753190/programmatically-generate-video-or-animated-gif-in-python
         """
-        with get_writer(join(self.wrkspc, 'runs',
-            self.ANIMATIONFOLDER, self.MODELNAME + '.gif'), mode='I') as writer:
+        with get_writer((join(self.wrkspc, 'runs', self.ANIMATIONFOLDER, self.MODELNAME + '.gif')),
+          mode='I') as (writer):
             for filename in self.plotfilesSaved:
                 image = imread(filename)
                 writer.append_data(image)
@@ -2618,80 +2563,59 @@ class FloPyEnv():
 
     def cellInfoFromCoordinates(self, coords):
         """Determine layer, row and column corresponding to model location."""
-
         x, y, z = coords[0], coords[1], coords[2]
-
         layer = int(ceil((z + self.zBot) / self.dVer))
         column = int(ceil((x + self.minX) / self.dCol))
         row = int(ceil((y + self.minY) / self.dRow))
-
-        # in cases where coordinates are 0, this replacement is necessary
         if layer == 0:
             layer = 1
         if column == 0:
             column = 1
         if row == 0:
             row = 1
-        # in cases where coordinates are slightly exceeding boundaries (e.g.
-        # rounding or inaccurate surrogate prediction), this replacement is necessary
         if layer > self.nLay:
             layer = self.nLay
         if column > self.nCol:
             column = self.nCol
         if row > self.nRow:
             row = self.nRow
-
-        return layer, column, row
+        return (layer, column, row)
 
     def surroundingHeadsFromCoordinates(self, coords, distance):
         """Determine hydraulic head of surrounding cells. Returns head of the
         same cell in the case of surrounding edges of the environment domain.
         """
-
-        # lc, cc, rc = self.cellInfoFromCoordinates([coords[0], coords[1], coords[2]])
-
         headsSurrounding = []
         for rIdx in range(3):
             for cIdx in range(3):
-                # if rIdx or cIdx = 0, this is the previous, = 1 is the current and thus skipped if both, and = 2 is the next
-
-                if (rIdx == 1) and (cIdx == 1):
-                    # ignoring if coordinates are at the center of the 3x3 cube looked at
-                    pass
-                else:
-                    rDistance = distance * (rIdx-1)
-                    cDistance = distance * (cIdx-1)
-                    coordX, coordY, coordZ = coords[0]+cDistance, coords[1]+rDistance, coords[2]
-                    adjustedCoords = False
-                    if coords[0]+cDistance > self.extentX:
-                        coordX = self.extentX
-                        adjustedCoords = True
-                    if coords[0]+cDistance < self.minX:
-                        coordX = self.minX
-                        adjustedCoords = True
-                    if coords[1]+rDistance > self.extentY:
-                        coordY = self.extentY
-                        adjustedCoords = True
-                    if coords[1]+rDistance < self.minY:
-                        coordY = self.minY
-                        adjustedCoords = True
-                    
-                    # index 837 is out of bounds for axis 2 with size 800 Something went wrong. Maybe the queried coordinates reside outside the model domain?
-                    if adjustedCoords:
-
-                        # This can lead to r-1 = -1?
-
-                        l, c, r = self.cellInfoFromCoordinates([coordX, coordY, coordZ])
-                        headsSurrounding.append(self.heads[l-1, r-1, c-1])
+                if rIdx == 1:
+                    if cIdx == 1:
+                        continue
+                    else:
+                        rDistance = distance * (rIdx - 1)
+                        cDistance = distance * (cIdx - 1)
+                        coordX, coordY, coordZ = coords[0] + cDistance, coords[1] + rDistance, coords[2]
+                        adjustedCoords = False
+                        if coords[0] + cDistance > self.extentX:
+                            coordX = self.extentX
+                            adjustedCoords = True
+                        if coords[0] + cDistance < self.minX:
+                            coordX = self.minX
+                            adjustedCoords = True
+                        if coords[1] + rDistance > self.extentY:
+                            coordY = self.extentY
+                            adjustedCoords = True
+                        if coords[1] + rDistance < self.minY:
+                            coordY = self.minY
+                            adjustedCoords = True
+                        if adjustedCoords:
+                            l, c, r = self.cellInfoFromCoordinates([coordX, coordY, coordZ])
+                            headsSurrounding.append(self.heads[(l - 1, r - 1, c - 1)])
                     if not adjustedCoords:
                         try:
-                            l, c, r = self.cellInfoFromCoordinates([coords[0]+cDistance, coords[1]+rDistance, coords[2]])
-                            # headsSurrounding.append(self.heads[l-1, r-rIdx, c-cIdx])
-                            headsSurrounding.append(self.heads[l-1, r-1, c-1])
+                            l, c, r = self.cellInfoFromCoordinates([coords[0] + cDistance, coords[1] + rDistance, coords[2]])
+                            headsSurrounding.append(self.heads[(l - 1, r - 1, c - 1)])
                         except Exception as e:
-                            # if surrounding head does not exist near domain boundary
-                            # check if r or c out of range?
-                            # headsSurrounding.append(self.heads[lc-1, rc-1, cc-1])
                             print(e)
                             print('Something went wrong. Maybe the queried coordinates reside outside the model domain?')
 
@@ -2699,125 +2623,133 @@ class FloPyEnv():
 
     def calculatePathLength(self, x, y):
         """Calculate length of advectively traveled path."""
-
         n = len(x)
         lv = []
         for i in range(n):
             if i > 0:
-                lv.append(sqrt((x[i] - x[i - 1])**2 + (y[i] - y[i - 1])**2))
-        pathLength = sum(lv)
+                lv.append(sqrt((x[i] - x[(i - 1)]) ** 2 + (y[i] - y[(i - 1)]) ** 2))
 
+        pathLength = sum(lv)
         return pathLength
 
     def captureKeyPress(self, event):
         """Capture key pressed through manual user interaction."""
-
         self.keyPressed = event.key
 
     def getActionValue(self, action):
         """Retrieve a list of performable actions."""
-
         if self.ENVTYPE == '1':
             if action == 'up':
                 self.actionValueNorth = self.actionValueNorth + self.actionRange
                 self.actionValueSouth = self.actionValueSouth + self.actionRange
-            elif action == 'down':
-                self.actionValueNorth = self.actionValueNorth - self.actionRange
-                self.actionValueSouth = self.actionValueSouth - self.actionRange
+            else:
+                if action == 'down':
+                    self.actionValueNorth = self.actionValueNorth - self.actionRange
+                    self.actionValueSouth = self.actionValueSouth - self.actionRange
+        else:
+            if self.ENVTYPE == '2':
+                if action == 'up':
+                    self.actionValue = self.actionValue + 0.1 * self.actionRange
+                else:
+                    if action == 'down':
+                        self.actionValue = self.actionValue - 0.1 * self.actionRange
+            else:
+                if self.ENVTYPE == '3':
+                    if action == 'up':
+                        if self.wellY > self.dRow + self.actionRange:
+                            self.actionValueY = self.wellY - self.actionRange
+                    else:
+                        if action == 'left':
+                            if self.wellX > self.dCol + self.actionRange:
+                                self.actionValueX = self.wellX - self.actionRange
+                        else:
+                            if action == 'right':
+                                if self.wellX < self.extentX - self.dCol - self.actionRange:
+                                    self.actionValueX = self.wellX + self.actionRange
+                            else:
+                                if action == 'down' and self.wellY < self.extentY - self.dRow - self.actionRange:
+                                    self.actionValueY = self.wellY + self.actionRange
+                elif self.ENVTYPE == '4':
+                    actionList = []
+                    while len(action) != 0:
+                        for action_ in self.actionSpaceIndividual:
+                            if action[:len(action_)] == action_:
+                                actionList.append(action_)
+                                action = action[len(action_):]
 
-        elif self.ENVTYPE == '2':
-            if action == 'up':
-                self.actionValue = self.actionValue + 0.1 * self.actionRange
-            elif action == 'down':
-                self.actionValue = self.actionValue - 0.1 * self.actionRange
-
-        elif self.ENVTYPE == '3':
-            if action == 'up':
-                if self.wellY > self.dRow + self.actionRange:
-                    self.actionValueY = self.wellY - self.actionRange
-            elif action == 'left':
-                if self.wellX > self.dCol + self.actionRange:
-                    self.actionValueX = self.wellX - self.actionRange
-            elif action == 'right':
-                if self.wellX < self.extentX - self.dCol - self.actionRange:
-                    self.actionValueX = self.wellX + self.actionRange
-            elif action == 'down':
-                if self.wellY < self.extentY - self.dRow - self.actionRange:
-                    self.actionValueY = self.wellY + self.actionRange
-
-        elif self.ENVTYPE == '4':
-            # splitting string of actions into list actions
-            actionList = []
-            while len(action) != 0:
-                for action_ in self.actionSpaceIndividual:
-                    if action[:len(action_)] == action_:
-                        actionList.append(action_)
-                        action = action[len(action_):]
-
-            if actionList[0] == 'up':
-                if self.wellY1 > self.dRow + self.actionRange:
-                    self.actionValueY1 = self.wellY1 - self.actionRange
-            elif actionList[0] == 'left':
-                if self.wellX1 > self.dCol + self.actionRange:
-                    self.actionValueX1 = self.wellX1 - self.actionRange
-            elif actionList[0] == 'right':
-                if self.wellX1 < self.extentX - self.dCol - self.actionRange:
-                    self.actionValueX1 = self.wellX1 + self.actionRange
-            elif actionList[0] == 'down':
-                if self.wellY1 < self.extentY - self.dRow - self.actionRange:
-                    self.actionValueY1 = self.wellY1 + self.actionRange
-
-            if actionList[1] == 'up':
-                if self.wellY2 > self.dRow + self.actionRange:
-                    self.actionValueY2 = self.wellY2 - self.actionRange
-            elif actionList[1] == 'left':
-                if self.wellX2 > self.dCol + self.actionRange:
-                    self.actionValueX2 = self.wellX2 - self.actionRange
-            elif actionList[1] == 'right':
-                if self.wellX2 < self.extentX - self.dCol - self.actionRange:
-                    self.actionValueX2 = self.wellX2 + self.actionRange
-            elif actionList[1] == 'down':
-                if self.wellY2 < self.extentY - self.dRow - self.actionRange:
-                    self.actionValueY2 = self.wellY2 + self.actionRange
-
-            if actionList[2] == 'up':
-                if self.wellY3 > self.dRow + self.actionRange:
-                    self.actionValueY3 = self.wellY3 - self.actionRange
-            elif actionList[2] == 'left':
-                if self.wellX3 > self.dCol + self.actionRange:
-                    self.actionValueX3 = self.wellX3 - self.actionRange
-            elif actionList[2] == 'right':
-                if self.wellX3 < self.extentX - self.dCol - self.actionRange:
-                    self.actionValueX3 = self.wellX3 + self.actionRange
-            elif actionList[2] == 'down':
-                if self.wellY3 < self.extentY - self.dRow - self.actionRange:
-                    self.actionValueY3 = self.wellY3 + self.actionRange
-
-            if actionList[3] == 'up':
-                if self.wellY4 > self.dRow + self.actionRange:
-                    self.actionValueY4 = self.wellY4 - self.actionRange
-            elif actionList[3] == 'left':
-                if self.wellX4 > self.dCol + self.actionRange:
-                    self.actionValueX4 = self.wellX4 - self.actionRange
-            elif actionList[3] == 'right':
-                if self.wellX4 < self.extentX - self.dCol - self.actionRange:
-                    self.actionValueX4 = self.wellX4 + self.actionRange
-            elif actionList[3] == 'down':
-                if self.wellY4 < self.extentY - self.dRow - self.actionRange:
-                    self.actionValueY4 = self.wellY4 + self.actionRange
-
-            if actionList[4] == 'up':
-                if self.wellY5 > self.dRow + self.actionRange:
-                    self.actionValueY5 = self.wellY5 - self.actionRange
-            elif actionList[4] == 'left':
-                if self.wellX5 > self.dCol + self.actionRange:
-                    self.actionValueX5 = self.wellX5 - self.actionRange
-            elif actionList[4] == 'right':
-                if self.wellX5 < self.extentX - self.dCol - self.actionRange:
-                    self.actionValueX5 = self.wellX5 + self.actionRange
-            elif actionList[4] == 'down':
-                if self.wellY5 < self.extentY - self.dRow - self.actionRange:
-                    self.actionValueY5 = self.wellY5 + self.actionRange
+                    if actionList[0] == 'up':
+                        if self.wellY1 > self.dRow + self.actionRange:
+                            self.actionValueY1 = self.wellY1 - self.actionRange
+                    else:
+                        if actionList[0] == 'left':
+                            if self.wellX1 > self.dCol + self.actionRange:
+                                self.actionValueX1 = self.wellX1 - self.actionRange
+                        else:
+                            if actionList[0] == 'right':
+                                if self.wellX1 < self.extentX - self.dCol - self.actionRange:
+                                    self.actionValueX1 = self.wellX1 + self.actionRange
+                            else:
+                                if actionList[0] == 'down':
+                                    if self.wellY1 < self.extentY - self.dRow - self.actionRange:
+                                        self.actionValueY1 = self.wellY1 + self.actionRange
+                    if actionList[1] == 'up':
+                        if self.wellY2 > self.dRow + self.actionRange:
+                            self.actionValueY2 = self.wellY2 - self.actionRange
+                    else:
+                        if actionList[1] == 'left':
+                            if self.wellX2 > self.dCol + self.actionRange:
+                                self.actionValueX2 = self.wellX2 - self.actionRange
+                        else:
+                            if actionList[1] == 'right':
+                                if self.wellX2 < self.extentX - self.dCol - self.actionRange:
+                                    self.actionValueX2 = self.wellX2 + self.actionRange
+                            else:
+                                if actionList[1] == 'down':
+                                    if self.wellY2 < self.extentY - self.dRow - self.actionRange:
+                                        self.actionValueY2 = self.wellY2 + self.actionRange
+                                if actionList[2] == 'up':
+                                    if self.wellY3 > self.dRow + self.actionRange:
+                                        self.actionValueY3 = self.wellY3 - self.actionRange
+                                else:
+                                    if actionList[2] == 'left':
+                                        if self.wellX3 > self.dCol + self.actionRange:
+                                            self.actionValueX3 = self.wellX3 - self.actionRange
+                                    else:
+                                        if actionList[2] == 'right':
+                                            if self.wellX3 < self.extentX - self.dCol - self.actionRange:
+                                                self.actionValueX3 = self.wellX3 + self.actionRange
+                                        elif actionList[2] == 'down':
+                                            if self.wellY3 < self.extentY - self.dRow - self.actionRange:
+                                                self.actionValueY3 = self.wellY3 + self.actionRange
+                    if actionList[3] == 'up':
+                        if self.wellY4 > self.dRow + self.actionRange:
+                            self.actionValueY4 = self.wellY4 - self.actionRange
+                    else:
+                        if actionList[3] == 'left':
+                            if self.wellX4 > self.dCol + self.actionRange:
+                                self.actionValueX4 = self.wellX4 - self.actionRange
+                        else:
+                            if actionList[3] == 'right':
+                                if self.wellX4 < self.extentX - self.dCol - self.actionRange:
+                                    self.actionValueX4 = self.wellX4 + self.actionRange
+                            else:
+                                if actionList[3] == 'down':
+                                    if self.wellY4 < self.extentY - self.dRow - self.actionRange:
+                                        self.actionValueY4 = self.wellY4 + self.actionRange
+                                if actionList[4] == 'up':
+                                    if self.wellY5 > self.dRow + self.actionRange:
+                                        self.actionValueY5 = self.wellY5 - self.actionRange
+                                else:
+                                    if actionList[4] == 'left':
+                                        if self.wellX5 > self.dCol + self.actionRange:
+                                            self.actionValueX5 = self.wellX5 - self.actionRange
+                                    else:
+                                        if actionList[4] == 'right':
+                                            if self.wellX5 < self.extentX - self.dCol - self.actionRange:
+                                                self.actionValueX5 = self.wellX5 + self.actionRange
+                                        elif actionList[4] == 'down':
+                                            if self.wellY5 < self.extentY - self.dRow - self.actionRange:
+                                                self.actionValueY5 = self.wellY5 + self.actionRange
     
     def observationsDictToVector(self, observationsDict):
         """Convert dictionary of observations to list."""
@@ -2894,7 +2826,7 @@ class FloPyArcade():
         self.keepTimeSeries = keepTimeSeries
         self.nLay, self.nRow, self.nCol = nLay, nRow, nCol
 
-    def play(self, env=None, ENVTYPE='1', seed=None):
+    def play(self, env=None, ENVTYPE='1', seed=None, returnReward=False, verbose=False):
         """Play an instance of the Flopy arcade game."""
 
         t0 = time()
@@ -3024,14 +2956,18 @@ class FloPyArcade():
                 else:
                     stringSurrogate = ''
                     # print('not surrogate')
-                print('The ' + stringSurrogate + 'game was ' +
-                      successString +
-                      ' after ' +
-                      str(self.timeSteps) +
-                      ' timesteps with a reward of ' +
-                      str(int(self.rewardTotal)) +
-                      ' points.')
+                if verbose:
+                    print('The ' + stringSurrogate + 'game was ' +
+                          successString +
+                          ' after ' +
+                          str(self.timeSteps) +
+                          ' timesteps with a reward of ' +
+                          str(int(self.rewardTotal)) +
+                          ' points.')
                 close('all')
                 break
 
         self.runtime = (time() - t0) / 60.
+
+        if returnReward:
+            return self.rewardTotal
