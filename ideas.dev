@@ -38,6 +38,7 @@
 - GS: include network architecture in genetic search?
 - NOVELTY: example of hyperparameters https://arxiv.org/pdf/1207.6682.pdf
 - ENV: previous head field really applied? (no cones of depression seem to remain)
+- ENV: create a (money saved) reward or cost function and seek to minimize costs
 - ENV: randomly moving "predatory well" (time-based seed for good random motion)
 - ENV: indicated flow barriers
 - ENV: k regions
