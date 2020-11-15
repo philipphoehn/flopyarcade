@@ -16,6 +16,7 @@ Too late, with the peak of arcade games a few decades ago, you would think? Obvi
 
 Examples of machine-controlled actions taken in the same environment by the highest-scoring agent of genetic optimization after various generations:
 
+![genetic optimization 3d](examples/geneticoptimization_3d.gif)
 ![genetic optimization](examples/geneticoptimization.gif)
 Try yourself:
 
@@ -62,6 +63,7 @@ Four environments are currently included, three of which can be user-controlled 
 
 Examples of human actions taken on a keyboard: Environment 1 (left) allows to adjust the northern and southern specified heads synchronously. Environment 2 (center) allows to adjust the southern specified heads. Environment 3 (right) allows to move the pumping well.
 
+![environment types 3d](examples/envtypes_3d.gif)
 ![environment types](examples/envtypes.gif)
 ## Optimization
 
