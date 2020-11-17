@@ -20,6 +20,7 @@ from math import ceil, floor
 from matplotlib.cm import get_cmap
 from matplotlib.pyplot import Circle, close, figure, pause, show
 from matplotlib.pyplot import get_current_fig_manager
+from matplotlib.pyplot import margins, NullLocator
 from matplotlib.pyplot import waitforbuttonpress
 from numpy import add, arange, argmax, argsort, array, ceil, copy, divide
 from numpy import extract, float32, int32, linspace, max, maximum, min, minimum
@@ -140,7 +141,6 @@ class FloPyAgent():
 
     def initializeDQNAgent(self):
         """Initialize agent to perform Deep Double Q-Learning.
-
         Bug fix for predict function:
         https://github.com/keras-team/keras/issues/6462
         """
@@ -174,7 +174,6 @@ class FloPyAgent():
     def runDQN(self, env):
         """
         Run main pipeline for Deep Q-Learning optimisation.
-
         # Inspiration and larger parts of code modified after sentdex
         # https://pythonprogramming.net/deep-q-learning-dqn-reinforcement-learning-python-tutorial/
         """
@@ -224,7 +223,6 @@ class FloPyAgent():
 
     def runGenetic(self, env, noveltySearch=False):
         """Run main pipeline for genetic agent optimisation.
-
         # Inspiration and larger parts of code modified after and inspired by:
         # https://github.com/paraschopra/deepneuroevolution
         # https://arxiv.org/abs/1712.06567
@@ -892,7 +890,6 @@ class FloPyAgent():
 
     def mutateGenetic(self, agent):
         """Mutate single agent model.
-
         Mutation power is a hyperparameter. Find example values at:
         https://arxiv.org/pdf/1712.06567.pdf
         """
@@ -946,11 +943,9 @@ class FloPyAgent():
     def getAction(self, mode='random', keyPressed=None, agent=None,
             modelNameLoad=None, state=None):
         """Determine an action given an agent model.
-
         Either the action is determined from the player pressing a button or
         chosen randomly. If the player does not press a key within the given
         timeframe for a game, the action remains unchanged.
-
         Note: mode 'modelNameLoad' can massively throttleneck in loops from
         recurring model loading overhead.
         """
@@ -1177,12 +1172,10 @@ class FloPyAgent():
 
 class FloPyEnv():
     """Environment to perform forward simulation using MODFLOW and MODPATH.
-
     On first call, initializes a model with a randomly-placed operating well,
     initializes the corresponding steady-state flow solution as a starting state
     and initializes a random starting action and a random particle on the
     Western side.
-
     On calling a step, it loads the current state, tracks the particle's
     trajectory through the model domain and returns the environment's new state,
     the new particle location as an observation and a flag if the particle has
@@ -1710,7 +1703,6 @@ class FloPyEnv():
 
     def initializeSimulators(self, PATHMF2005=None, PATHMP6=None):
         """Initialize simulators depending on operating system.
-
         Executables have to be specified or located in simulators subfolder.
         """
 
@@ -1769,7 +1761,6 @@ class FloPyEnv():
 
     def initializeParticle(self):
         """Initialize spawn of particle randomly.
-
          The particle will be placed on the Western border just east of the
          Western stream with with buffer to boundaries.
          """
@@ -1901,9 +1892,7 @@ class FloPyEnv():
 
     def constructingModel(self):
         """Construct the groundwater flow model used for the arcade game.
-
         Flopy is used as a MODFLOW wrapper for input file construction.
-
         A specified head boundary condition is situated on the western, eastern
         and southern boundary. The southern boundary condition can be modified
         during the game. Generally, the western and eastern boundaries promote
@@ -2135,7 +2124,6 @@ class FloPyEnv():
 
     def evaluateParticleTracking(self):
         """Evaluate particle tracking results from MODPATH.
-
         Determines new particle coordinates after advective transport during the
         game.
         """
@@ -2173,7 +2161,6 @@ class FloPyEnv():
 
     def calculateGameReward(self, trajectories):
         """Calculate game reward.
-
         Reward is a function of deviation from the straightmost path to the
         eastern boundary. The penalty for deviation is measured by the ratio
         between the length of the straightmost path along the x axis and the
@@ -2220,7 +2207,6 @@ class FloPyEnv():
 
     def render(self, returnFigure=False):
         """Plot the simulation state at the current timestep.
-
         Displaying and/or saving the visualisation. The active display can take
         user input from the keyboard to control the environment.
         """
@@ -2229,11 +2215,7 @@ class FloPyEnv():
             self.plotfilesSaved = []
             self.extent = (self.dRow / 2.0, self.extentX - self.dRow / 2.0,
              self.extentY - self.dCol / 2.0, self.dCol / 2.0)
-            self.figManager = get_current_fig_manager()
-            try:
-                self.figManager.window.state('zoomed')
-            except:
-                self.figManager.full_screen_toggle()
+
         self.modelmap = PlotMapView(model=(self.mf), layer=0)
         self.headsplot = self.modelmap.plot_array((self.heads), masked_values=[
          999.0],
@@ -2337,9 +2319,36 @@ class FloPyEnv():
     def renderInitializeCanvas(self):
         """Initialize plot canvas with figure and axes."""
         self.fig = figure(figsize=(7, 7))
+
+        if 'ipykernel' in modules:
+            self.flagFromIPythonNotebook = True
+        else:
+            self.flagFromIPythonNotebook = False
+
+        if not self.flagFromIPythonNotebook:
+            self.figManager = get_current_fig_manager()
+            maximized = False
+            try:
+                self.figManager.window.state('zoomed')
+                maximized = True
+            except:
+                pass
+            if not maximized:
+                try:
+                    self.figManager.full_screen_toggle()
+                    print('debug full screen')
+                except:
+                    pass
+
         self.ax = self.fig.add_subplot(1, 1, 1, aspect='equal')
         self.ax3 = self.ax.twinx()
         self.ax2 = self.ax3.twiny()
+
+        self.fig.gca().set_axis_off()
+        margins(0,0)
+        self.fig.gca().xaxis.set_major_locator(NullLocator())
+        self.fig.gca().yaxis.set_major_locator(NullLocator())
+        self.fig.tight_layout(pad=0.)
 
     def renderIdealParticleTrajectory(self, zorder=5):
         """Plot ideal particle trajectory associated with maximum reward."""
@@ -2525,7 +2534,18 @@ class FloPyEnv():
             if not exists(self.plotspth):
                 makedirs(self.plotspth)
         plotfile = join(self.plotspth, self.MODELNAME + '_' + str(self.timeStep).zfill(len(str(abs(self.NAGENTSTEPS))) + 1) + '.png')
-        self.fig.savefig(plotfile, dpi=70)
+
+        s = self.fig.get_size_inches()
+        
+        self.fig.gca().set_axis_off()
+        margins(0,0)
+        self.fig.gca().xaxis.set_major_locator(NullLocator())
+        self.fig.gca().yaxis.set_major_locator(NullLocator())
+        self.fig.tight_layout(pad=0.)
+
+        self.fig.set_size_inches(7, 7)
+        self.fig.savefig(plotfile, dpi=120, bbox_inches = 'tight', pad_inches = 0)
+        self.fig.set_size_inches(s)
         self.plotfilesSaved.append(plotfile)
 
     def renderClearAxes(self):
@@ -2807,7 +2827,7 @@ class FloPyArcade():
     def __init__(self, agent=None, modelNameLoad=None, modelName='FloPyArcade',
         animationFolder=None, NAGENTSTEPS=200, PATHMF2005=None, PATHMP6=None,
         surrogateSimulator=None, flagSavePlot=False,
-        flagManualControl=False, flagRender=False,
+        flagManualControl=False, actions=None, flagRender=False,
         keepTimeSeries=False, nLay=1, nRow=100, nCol=100):
         """Constructor."""
 
@@ -2824,6 +2844,7 @@ class FloPyArcade():
         self.MODELNAMELOAD = modelNameLoad
         self.done = False
         self.keepTimeSeries = keepTimeSeries
+        self.actions = actions
         self.nLay, self.nRow, self.nCol = nLay, nRow, nCol
 
     def play(self, env=None, ENVTYPE='1', seed=None, returnReward=False, verbose=False):
@@ -2897,6 +2918,9 @@ class FloPyArcade():
                             )
                 # print('debug time getAction', time() - t0getAction)
                 # print('debug action', action)
+
+                if self.actions is not None and self.actions != []:
+                    action = self.actions[self.timeSteps]
 
                 t0step = time()
                 observations, reward, self.done, _ = self.env.step(
