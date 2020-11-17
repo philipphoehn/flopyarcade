@@ -5,5 +5,5 @@ matplotlib==3.2.2
 numpy==1.19.1
 pathos==0.2.5
 pillow==7.2.0
-tensorflow==2.4.0
+tensorflow==2.4.0rc1
 tqdm==4.25.0
