@@ -1,7 +1,7 @@
 ![banner](examples/banner.png)
 
 
-FloPyArcade provides simple [MODFLOW](https://www.usgs.gov/mission-areas/water-resources/science/modflow-and-related-programs?qt-science_center_objects=0#qt-science_center_objects)-powered groundwater arcade-type simulation environments. It builds on the functionality of [FloPy](https://github.com/modflowpy/flopy/), empowering pre- and postprocessing of MODFLOW and its related software. The idea is to showcase and provide ways to optimize neural network policy models in these environments.
+FloPyArcade provides simple [MODFLOW](https://www.usgs.gov/mission-areas/water-resources/science/modflow-and-related-programs?qt-science_center_objects=0#qt-science_center_objects)-powered groundwater arcade-type simulation environments. It builds on the functionality of [FloPy](https://github.com/modflowpy/flopy/), empowering pre- and postprocessing of MODFLOW and its related software. The idea is to provide benchmarking environments and examples to experiment with algorithms in search of optimal control.
 
 [![build status](https://api.travis-ci.org/philipphoehn/FloPyArcade.svg?branch=master)](https://travis-ci.org/philipphoehn/FloPyArcade)
 [![binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/philipphoehn/FloPyArcade/master)
@@ -26,9 +26,9 @@ The objective is to safely transport a virtual particle as it follows advection 
 
 Easily test yourself: Steer the existing environments on Windows. Skip installation by downloading these versions:
 
-[![TestOnwinENV3](examples/downloadENV1.png)](https://ipcjxoaf.livedrive.com/item/84e3e23874804621ad6d088e7775a0c8)
-[![TestOnwinENV2](examples/downloadENV2.png)](https://ipcjxoaf.livedrive.com/item/eeae78b5bfd64d83a19ba96d9aaecceb)
-[![TestOnwinENV3](examples/downloadENV3.png)](https://ipcjxoaf.livedrive.com/item/93c999de827a4dcaa702a140c370d2e1)
+[![TestOnwinENV3](examples/downloadENV1.png)](http://www.groundwaterautopilot.com/static/download/FloPyArcadeENV1.zip)
+[![TestOnwinENV2](examples/downloadENV2.png)](http://www.groundwaterautopilot.com/static/download/FloPyArcadeENV2.zip)
+[![TestOnwinENV3](examples/downloadENV3.png)](http://www.groundwaterautopilot.com/static/download/FloPyArcadeENV3.zip)
 
 ## Installation
 
