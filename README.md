@@ -16,8 +16,8 @@ Too late, with the peak of arcade games a few decades ago, you would think? Obvi
 
 Examples of machine-controlled actions taken in the same environment by the highest-scoring agent of genetic optimization after various generations:
 
-![genetic optimization](examples/geneticoptimization.gif)
 ![genetic optimization 3d](examples/geneticoptimization_3d.gif)
+![genetic optimization](examples/geneticoptimization.gif)
 Try yourself:
 
 The objective is to safely transport a virtual particle as it follows advection while travelling from a random location at the western boundary to the eastern boundary. You have to protect a well from capturing this particle. The well is randomly located with a random pumping rate. Furthermore, the particle must not flow into cells of specified head in the north and south. The controls you have depend on the environment, but are in total the up/down/left/right key. They allow you to either adjust specified head(s) or the well location. The highest score is achieved if the particle stays on the indicated shortest route, or as close as possible to it.
@@ -63,8 +63,8 @@ Four environments are currently included, three of which can be user-controlled 
 
 Examples of human actions taken on a keyboard: Environment 1 (left) allows to adjust the northern and southern specified heads synchronously. Environment 2 (center) allows to adjust the southern specified heads. Environment 3 (right) allows to move the pumping well.
 
-![environment types](examples/envtypes.gif)
 ![environment types 3d](examples/envtypes_3d.gif)
+![environment types](examples/envtypes.gif)
 ## Optimization
 
 Two algorithms are currently provided along with the environments for training deep neural networks as policy models. These are implementions of (1) [double Q-learning](https://arxiv.org/abs/1509.06461) and (2) a weights-evolving [genetic algorithm](https://arxiv.org/abs/1712.06567), optionally combined with a simple implementation of [novelty search](https://arxiv.org/abs/1304.3362) to help avoiding convergence towards local minima. They reside in the FloPyAgent class.
