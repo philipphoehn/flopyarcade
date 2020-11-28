@@ -1,6 +1,7 @@
 git+git://github.com/modflowpy/flopy.git@develop
 imageio==2.3.0
 ipython==7.12.0
+lz4==3.1.1
 matplotlib==3.2.2
 numpy==1.19.1
 pathos==0.2.5
