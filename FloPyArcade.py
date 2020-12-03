@@ -16,15 +16,17 @@ from flopy.plot import PlotMapView
 from flopy.utils import CellBudgetFile, HeadFile, PathlineFile
 from imageio import get_writer, imread
 from itertools import product
+from joblib import dump as joblibDump
+from joblib import load as joblibLoad
 from math import ceil, floor
 from matplotlib.cm import get_cmap
 from matplotlib.pyplot import Circle, close, figure, pause, show
 from matplotlib.pyplot import get_current_fig_manager
 from matplotlib.pyplot import margins, NullLocator
 from matplotlib.pyplot import waitforbuttonpress
-from numpy import add, arange, argmax, argsort, array, ceil, copy, divide
+from numpy import abs, add, arange, argmax, argsort, array, ceil, copy, divide
 from numpy import extract, float32, int32, linspace, max, maximum, min, minimum
-from numpy import mean, ones, shape, sqrt, sum, zeros
+from numpy import mean, ones, shape, sqrt, subtract, sum, zeros
 from numpy.random import randint, random, randn, uniform
 from numpy.random import seed as numpySeed
 from os import environ, listdir, makedirs, remove, rmdir
@@ -39,7 +41,7 @@ from time import sleep, time
 # suppressing TensorFlow output on import, except fatal errors
 # https://stackoverflow.com/questions/40426502/is-there-a-way-to-suppress-the-messages-tensorflow-prints
 from logging import getLogger, FATAL
-environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+environ['TF_CPP_MIN_LOG_LEVEL'] = '3s-d'
 getLogger('tensorflow').setLevel(FATAL)
 
 # additional imports for agents
@@ -79,7 +81,8 @@ class FloPyAgent():
 
     def __init__(self, observationsVector=None, actionSpace=['keep'],
                  hyParams=None, envSettings=None, mode='random',
-                 maxTasksPerWorker=100, maxTasksPerWorkerMutate=1000, zFill=6):
+                 maxTasksPerWorker=20, maxTasksPerWorkerMutate=10,
+                 maxTasksPerWorkerNoveltySearch=100000, zFill=6):
         """Constructor"""
 
         self.wrkspc = dirname(abspath(__file__))
@@ -93,8 +96,10 @@ class FloPyAgent():
         self.actionSpaceSize = len(self.actionSpace)
         self.hyParams, self.envSettings = hyParams, envSettings
         self.agentMode = mode
-        self.maxTasksPerWorker, self.zFill = maxTasksPerWorker, zFill
+        self.maxTasksPerWorker = maxTasksPerWorker
         self.maxTasksPerWorkerMutate = maxTasksPerWorkerMutate
+        self.maxTasksPerWorkerNoveltySearch = maxTasksPerWorkerNoveltySearch
+        self.zFill = zFill
 
         # setting seeds
         if self.envSettings is not None:
@@ -123,6 +128,17 @@ class FloPyAgent():
                     self.envSettings['MODELNAME'])
                 if not exists(runModelpth):
                     makedirs(runModelpth)
+            if self.hyParams is not None:
+                if self.hyParams['NOVELTYSEARCH']:
+                    self.tempNoveltypth = join(self.tempModelpth, 'novelties')
+                    if not exists(self.tempNoveltypth):
+                        makedirs(self.tempNoveltypth)
+                    else:
+                        if self.envSettings is not None:
+                            if not self.envSettings['RESUME']:
+                                if exists(self.tempNoveltypth):
+                                    for f in listdir(self.tempNoveltypth):
+                                        remove(join(self.tempNoveltypth, f))
 
             # initializing genetic agents and saving hyperparameters and
             # environment settings or loading them if resuming
@@ -145,10 +161,14 @@ class FloPyAgent():
         https://github.com/keras-team/keras/issues/6462
         """
 
+        # actionType = self.envSettings
+
+        actionType = FloPyEnv(initWithSolution=False).getActionType(self.envSettings['ENVTYPE'])
+        
         # initializing main predictive and target model
-        self.mainModel = self.createNNModel()
+        self.mainModel = self.createNNModel(actionType)
         # self.mainModel._make_predict_function()
-        self.targetModel = self.createNNModel()
+        self.targetModel = self.createNNModel(actionType)
         # self.targetModel._make_predict_function()
         self.targetModel.set_weights(self.mainModel.get_weights())
 
@@ -163,7 +183,7 @@ class FloPyAgent():
         """Initialize genetic ensemble of agents."""
 
         chunksTotal = self.yieldChunks(arange(self.hyParams['NAGENTS']),
-            self.envSettings['NAGENTSPARALLEL']*self.maxTasksPerWorker)
+            self.envSettings['NAGENTSPARALLEL']*self.maxTasksPerWorkerMutate)
         for chunk in chunksTotal:
             _ = self.multiprocessChunks(self.randomAgentGenetic, chunk)
 
@@ -177,6 +197,8 @@ class FloPyAgent():
         # Inspiration and larger parts of code modified after sentdex
         # https://pythonprogramming.net/deep-q-learning-dqn-reinforcement-learning-python-tutorial/
         """
+
+        self.actionType = env.actionType
 
         # generating seeds to generate reproducible cross-validation data
         # note: avoids variability from averaged new games
@@ -228,6 +250,8 @@ class FloPyAgent():
         # https://arxiv.org/abs/1712.06567
         """
 
+        self.actionType = env.actionType
+
         if self.hyParams['NOVELTYSEARCH'] and not self.envSettings['KEEPMODELHISTORY']:
             raise ValueError('Settings and hyperparameters require changes: ' + \
                              'If model history is not kept, novelty search cannot ' + \
@@ -247,7 +271,8 @@ class FloPyAgent():
             self.noveltyItemCount = 0
             self.agentsUnique, self.agentsUniqueIDs = [], []
             self.agentsDuplicate = []
-            self.actionsUniqueIDMapping = defaultdict(count().__next__)
+            if env.actionType == 'discrete':
+                self.actionsUniqueIDMapping = defaultdict(count().__next__)
         cores = self.envSettings['NAGENTSPARALLEL']
         # generating unique process ID from system time
         self.pid = str(uuid4())
@@ -277,15 +302,16 @@ class FloPyAgent():
                         tempAgentPrefix = self.noveltyArchive[agentStr]['modelFile'].replace('.h5', '')
                         pth = join(tempAgentPrefix + '_results.p')
                         actions = self.pickleLoad(pth)['actions']
-                        actionsAll = [action for actions_ in actions for action in actions_]
-                        actionsUniqueID = self.actionsUniqueIDMapping[tuple(actionsAll)]
-                        self.noveltyArchive[agentStr]['actionsUniqueID'] = actionsUniqueID
-                        if actionsUniqueID not in self.agentsUniqueIDs:
-                            # checking if unique ID from actions already exists
-                            self.agentsUnique.append(iAgent)
-                            self.agentsUniqueIDs.append(actionsUniqueID)
-                        else:
-                            self.agentsDuplicate.append(iAgent)
+                        if env.actionType == 'discrete':
+                            actionsAll = [action for actions_ in actions for action in actions_]
+                            actionsUniqueID = self.actionsUniqueIDMapping[tuple(actionsAll)]
+                            self.noveltyArchive[agentStr]['actionsUniqueID'] = actionsUniqueID
+                            if actionsUniqueID not in self.agentsUniqueIDs:
+                                # checking if unique ID from actions already exists
+                                self.agentsUnique.append(iAgent)
+                                self.agentsUniqueIDs.append(actionsUniqueID)
+                            else:
+                                self.agentsDuplicate.append(iAgent)
 
             # simulating agents in environment, returning average of n runs
             self.rewards = self.runAgentsRepeatedlyGenetic(agentCounts, n, env)
@@ -307,6 +333,7 @@ class FloPyAgent():
                     k = self.noveltyItemCount
                     agentStr = 'agent' + str(k+1)
                     self.noveltyArchive[agentStr] = {}
+                    # self.noveltyArchive[agentStr]['novelties'] = {}
                     tempAgentPrefix = join(self.tempModelPrefix + '_agent'
                         + str(iAgent + 1).zfill(self.zFill))
                     modelFile = tempAgentPrefix + '.h5'
@@ -314,29 +341,37 @@ class FloPyAgent():
                     actions = self.pickleLoad(pth)['actions']
                     actionsAll = [action for actions_ in actions for action in actions_]
                     # https://stackoverflow.com/questions/38291372/assign-unique-id-to-list-of-lists-in-python-where-duplicates-get-the-same-id
-                    actionsUniqueID = self.actionsUniqueIDMapping[tuple(actionsAll)]
+
+                    if env.actionType == 'discrete':
+                        actionsUniqueID = self.actionsUniqueIDMapping[tuple(actionsAll)]
+                        self.noveltyArchive[agentStr]['actionsUniqueID'] = actionsUniqueID
                     self.noveltyArchive[agentStr]['itemID'] = itemID
                     self.noveltyArchive[agentStr]['modelFile'] = modelFile
-                    self.noveltyArchive[agentStr]['actions'] = actions
-                    self.noveltyArchive[agentStr]['actionsUniqueID'] = actionsUniqueID
+                    # self.noveltyArchive[agentStr]['actions'] = actions
 
-                    if not self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS']:
-                        # removing duplicate novelty calculation only in case neighbour limit is not reached
-                        # as otherwise the same novelty might not apply
-                        if actionsUniqueID not in self.agentsUniqueIDs:
-                            # checking if unique ID from actions already exists
-                            self.agentsUnique.append(k)
-                            self.agentsUniqueIDs.append(actionsUniqueID)
+                    if env.actionType == 'discrete':
+                        if not self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS']:
+                                # removing duplicate novelty calculation only in case neighbour limit is not reached
+                                # as otherwise the same novelty might not apply
+                                if actionsUniqueID not in self.agentsUniqueIDs:
+                                    # checking if unique ID from actions already exists
+                                    self.agentsUnique.append(k)
+                                    self.agentsUniqueIDs.append(actionsUniqueID)
+                                else:
+                                    self.agentsDuplicate.append(k)
                         else:
-                            self.agentsDuplicate.append(k)
-                    else:
-                        self.agentsUnique, self.agentsUniqueIDs, self.agentsDuplicate = [], [], []
-                        # otherwise computed as if unique to avoid assigning novelty
-                        # from duplicates with different nearest neighbours
-                        for iNov in range(self.noveltyItemCount+1):
-                            self.agentsUnique.append(iNov)
-                            self.noveltyArchive['agent' + str(iNov+1)]['actionsUniqueID'] = iNov
-                            # self.agentsUniqueIDs.append(iNov)
+                            self.agentsUnique, self.agentsUniqueIDs, self.agentsDuplicate = [], [], []
+                            # otherwise computed as if unique to avoid assigning novelty
+                            # from duplicates with different nearest neighbours
+                            for iNov in range(self.noveltyItemCount+1):
+                                self.agentsUnique.append(iNov)
+                                self.noveltyArchive['agent' + str(iNov+1)]['actionsUniqueID'] = iNov
+                                # self.agentsUniqueIDs.append(iNov)
+                    elif env.actionType == 'continuous':
+                            self.agentsUnique, self.agentsUniqueIDs, self.agentsDuplicate = [], [], []
+                            for iNov in range(self.noveltyItemCount+1):
+                                self.agentsUnique.append(iNov)
+                                self.noveltyArchive['agent' + str(iNov+1)]['actionsUniqueID'] = iNov
                     self.noveltyItemCount += 1
 
                 if not self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS']:
@@ -349,12 +384,16 @@ class FloPyAgent():
                 # despite parallelization
                 noveltiesUniqueAgents, t0 = [], time()
                 args = [iAgent for iAgent in self.agentsUnique]
+
                 chunksTotal = self.yieldChunks(args,
-                    cores*self.maxTasksPerWorkerMutate)
+                    cores*self.maxTasksPerWorkerNoveltySearch)
                 for chunk in chunksTotal:
                     noveltiesPerAgent = self.multiprocessChunks(
                         self.calculateNoveltyPerAgent, chunk)
                     noveltiesUniqueAgents += noveltiesPerAgent
+
+                    # self.noveltyArchive[agentStr]['modelFile'] = modelFile
+
                 # calculating novelty of unique agents
                 for iUniqueAgent in self.agentsUnique:
                     agentStr = 'agent' + str(iUniqueAgent+1)
@@ -406,7 +445,7 @@ class FloPyAgent():
                     remove(join(self.tempModelPrefix + '_agent' +
                         str(agentIdx + 1).zfill(self.zFill) + '.h5'))
 
-    def createNNModel(self, seed=None):
+    def createNNModel(self, actionType, seed=None):
         """Create fully-connected feed-forward multi-layer neural network."""
         if seed is None:
             seed = self.SEED
@@ -434,8 +473,13 @@ class FloPyAgent():
                     model.add(Dropout(self.hyParams['DROPOUTS'][layerIdx]))
 
         # adding output layer
-        model.add(Dense(self.actionSpaceSize, activation='linear',
-            kernel_initializer=initializer))
+        if actionType == 'discrete':
+            model.add(Dense(self.actionSpaceSize, activation='linear',
+                kernel_initializer=initializer))
+        elif actionType == 'continuous':
+            # sigmoid used here as actions are predicted as fraction of actionRange
+            model.add(Dense(self.actionSpaceSize, activation='sigmoid',
+                kernel_initializer=initializer))
 
         # compiling to avoid warning while saving agents in genetic search
         # specifics are irrelevant, as genetic models are not optimized
@@ -536,12 +580,20 @@ class FloPyAgent():
             # epsilon defines the fraction of random to queried actions
             if random() > self.epsilon:
                 # retrieving action from Q table
-                actionIdx = argmax(self.getqsGivenAgentModel(
-                    self.mainModel, env.observationsVectorNormalized))
+                if env.actionType == 'discrete':
+                    actionIdx = argmax(self.getqsGivenAgentModel(
+                        self.mainModel, env.observationsVectorNormalized))
+                    action = self.actionSpace[actionIdx]
+                elif env.actionType == 'continuous':
+                    action = self.getqsGivenAgentModel(
+                        self.mainModel, env.observationsVectorNormalized)
             else:
                 # retrieving random action
-                actionIdx = randint(0, self.actionSpaceSize)
-            action = self.actionSpace[actionIdx]
+                if env.actionType == 'discrete':
+                    actionIdx = randint(0, self.actionSpaceSize)
+                    action = self.actionSpace[actionIdx]
+                elif env.actionType == 'continuous':
+                    action = list(uniform(low=0.0, high=1.0, size=self.actionSpaceSize))
 
             new_state, reward, done, info = env.step(
                 env.observationsVectorNormalized, action, self.gameReward)
@@ -585,9 +637,13 @@ class FloPyAgent():
             # iterating until game ends
             for _ in range(self.hyParams['NAGENTSTEPS']):
                 # querying for Q values
-                actionIdx = argmax(self.getqsGivenAgentModel(
-                    self.mainModel, env.observationsVectorNormalized))
-                action = self.actionSpace[actionIdx]
+                if env.actionType == 'discrete':
+                    actionIdx = argmax(self.getqsGivenAgentModel(
+                        self.mainModel, env.observationsVectorNormalized))
+                    action = self.actionSpace[actionIdx]
+                elif env.actionType == 'continuous':
+                    action = self.getqsGivenAgentModel(
+                        self.mainModel, env.observationsVectorNormalized)
                 # simulating and counting total reward
                 new_state, reward, done, info = env.step(
                     env.observationsVectorNormalized, action,
@@ -705,9 +761,13 @@ class FloPyAgent():
 
         r, t0game = 0, time()
         for step in range(self.hyParams['NAGENTSTEPS']):
-            actionIdx = argmax(self.getqsGivenAgentModel(agent,
-                env.observationsVectorNormalized))
-            action = self.actionSpace[actionIdx]
+            if env.actionType == 'discrete':
+                actionIdx = argmax(self.getqsGivenAgentModel(agent,
+                    env.observationsVectorNormalized))
+                action = self.actionSpace[actionIdx]
+            if env.actionType == 'continuous':
+                action = self.getqsGivenAgentModel(
+                    agent, env.observationsVectorNormalized)
             
             t0step = time()
             # note: need to feed normalized observations
@@ -767,7 +827,8 @@ class FloPyAgent():
         it to disk individually.
         """
 
-        agent = self.createNNModel(seed=self.envSettings['SEEDAGENT']+agentIdx)
+        actionType = FloPyEnv(initWithSolution=False).getActionType(self.envSettings['ENVTYPE'])
+        agent = self.createNNModel(actionType, seed=self.envSettings['SEEDAGENT']+agentIdx)
         agent.save(join(self.tempModelpth, self.envSettings['MODELNAME'] +
             '_gen' + str(generation).zfill(self.zFill) + '_agent' +
             str(agentIdx + 1).zfill(self.zFill) + '.h5'))
@@ -941,7 +1002,7 @@ class FloPyAgent():
         return agentModel
 
     def getAction(self, mode='random', keyPressed=None, agent=None,
-            modelNameLoad=None, state=None):
+            modelNameLoad=None, state=None, actionType='discrete'):
         """Determine an action given an agent model.
         Either the action is determined from the player pressing a button or
         chosen randomly. If the player does not press a key within the given
@@ -950,21 +1011,37 @@ class FloPyAgent():
         recurring model loading overhead.
         """
 
-        if mode == 'manual':
-            if keyPressed in self.actionSpace:
-                self.action = keyPressed
-            else:
-                self.action = 'keep'
-        if mode == 'random':
-            actionIdx = randint(0, high=len(self.actionSpace))
-            self.action = self.actionSpace[actionIdx]
-        if mode == 'modelNameLoad':
-            agentModel = self.loadAgentModel(modelNameLoad)
-            actionIdx = argmax(self.getqsGivenAgentModel(agentModel, state))
-            self.action = self.actionSpace[actionIdx]
-        if mode == 'model':
-            actionIdx = argmax(self.getqsGivenAgentModel(agent, state))
-            self.action = self.actionSpace[actionIdx]
+        if actionType == 'discrete':
+            if mode == 'manual':
+                if keyPressed in self.actionSpace:
+                    self.action = keyPressed
+                else:
+                    self.action = 'keep'
+            if mode == 'random':
+                actionIdx = randint(0, high=len(self.actionSpace))
+                self.action = self.actionSpace[actionIdx]
+            if mode == 'modelNameLoad':
+                agentModel = self.loadAgentModel(modelNameLoad)
+                actionIdx = argmax(self.getqsGivenAgentModel(agentModel, state))
+                self.action = self.actionSpace[actionIdx]
+            if mode == 'model':
+                actionIdx = argmax(self.getqsGivenAgentModel(agent, state))
+                self.action = self.actionSpace[actionIdx]
+
+        elif actionType == 'continuous':
+            if mode == 'manual':
+                print('Regression mode is currently not supported in manual control.')
+                quit()
+            if mode == 'random':
+                self.action = []
+                for i in range(self.actionSpaceSize):
+                    actionVal = uniform(low=0.0, high=1.0)
+                    self.action.append(actionVal)
+            if mode == 'modelNameLoad':
+                agentModel = self.loadAgentModel(modelNameLoad)
+                self.action = self.getqsGivenAgentModel(agentModel, state)
+            if mode == 'model':
+                self.action = self.getqsGivenAgentModel(agent, state)
 
         return self.action
 
@@ -1008,8 +1085,17 @@ class FloPyAgent():
     def calculateNoveltyPerPair(self, args):
         agentStr = 'agent' + str(args[0]+1)
         agentStr2 = 'agent' + str(args[1]+1)
-        actions = self.noveltyArchive[agentStr]['actions']
-        actions2 = self.noveltyArchive[agentStr2]['actions']
+
+        tempAgentPrefix = self.noveltyArchive[agentStr]['modelFile'].replace('.h5', '')
+        tempAgentPrefix2 = self.noveltyArchive[agentStr2]['modelFile'].replace('.h5', '')
+        pth = join(tempAgentPrefix + '_results.p')
+        pth2 = join(tempAgentPrefix2 + '_results.p')
+        actions = self.pickleLoad(pth)['actions']
+        actions2 = self.pickleLoad(pth2)['actions']
+
+        # actions = self.noveltyArchive[agentStr]['actions']
+        # actions2 = self.noveltyArchive[agentStr2]['actions']
+
         novelty = 0.
         for g in range(len(actions)):
             novelty += self.actionNoveltyMetric(actions[g],
@@ -1019,16 +1105,30 @@ class FloPyAgent():
 
     def calculateNoveltyPerAgent(self, iAgent):
         agentStr = 'agent' + str(iAgent+1)
+        # loading novelties for specific agent from disk
+
+        if not exists(join(self.tempNoveltypth, agentStr + '_novelties.p')):
+            agentNovelties = {}
+        else:
+            with open(join(self.tempNoveltypth, agentStr + '_novelties.p'), 'rb') as f:
+                agentNovelties = self.pickleLoad(f, compressed='lz4')
 
         novelties = []
         if self.noveltyItemCount <= self.hyParams['NNOVELTYNEIGHBORS']:
-            neighborLimitReached = False
+            # neighborLimitReached = False
             for iAgent2 in range(self.noveltyItemCount):
-                if iAgent != iAgent2: 
-                    novelties.append(self.calculateNoveltyPerPair([iAgent, iAgent2]))
+                if iAgent != iAgent2:
+                    try:
+                        # calculate novelties only if unavailable
+                        # as keys mostly exists, try/except check should be performant here
+                        novelty = agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)]
+                    except:
+                        novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
+                        agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)] = novelty
+                    novelties.append(novelty)
 
-        if self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS']:
-            neighborLimitReached = True
+        elif self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS']:
+            # neighborLimitReached = True
 
             # checking if half of NNOVELTYNEIGHBORS are available surrounding the given index
             # if not agents are selected until the index boundary and more from the other end
@@ -1051,8 +1151,18 @@ class FloPyAgent():
                     rangeHigher = self.noveltyItemCount
 
             for iAgent2 in range(rangeLower, rangeHigher):
-                if iAgent != iAgent2: 
-                    novelties.append(self.calculateNoveltyPerPair([iAgent, iAgent2]))
+                if iAgent != iAgent2:
+                    try:
+                        # calculate novelties only if unavailable
+                        # as keys mostly exists, try/except check should be performant here
+                        novelty = agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)]
+                    except:
+                        novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
+                        agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)] = novelty
+                    novelties.append(novelty)
+
+        self.pickleDump(join(self.tempNoveltypth,
+            agentStr + '_novelties.p'), agentNovelties, compress='lz4')
 
         novelty = mean(novelties)
 
@@ -1060,21 +1170,39 @@ class FloPyAgent():
 
     def actionNoveltyMetric(self, actions1, actions2):
         # finding largest object, or determining equal length
-        if len(actions1) > len(actions2):
-            shorterObj = actions2
-            longerObj = actions1
-        if len(actions1) <= len(actions2):
-            shorterObj = actions1
-            longerObj = actions2
+        actions1 = array(actions1)
+        actions2 = array(actions2)
 
-        diffsCount = len(shorterObj) - sum(array(shorterObj) == array(longerObj[:len(shorterObj)]))
+        if self.env.actionType == 'discrete':
+            if len(actions1) > len(actions2):
+                shorterObj = actions2
+                longerObj = actions1
+            if len(actions1) <= len(actions2):
+                shorterObj = actions1
+                longerObj = actions2
+            diffsCount = len(shorterObj) - sum(array(shorterObj) == array(longerObj[:len(shorterObj)]))
 
-        # enabling this might promote agents having acted longer but not
-        # too different to begin with
-        # diffsCount += float(abs(len(longerObj) - len(shorterObj)))
+            # enabling this might promote agents having acted longer but not
+            # too different to begin with
+            # diffsCount += float(abs(len(longerObj) - len(shorterObj)))
 
-        # dividing by the length of it, to avoid rewarding longer objects
-        novelty = diffsCount/len(shorterObj)
+            # dividing by the length of it, to avoid rewarding longer objects
+            novelty = diffsCount/len(shorterObj)
+
+        elif self.env.actionType == 'continuous':
+            actions1 = array(actions1)
+            actions2 = array(actions2)
+
+            # there are values per action in the action space
+            ln = min([len(actions1[:,0]), len(actions2[:,0])])
+            nActionLists = shape(actions2)[1]
+
+            diffsCount = ln*nActionLists
+            diffs = sum(abs(subtract(
+                actions1[:ln,:].flatten(),
+                actions2[:ln,:].flatten()
+                )))
+            novelty = diffs/diffsCount
 
         return novelty
 
@@ -1143,18 +1271,30 @@ class FloPyAgent():
 
         return pasync
 
-    def pickleLoad(self, path):
+    def pickleLoad(self, path, compressed=None):
         """Load pickled object from file."""
-        filehandler = open(path, 'rb')
-        objectLoaded = load(filehandler)
-        filehandler.close()
+        if compressed == None:
+            filehandler = open(path, 'rb')
+            objectLoaded = load(filehandler)
+            filehandler.close()
+        elif compressed == 'lz4':
+            objectLoaded = joblibLoad(path)
+        else:
+            print('Unknown compression algorithm specified.')
+
         return objectLoaded
 
-    def pickleDump(self, path, objectToDump):
+    def pickleDump(self, path, objectToDump, compress=None):
         """Store object to file using pickle."""
-        filehandler = open(path, 'wb')
-        dump(objectToDump, filehandler)
-        filehandler.close()
+        if compress == None:
+            filehandler = open(path, 'wb')
+            dump(objectToDump, filehandler)
+            filehandler.close()
+        elif compress == 'lz4':
+            with open(path, 'wb') as f:
+                joblibDump(objectToDump, f, compress='lz4')
+        else:
+            print('Unknown compression algorithm specified.')
 
     def GPUAllowMemoryGrowth(self):
         """Allow GPU memory to grow to enable parallelism on a GPU."""
@@ -1167,7 +1307,7 @@ class FloPyAgent():
         # suppressing TensorFlow output on import, except fatal errors
         # https://stackoverflow.com/questions/40426502/is-there-a-way-to-suppress-the-messages-tensorflow-prints
         from logging import getLogger, FATAL
-        environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+        environ['TF_CPP_MIN_LOG_LEVEL'] = '3s-d'
         getLogger('tensorflow').setLevel(FATAL)
 
 class FloPyEnv():
@@ -1183,7 +1323,7 @@ class FloPyEnv():
     """
 
     def __init__(self,
-                 ENVTYPE='1', PATHMF2005=None, PATHMP6=None,
+                 ENVTYPE='1s-d', PATHMF2005=None, PATHMP6=None,
                  MODELNAME='FloPyArcade', ANIMATIONFOLDER='FloPyArcade',
                  _seed=None, flagSavePlot=False, flagManualControl=False,
                  manualControlTime=0.1, flagRender=False, NAGENTSTEPS=None,
@@ -1213,6 +1353,7 @@ class FloPyEnv():
         self.modelpth = join(self.wrkspc, 'models', self.MODELNAME)
         if not exists(self.modelpth):
             makedirs(self.modelpth)
+        self.actionType = self.getActionType(self.ENVTYPE)
 
         self._SEED = _seed
         if self._SEED is not None:
@@ -1222,28 +1363,28 @@ class FloPyEnv():
         self.reward, self.rewardCurrent = 0., 0.
 
         self.initializeSimulators(PATHMF2005, PATHMP6)
-        if self.ENVTYPE == '1' or self.ENVTYPE == '2':
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c', '2s-d', '2s-c', '2r-d', '2r-c']:
             self.initializeAction()
         self.initializeParticle()
 
         # this needs to be transformed, yet not understood why
         self.particleCoords[0] = self.extentX - self.particleCoords[0]
 
-        if self.ENVTYPE == '3' or self.ENVTYPE == '4':
+        if self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             self.headSpecNorth = uniform(self.minH, self.maxH)
             self.headSpecSouth = uniform(self.minH, self.maxH)
         self.initializeModel()
 
         self.wellX, self.wellY, self.wellZ, self.wellCoords, self.wellQ = self.initializeWellRate(self.minQ, self.maxQ)
-        if self.ENVTYPE == '4':
-            self.wellX1, self.wellY1, self.wellZ1, self.wellCoords1, self.wellQ1 = self.initializeWellRate(self.minQhelper, self.maxQhelper)
-            self.wellX2, self.wellY2, self.wellZ2, self.wellCoords2, self.wellQ2 = self.initializeWellRate(self.minQhelper, self.maxQhelper)
-            self.wellX3, self.wellY3, self.wellZ3, self.wellCoords3, self.wellQ3 = self.initializeWellRate(self.minQhelper, self.maxQhelper)
-            self.wellX4, self.wellY4, self.wellZ4, self.wellCoords4, self.wellQ4 = self.initializeWellRate(self.minQhelper, self.maxQhelper)
-            self.wellX5, self.wellY5, self.wellZ5, self.wellCoords5, self.wellQ5 = self.initializeWellRate(self.minQhelper, self.maxQhelper)
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            helperWells = {}
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                helperWells['wellX'+w], helperWells['wellY'+w], helperWells['wellZ'+w], helperWells['wellCoords'+w], helperWells['wellQ'+w] = self.initializeWellRate(self.minQhelper, self.maxQhelper)
+            self.helperWells = helperWells
 
         self.initializeWell()
-        if self.ENVTYPE == '3' or self.ENVTYPE == '4':
+        if self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             self.initializeAction()
         # initializing trajectories container for potential plotting
         self.trajectories = {}
@@ -1265,25 +1406,29 @@ class FloPyEnv():
 
         self.state = {}
         self.state['heads'] = copy(self.heads)
-        if self.ENVTYPE == '1':
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
             self.state['actionValueNorth'] = self.actionValueNorth
             self.state['actionValueSouth'] = self.actionValueSouth
-        elif self.ENVTYPE == '2':
+        elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
             self.state['actionValue'] = self.actionValue
-        elif self.ENVTYPE == '3':
+        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c']:
             self.state['actionValueX'] = self.actionValueX
             self.state['actionValueY'] = self.actionValueY
-        elif self.ENVTYPE == '4':
-            self.state['actionValueX1'] = self.actionValueX1
-            self.state['actionValueY1'] = self.actionValueY1
-            self.state['actionValueX2'] = self.actionValueX2
-            self.state['actionValueY2'] = self.actionValueY2
-            self.state['actionValueX3'] = self.actionValueX3
-            self.state['actionValueY3'] = self.actionValueY3
-            self.state['actionValueX4'] = self.actionValueX4
-            self.state['actionValueY4'] = self.actionValueY4
-            self.state['actionValueX5'] = self.actionValueX5
-            self.state['actionValueY5'] = self.actionValueY5
+        elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.state['actionValueX'+w] = self.helperWells['actionValueX'+w]
+                self.state['actionValueY'+w] = self.helperWells['actionValueX'+w]
+        elif self.ENVTYPE in ['5s-d', '5s-c', '5r-d', '5r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.state['actionValueQ'+w] = self.helperWells['actionValueQ'+w]
+        elif self.ENVTYPE in ['6s-d', '6s-c', '6r-d', '6r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.state['actionValueX'+w] = self.helperWells['actionValueX'+w]
+                self.state['actionValueY'+w] = self.helperWells['actionValueX'+w]
+                self.state['actionValueQ'+w] = self.helperWells['actionValueQ'+w]
 
         self.observations = {}
         self.observationsNormalized, self.observationsNormalizedHeads = {}, {}
@@ -1298,13 +1443,13 @@ class FloPyEnv():
 
         # note: these heads from actions are not necessary to return as observations for surrogate modeling
         # but for reinforcement learning
-        if self.ENVTYPE == '1':
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
             self.observations['heads'] = [self.actionValueNorth,
                                           self.actionValueSouth]
-        elif self.ENVTYPE == '2':
+        elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
             # this can cause issues with unit testing, as model expects different input 
             self.observations['heads'] = [self.actionValue]
-        elif self.ENVTYPE == '3' or self.ENVTYPE == '4':
+        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             self.observations['heads'] = [self.headSpecNorth,
                                           self.headSpecSouth]
         # note: it sees the surrounding heads of the particle and the well
@@ -1318,17 +1463,11 @@ class FloPyEnv():
 
         self.observations['wellQ'] = self.wellQ
         self.observations['wellCoords'] = self.wellCoords
-        if self.ENVTYPE == '4':
-            self.observations['wellQ1'] = self.wellQ1
-            self.observations['wellQ2'] = self.wellQ2
-            self.observations['wellQ3'] = self.wellQ3
-            self.observations['wellQ4'] = self.wellQ4
-            self.observations['wellQ5'] = self.wellQ5
-            self.observations['wellCoords1'] = self.wellCoords1
-            self.observations['wellCoords2'] = self.wellCoords2
-            self.observations['wellCoords3'] = self.wellCoords3
-            self.observations['wellCoords4'] = self.wellCoords4
-            self.observations['wellCoords5'] = self.wellCoords5
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.observations['wellQ'+w] = self.helperWells['wellQ'+w]
+                self.observations['wellCoords'+w] = self.helperWells['wellCoords'+w]
         self.observationsNormalized['particleCoords'] = divide(
             copy(self.particleCoords), self.minX + self.extentX)
         self.observationsNormalized['heads'] = divide(array(self.observations['heads']) - self.minH,
@@ -1338,22 +1477,12 @@ class FloPyEnv():
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
             self.wellCoords, self.minX + self.extentX)
-        if self.ENVTYPE == '4':
-            self.observationsNormalized['wellQ1'] = self.wellQ1 / self.minQhelper
-            self.observationsNormalized['wellCoords1'] = divide(
-                self.wellCoords1, self.minX + self.extentX)
-            self.observationsNormalized['wellQ2'] = self.wellQ2 / self.minQhelper
-            self.observationsNormalized['wellCoords2'] = divide(
-                self.wellCoords2, self.minX + self.extentX)
-            self.observationsNormalized['wellQ3'] = self.wellQ3 / self.minQhelper
-            self.observationsNormalized['wellCoords3'] = divide(
-                self.wellCoords3, self.minX + self.extentX)
-            self.observationsNormalized['wellQ4'] = self.wellQ4 / self.minQhelper
-            self.observationsNormalized['wellCoords4'] = divide(
-                self.wellCoords4, self.minX + self.extentX)
-            self.observationsNormalized['wellQ5'] = self.wellQ5 / self.minQhelper
-            self.observationsNormalized['wellCoords5'] = divide(
-                self.wellCoords5, self.minX + self.extentX)
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.observationsNormalized['wellQ'+w] = self.helperWells['wellQ'+w] / self.minQhelper
+                self.observationsNormalized['wellCoords'+w] = divide(
+                    self.helperWells['wellCoords'+w], self.minX + self.extentX)
         self.observationsNormalizedHeads['heads'] = divide(array(self.heads) - self.minH,
             self.maxH - self.minH)
 
@@ -1365,33 +1494,27 @@ class FloPyEnv():
             self.observationsNormalizedHeads)
 
         # alternatively normalize well z coordinate to vertical extent
-        if self.ENVTYPE == '1':
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
             self.stressesVectorNormalized = [(self.actionValueSouth - self.minH)/(self.maxH - self.minH),
                                              (self.actionValueNorth - self.minH)/(self.maxH - self.minH),
                                              self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
-                                             self.wellY/(self.minX+self.extentX), self.wellZ/(self.minX+self.extentX)]
-        elif self.ENVTYPE == '2':
+                                             self.wellY/(self.minY+self.extentY), self.wellZ/(self.zBot+self.zTop)]
+        elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
             self.stressesVectorNormalized = [(self.actionValue - self.minH)/(self.maxH - self.minH),
                                              self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
-                                             self.wellY/(self.minX+self.extentX), self.wellZ/(self.minX+self.extentX)]
-        elif self.ENVTYPE == '3':
+                                             self.wellY/(self.minY+self.extentY), self.wellZ/(self.zBot+self.zTop)]
+        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c']:
             self.stressesVectorNormalized = [(self.headSpecSouth - self.minH)/(self.maxH - self.minH),
                                              (self.headSpecNorth - self.minH)/(self.maxH - self.minH),
                                              self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
-                                             self.wellY/(self.minX+self.extentX), self.wellZ/(self.minX+self.extentX)]
-        elif self.ENVTYPE == '4':
+                                             self.wellY/(self.minY+self.extentY), self.wellZ/(self.zBot+self.zTop)]
+        elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             self.stressesVectorNormalized = [(self.headSpecSouth - self.minH)/(self.maxH - self.minH),
-                                             (self.headSpecNorth - self.minH)/(self.maxH - self.minH),
-                                             self.wellQ1/self.minQ, self.wellX1/(self.minX+self.extentX),
-                                             self.wellY1/(self.minX+self.extentX), self.wellZ1/(self.minX+self.extentX),
-                                             self.wellQ2/self.minQ, self.wellX2/(self.minX+self.extentX),
-                                             self.wellY2/(self.minX+self.extentX), self.wellZ2/(self.minX+self.extentX),
-                                             self.wellQ3/self.minQ, self.wellX3/(self.minX+self.extentX),
-                                             self.wellY3/(self.minX+self.extentX), self.wellZ3/(self.minX+self.extentX),
-                                             self.wellQ4/self.minQ, self.wellX4/(self.minX+self.extentX),
-                                             self.wellY4/(self.minX+self.extentX), self.wellZ4/(self.minX+self.extentX),
-                                             self.wellQ5/self.minQ, self.wellX5/(self.minX+self.extentX),
-                                             self.wellY5/(self.minX+self.extentX), self.wellZ5/(self.minX+self.extentX)]
+                                             (self.headSpecNorth - self.minH)/(self.maxH - self.minH)]
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.stressesVectorNormalized += [self.helperWells['wellQ'+w]/self.minQ, self.helperWells['wellX'+w]/(self.minX+self.extentX),
+                    self.helperWells['wellY'+w]/(self.minY+self.extentY), self.helperWells['wellZ'+w]/(self.zBot+self.zTop)]
 
         self.timeStepDuration = []
 
@@ -1409,7 +1532,8 @@ class FloPyEnv():
         self.periodSteadiness = False
         t0total = time()
 
-        self.getActionValue(action)
+        # print('debug action step', action)
+        self.setActionValue(action)
         observations = self.observationsVectorToDict(observations)
         self.particleCoordsBefore = observations['particleCoords']
 
@@ -1436,25 +1560,29 @@ class FloPyEnv():
 
         self.state = {}
         self.state['heads'] = self.heads
-        if self.ENVTYPE == '1':
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
             self.state['actionValueNorth'] = self.actionValueNorth
             self.state['actionValueSouth'] = self.actionValueSouth
-        elif self.ENVTYPE == '2':
+        elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
             self.state['actionValue'] = self.actionValue
-        elif self.ENVTYPE == '3':
+        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c']:
             self.state['actionValueX'] = self.actionValueX
             self.state['actionValueY'] = self.actionValueY
-        elif self.ENVTYPE == '4':
-            self.state['actionValueX1'] = self.actionValueX1
-            self.state['actionValueY1'] = self.actionValueY1
-            self.state['actionValueX2'] = self.actionValueX2
-            self.state['actionValueY2'] = self.actionValueY2
-            self.state['actionValueX3'] = self.actionValueX3
-            self.state['actionValueY3'] = self.actionValueY3
-            self.state['actionValueX4'] = self.actionValueX4
-            self.state['actionValueY4'] = self.actionValueY4
-            self.state['actionValueX5'] = self.actionValueX5
-            self.state['actionValueY5'] = self.actionValueY5
+        elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.state['actionValueX'+w] = self.helperWells['actionValueX'+w]
+                self.state['actionValueY'+w] = self.helperWells['actionValueY'+w]
+        elif self.ENVTYPE in ['5s-d', '5s-c', '5r-d', '5r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.state['actionValueQ'+w] = self.helperWells['actionValueQ'+w]
+        elif self.ENVTYPE in ['6s-d', '6s-c', '6r-d', '6r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.state['actionValueX'+w] = self.helperWells['actionValueX'+w]
+                self.state['actionValueY'+w] = self.helperWells['actionValueY'+w]
+                self.state['actionValueQ'+w] = self.helperWells['actionValueQ'+w]
 
         self.observations = {}
         self.observationsNormalized, self.observationsNormalizedHeads = {}, {}
@@ -1468,13 +1596,13 @@ class FloPyEnv():
             [self.wellX, self.wellY, self.wellZ])
         # note: these heads from actions are not necessary to return as observations for surrogate modeling
         # but for reinforcement learning
-        if self.ENVTYPE == '1':
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
             self.observations['heads'] = [self.actionValueNorth,
                                           self.actionValueSouth]
-        elif self.ENVTYPE == '2':
+        elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
             # this can cause issues with unit testing, as model expects different input 
             self.observations['heads'] = [self.actionValue]
-        elif self.ENVTYPE == '3' or self.ENVTYPE == '4':
+        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             self.observations['heads'] = [self.headSpecNorth,
                                           self.headSpecSouth]
         # note: it sees the surrounding heads of the particle and the well
@@ -1488,17 +1616,11 @@ class FloPyEnv():
 
         self.observations['wellQ'] = self.wellQ
         self.observations['wellCoords'] = self.wellCoords
-        if self.ENVTYPE == '4':
-            self.observations['wellQ1'] = self.wellQ1
-            self.observations['wellQ2'] = self.wellQ2
-            self.observations['wellQ3'] = self.wellQ3
-            self.observations['wellQ4'] = self.wellQ4
-            self.observations['wellQ5'] = self.wellQ5
-            self.observations['wellCoords1'] = self.wellCoords1
-            self.observations['wellCoords2'] = self.wellCoords2
-            self.observations['wellCoords3'] = self.wellCoords3
-            self.observations['wellCoords4'] = self.wellCoords4
-            self.observations['wellCoords5'] = self.wellCoords5
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.observations['wellQ'+w] = self.helperWells['wellQ'+w]
+                self.observations['wellCoords'+w] = self.helperWells['wellCoords'+w]
         self.observationsNormalized['particleCoords'] = divide(
             copy(self.particleCoordsAfter), self.minX + self.extentX)
         self.observationsNormalized['heads'] = divide(array(self.observations['heads']) - self.minH,
@@ -1508,22 +1630,12 @@ class FloPyEnv():
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
             self.wellCoords, self.minX + self.extentX)
-        if self.ENVTYPE == '4':
-            self.observationsNormalized['wellQ1'] = self.wellQ1 / self.minQhelper
-            self.observationsNormalized['wellCoords1'] = divide(
-                self.wellCoords1, self.minX + self.extentX)
-            self.observationsNormalized['wellQ2'] = self.wellQ2 / self.minQhelper
-            self.observationsNormalized['wellCoords2'] = divide(
-                self.wellCoords2, self.minX + self.extentX)
-            self.observationsNormalized['wellQ3'] = self.wellQ3 / self.minQhelper
-            self.observationsNormalized['wellCoords3'] = divide(
-                self.wellCoords3, self.minX + self.extentX)
-            self.observationsNormalized['wellQ4'] = self.wellQ4 / self.minQhelper
-            self.observationsNormalized['wellCoords4'] = divide(
-                self.wellCoords4, self.minX + self.extentX)
-            self.observationsNormalized['wellQ5'] = self.wellQ5 / self.minQhelper
-            self.observationsNormalized['wellCoords5'] = divide(
-                self.wellCoords5, self.minX + self.extentX)
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.observationsNormalized['wellQ'+w] = self.helperWells['wellQ'+w] / self.minQhelper
+                self.observationsNormalized['wellCoords'+w] = divide(
+                    self.helperWells['wellCoords'+w], self.minX + self.extentX)
         self.observationsNormalizedHeads['heads'] = divide(array(self.heads) - self.minH,
             self.maxH - self.minH)
 
@@ -1539,33 +1651,27 @@ class FloPyEnv():
         else:
             self.success = False
 
-        if self.ENVTYPE == '1':
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
             self.stressesVectorNormalized = [(self.actionValueSouth - self.minH)/(self.maxH - self.minH),
                                              (self.actionValueNorth - self.minH)/(self.maxH - self.minH),
                                              self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
-                                             self.wellY/(self.minX+self.extentX), self.wellZ/(self.minX+self.extentX)]
-        elif self.ENVTYPE == '2':
+                                             self.wellY/(self.minY+self.extentY), self.wellZ/(self.zBot+self.zTop)]
+        elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
             self.stressesVectorNormalized = [(self.actionValue - self.minH)/(self.maxH - self.minH),
                                              self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
-                                             self.wellY/(self.minX+self.extentX), self.wellZ/(self.minX+self.extentX)]
-        elif self.ENVTYPE == '3':
+                                             self.wellY/(self.minY+self.extentY), self.wellZ/(self.zBot+self.zTop)]
+        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c']:
             self.stressesVectorNormalized = [(self.headSpecSouth - self.minH)/(self.maxH - self.minH),
                                              (self.headSpecNorth - self.minH)/(self.maxH - self.minH),
                                              self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
-                                             self.wellY/(self.minX+self.extentX), self.wellZ/(self.minX+self.extentX)]
-        elif self.ENVTYPE == '4':
+                                             self.wellY/(self.minY+self.extentY), self.wellZ/(self.zBot+self.zTop)]
+        elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             self.stressesVectorNormalized = [(self.headSpecSouth - self.minH)/(self.maxH - self.minH),
-                                             (self.headSpecNorth - self.minH)/(self.maxH - self.minH),
-                                             self.wellQ1/self.minQ, self.wellX1/(self.minX+self.extentX),
-                                             self.wellY1/(self.minX+self.extentX), self.wellZ1/(self.minX+self.extentX),
-                                             self.wellQ2/self.minQ, self.wellX2/(self.minX+self.extentX),
-                                             self.wellY2/(self.minX+self.extentX), self.wellZ2/(self.minX+self.extentX),
-                                             self.wellQ3/self.minQ, self.wellX3/(self.minX+self.extentX),
-                                             self.wellY3/(self.minX+self.extentX), self.wellZ3/(self.minX+self.extentX),
-                                             self.wellQ4/self.minQ, self.wellX4/(self.minX+self.extentX),
-                                             self.wellY4/(self.minX+self.extentX), self.wellZ4/(self.minX+self.extentX),
-                                             self.wellQ5/self.minQ, self.wellX5/(self.minX+self.extentX),
-                                             self.wellY5/(self.minX+self.extentX), self.wellZ5/(self.minX+self.extentX)]
+                                             (self.headSpecNorth - self.minH)/(self.maxH - self.minH)]
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.stressesVectorNormalized += [self.helperWells['wellQ'+w]/self.minQ, self.helperWells['wellX'+w]/(self.minX+self.extentX),
+                    self.helperWells['wellY'+w]/(self.minY+self.extentY), self.helperWells['wellZ'+w]/(self.zBot+self.zTop)]
 
         # checking if particle is within horizontal distance of well
         dx = self.particleCoords[0] - self.wellCoords[0]
@@ -1575,15 +1681,17 @@ class FloPyEnv():
         if self.distanceWellParticle <= self.wellRadius:
             self.done = True
             self.reward = (self.rewardCurrent) * (-1.0)
-        if self.ENVTYPE == '4':
-            coords = [self.wellCoords1, self.wellCoords2, self.wellCoords3,
-                      self.wellCoords4, self.wellCoords5]
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            coords = []
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                coords.append(self.helperWells['wellCoords'+w])
             for c in coords:
                 dx = self.particleCoords[0] - c[0]
                 # why would the correction for Y coordinate be necessary
                 dy = self.extentY - self.particleCoords[1] - c[1]
                 self.distanceWellParticle = sqrt(dx**2 + dy**2)
-                if self.distanceWellParticle <= self.wellRadius:
+                if self.distanceWellParticle <= self.helperWellRadius:
                     self.done = True
                     self.reward = (self.rewardCurrent) * (-1.0)
 
@@ -1596,7 +1704,7 @@ class FloPyEnv():
             self.done = True
             self.reward = (self.rewardCurrent) * (-1.0)
 
-        if self.ENVTYPE == '1' or self.ENVTYPE == '3' or self.ENVTYPE == '4':
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c', '3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             # checking if particle has reached northern boundary
             if self.particleCoordsAfter[1] >= self.minY + self.extentY - self.dRow:
             # if self.particleCoordsAfter[1] >= self.minY + \
@@ -1652,8 +1760,6 @@ class FloPyEnv():
         self.headSpecWest, self.headSpecEast = 60.0, 56.0
         self.minQ = -2000.0
         self.maxQ = -500.0
-        self.minQhelper = -1000.0
-        self.maxQhelper = -50.0
         self.wellSpawnBufferXWest, self.wellSpawnBufferXEast = 50.0, 20.0
         self.wellSpawnBufferY = 20.0
         self.periods, self.periodLength, self.periodSteps = 1, 1.0, 11
@@ -1669,32 +1775,73 @@ class FloPyEnv():
         self.wellRadius = sqrt((2 * 1.)**2 + (2 * 1.)**2)
         # print('debug wellRadius', self.wellRadius)
 
-        if self.ENVTYPE == '1':
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
             self.minH = 56.0
             self.maxH = 60.0
-            self.actionSpace = ['up', 'keep', 'down']
-            self.actionRange = 0.5
             self.deviationPenaltyFactor = 10.0
-        elif self.ENVTYPE == '2':
+            self.actionRange = 0.5
+        elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
             self.minH = 56.0
             self.maxH = 62.0
-            self.actionSpace = ['up', 'keep', 'down']
-            self.actionRange = 5.0
             self.deviationPenaltyFactor = 4.0
-        elif self.ENVTYPE == '3':
+            self.actionRange = 0.5
+        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c']:
             self.minH = 56.0
             self.maxH = 60.0
-            self.actionSpace = ['up', 'keep', 'down', 'left', 'right']
-            self.actionRange = 10.0
             self.deviationPenaltyFactor = 10.0
-        elif self.ENVTYPE == '4':
+            self.actionRange = 10.0
+        elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            self.helperWellRadius = self.wellRadius/4
             self.minH = 56.0
             self.maxH = 60.0
-            self.actionSpaceIndividual = ['up', 'keep', 'down', 'left', 'right']
-            # inspired by https://stackoverflow.com/questions/42591283/all-possible-combinations-of-a-set-as-a-list-of-strings
-            self.actionSpace = list(''.join(map(str, comb)) for comb in product(self.actionSpaceIndividual, repeat=5))
-            self.actionRange = 10.0
+            self.nHelperWells = 20 # 7
+            self.minQhelper = -600.0
+            self.maxQhelper = 600.0
             self.deviationPenaltyFactor = 10.0
+
+        if self.ENVTYPE in ['1r-d', '1r-c', '2r-d', '2r-c', '3r-d', '3r-c', '4r-d', '4r-c', '5r-d', '5r-c', '6r-d', '6r-c']:
+            self.maxHChange = 0.2
+            self.maxQChange = 50.0
+            self.maxCoordChange = 2.5
+
+        if self.ENVTYPE in ['1s-d', '1r-d', '2s-d', '2r-d']:
+            self.actionSpace = ['up', 'keep', 'down']
+        elif self.ENVTYPE in ['1s-c', '1r-c', '2s-c', '2r-c']:
+            self.actionSpace = ['up', 'down']
+        elif self.ENVTYPE in ['3s-d', '3r-d']:
+           self.actionSpace = ['up', 'keep', 'down', 'left', 'right']
+        elif self.ENVTYPE in ['3s-c', '3r-c']:
+           self.actionSpace = ['up', 'down', 'left', 'right']
+        # inspired by https://stackoverflow.com/questions/42591283/all-possible-combinations-of-a-set-as-a-list-of-strings
+        # this gets too large with many wells
+        elif self.ENVTYPE in ['4s-d', '4r-d', '5s-d', '5r-d', '6s-d', '6r-d']:
+            if self.ENVTYPE in ['4s-d', '4r-d']:
+                self.actionSpaceIndividual = ['up', 'keep', 'down', 'left', 'right']
+                self.actionRange = 2.5
+            elif self.ENVTYPE in ['5s-d', '5r-d']:
+                self.actionSpaceIndividual = ['moreQ', 'keepQ', 'lessQ']
+                self.actionRangeQ = 100.0
+            elif self.ENVTYPE in ['6s-d', '6r-d']:
+                self.actionSpaceIndividual = ['up', 'keep', 'down', 'left', 'right', 'moreQ', 'keepQ', 'lessQ']
+                self.actionRange = 2.5
+                self.actionRangeQ = 100.0
+            self.actionSpace = list(''.join(map(str, comb)) for comb in product(self.actionSpaceIndividual, repeat=self.nHelperWells))
+
+        elif self.ENVTYPE in ['4s-c', '4r-c', '5s-c', '5r-c', '6s-c', '6r-c']:
+            if self.ENVTYPE in ['4s-c', '4r-c']:
+                self.actionSpaceIndividual = ['up', 'down', 'left', 'right']
+                self.actionRange = 2.5
+            elif self.ENVTYPE in ['5s-c', '5r-c']:
+                self.actionSpaceIndividual = ['moreQ', 'lessQ']
+                self.actionRangeQ = 100.0
+            elif self.ENVTYPE in ['6s-c', '6r-c']:
+                self.actionSpaceIndividual = ['up', 'down', 'left', 'right', 'moreQ', 'lessQ']
+                self.actionRange = 2.5
+                self.actionRangeQ = 50.0
+
+            self.actionSpace = []
+            for i in range(self.nHelperWells):
+                self.actionSpace += [j+str(i+1) for j in self.actionSpaceIndividual]
 
         self.actionSpaceSize = len(self.actionSpace)
 
@@ -1737,27 +1884,29 @@ class FloPyEnv():
 
     def initializeAction(self):
         """Initialize actions randomly."""
-        if self.ENVTYPE == '1':
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
             self.actionValueNorth = uniform(self.minH, self.maxH)
             self.actionValueSouth = uniform(self.minH, self.maxH)
-        elif self.ENVTYPE == '2':
+        elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
             self.actionValue = uniform(self.minH, self.maxH)
-        elif self.ENVTYPE == '3':
-            self.action = 'keep'
+        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c']:
             self.actionValueX = self.wellX
             self.actionValueY = self.wellY
-        elif self.ENVTYPE == '4':
-            self.action = 'keepkeepkeepkeepkeep'
-            self.actionValueX1 = self.wellX1
-            self.actionValueY1 = self.wellY1
-            self.actionValueX2 = self.wellX2
-            self.actionValueY2 = self.wellY2
-            self.actionValueX3 = self.wellX3
-            self.actionValueY3 = self.wellY3
-            self.actionValueX4 = self.wellX4
-            self.actionValueY4 = self.wellY4
-            self.actionValueX5 = self.wellX5
-            self.actionValueY5 = self.wellY5
+        elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.helperWells['actionValueX'+w] = self.helperWells['wellX'+w]
+                self.helperWells['actionValueY'+w] = self.helperWells['wellY'+w]
+        elif self.ENVTYPE in ['5s-d', '5s-c', '5r-d', '5r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.helperWells['actionValueQ'+w] = self.helperWells['wellQ'+w]
+        elif self.ENVTYPE in ['6s-d', '6s-c', '6r-d', '6r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.helperWells['actionValueX'+w] = self.helperWells['wellX'+w]
+                self.helperWells['actionValueY'+w] = self.helperWells['wellY'+w]
+                self.helperWells['actionValueQ'+w] = self.helperWells['wellQ'+w]
 
     def initializeParticle(self):
         """Initialize spawn of particle randomly.
@@ -1776,7 +1925,7 @@ class FloPyEnv():
     def initializeModel(self):
         """Initialize groundwater flow model."""
 
-        self.constructingModel()
+        self.constructModel()
 
     def initializeWellRate(self, minQ, maxQ):
         """Initialize well randomly in the aquifer domain within margins."""
@@ -1800,28 +1949,21 @@ class FloPyEnv():
                                                 self.wellZ]
                                                )
         self.wellCellLayer, self.wellCellColumn, self.wellCellRow = l, c, r
-        if self.ENVTYPE == '4':
-            l1, c1, r1 = self.cellInfoFromCoordinates([self.wellX1,
-                self.wellY1, self.wellZ1])
-            l2, c2, r2 = self.cellInfoFromCoordinates([self.wellX2,
-                self.wellY2, self.wellZ2])
-            l3, c3, r3 = self.cellInfoFromCoordinates([self.wellX3,
-                self.wellY3, self.wellZ3])
-            l4, c4, r4 = self.cellInfoFromCoordinates([self.wellX4,
-                self.wellY4, self.wellZ4])
-            l5, c5, r5 = self.cellInfoFromCoordinates([self.wellX5,
-                self.wellY5, self.wellZ5])
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.helperWells['l'+w], self.helperWells['c'+w], self.helperWells['r'+w] = self.cellInfoFromCoordinates(
+                    [self.helperWells['wellX'+w], self.helperWells['wellY'+w], self.helperWells['wellZ'+w]])
 
         # print('debug well cells', self.wellCellLayer, self.wellCellColumn, self.wellCellRow)
         # adding WEL package to the MODFLOW model
         lrcq = {0: [[l-1, r-1, c-1, self.wellQ]]}
-        if self.ENVTYPE == '4':
-            lrcq = {0: [[l-1, r-1, c-1, self.wellQ],
-                        [l1-1, r1-1, c1-1, self.wellQ1],
-                        [l2-1, r2-1, c2-1, self.wellQ2],
-                        [l3-1, r3-1, c3-1, self.wellQ3],
-                        [l4-1, r4-1, c4-1, self.wellQ4],
-                        [l5-1, r5-1, c5-1, self.wellQ5]]}
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            lrcq_ = [[l-1, r-1, c-1, self.wellQ]]
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                lrcq_.append([self.helperWells['l'+w]-1, self.helperWells['r'+w]-1, self.helperWells['c'+w]-1, self.helperWells['wellQ'+w]])
+            lrcq = {0: lrcq_}
         self.wel = ModflowWel(self.mf, stress_period_data=lrcq)
 
     def initializeState(self, state):
@@ -1829,68 +1971,101 @@ class FloPyEnv():
 
         self.headsPrev = copy(self.state['heads'])
 
+    def getActionType(self, ENVTYPE):
+        """Retrieve action type from ENVTYPE variable."""
+        
+        if '-d' in ENVTYPE:
+            actionType = 'discrete'
+        elif '-c' in ENVTYPE:
+            actionType = 'continuous'
+        else:
+            print('Environment name is unknown.')
+            quit()
+
+        return actionType
+
     def updateModel(self):
         """Update model domain for transient simulation."""
 
-        self.constructingModel()
+        self.constructModel()
 
     def updateWellRate(self):
         """Update model to continue using well."""
 
-        if self.ENVTYPE == '3':
+        if self.ENVTYPE in ['1r-d', '1r-c', '2r-d', '2r-c', '3r-d', '3r-c', '4r-d', '4r-c', '5r-d', '5r-c', '6r-d', '6r-c']:
+            # generating random well rate fluctuations
+            dQ = uniform(low=-1.0, high=1.0)*self.maxQChange
+            updatedQ = self.wellQ + dQ
+
+            # applying fluctuation if not surpassing pumping rate constraints
+            if updatedQ < self.maxQ and updatedQ > self.minQ:
+                self.wellQ = updatedQ
+            elif updatedQ > self.maxQ:
+                self.wellQ = self.maxQ
+            elif updatedQ < self.minQ:
+                self.wellQ = self.minQ
+
+    def updateWell(self):
+
+        if self.ENVTYPE in ['1r-d', '1r-c', '2r-d', '2r-c', '4r-d', '4r-c', '5r-d', '5r-c', '6r-d', '6r-c']:
+            # generating random well location fluctuations
+            dwellX = uniform(low=-1.0, high=1.0)*self.maxCoordChange
+            dwellY = uniform(low=-1.0, high=1.0)*self.maxCoordChange
+            updatedwellX = self.wellX + dwellX
+            updatedwellY = self.wellY + dwellY
+
+            # applying fluctuation if not moving to model boundary cell
+            if updatedwellX > self.dCol:
+                if updatedwellX < self.extentX - self.dCol:
+                    self.wellX = updatedwellX
+            if updatedwellY > self.dRow:
+                if updatedwellY < self.extentY - self.dRow:
+                    self.wellY = updatedwellY
+
+        if self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c']:
             # updating well location from action taken
             self.wellX = self.actionValueX
             self.wellY = self.actionValueY
             self.wellZ = self.wellZ
-            self.wellCoords = [self.wellX, self.wellY, self.wellZ]
+        self.wellCoords = [self.wellX, self.wellY, self.wellZ]
 
-        if self.ENVTYPE == '4':
-            # updating well location from action taken
-            self.wellX1, self.wellX2 = self.actionValueX1, self.actionValueX2
-            self.wellX3, self.wellX4 = self.actionValueX3, self.actionValueX4
-            self.wellX5 = self.actionValueX5
-            self.wellY1, self.wellY2 = self.actionValueY1, self.actionValueY2
-            self.wellY3, self.wellY4 = self.actionValueY3, self.actionValueY4
-            self.wellY5 = self.actionValueY5
-            self.wellZ1, self.wellZ2 = self.wellZ1, self.wellZ2
-            self.wellZ3, self.wellZ4 = self.wellZ3, self.wellZ4
-            self.wellZ5 = self.wellZ5
-            self.wellCoords1 = [self.wellX1, self.wellY1, self.wellZ1]
-            self.wellCoords2 = [self.wellX2, self.wellY2, self.wellZ2]
-            self.wellCoords3 = [self.wellX3, self.wellY3, self.wellZ3]
-            self.wellCoords4 = [self.wellX4, self.wellY4, self.wellZ4]
-            self.wellCoords5 = [self.wellX5, self.wellY5, self.wellZ5]
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                # updating well location from action taken
+                self.helperWells['wellX'+w] = self.helperWells['actionValueX'+w]
+                self.helperWells['wellY'+w] = self.helperWells['actionValueY'+w]
+                self.helperWells['wellZ'+w] = self.helperWells['wellZ'+w]
+                self.helperWells['wellCoords'+w] = [self.helperWells['wellX'+w], self.helperWells['wellY'+w], self.helperWells['wellZ'+w]]
 
-    def updateWell(self):
+        if self.ENVTYPE in ['5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                # updating well location from action taken
+                self.helperWells['wellQ'+w] = self.helperWells['actionValueQ'+w]
+
         # adding WEL package to the MODFLOW model
         l, c, r = self.cellInfoFromCoordinates([self.wellX,
             self.wellY, self.wellZ])
         self.wellCellLayer = l
         self.wellCellColumn = c
         self.wellCellRow = r
-        if self.ENVTYPE == '4':
-            l1, c1, r1 = self.cellInfoFromCoordinates([self.wellX1,
-                self.wellY1, self.wellZ1])
-            l2, c2, r2 = self.cellInfoFromCoordinates([self.wellX2,
-                self.wellY2, self.wellZ2])
-            l3, c3, r3 = self.cellInfoFromCoordinates([self.wellX3,
-                self.wellY3, self.wellZ3])
-            l4, c4, r4 = self.cellInfoFromCoordinates([self.wellX4,
-                self.wellY4, self.wellZ4])
-            l5, c5, r5 = self.cellInfoFromCoordinates([self.wellX5,
-                self.wellY5, self.wellZ5])
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                self.helperWells['l'+w], self.helperWells['c'+w], self.helperWells['r'+w] = self.cellInfoFromCoordinates(
+                    [self.helperWells['wellX'+w], self.helperWells['wellY'+w], self.helperWells['wellZ'+w]])
 
         lrcq = {0: [[l-1, r-1, c-1, self.wellQ]]}
-        if self.ENVTYPE == '4':
-            lrcq = {0: [[l-1, r-1, c-1, self.wellQ],
-                        [l1-1, r1-1, c1-1, self.wellQ1],
-                        [l2-1, r2-1, c2-1, self.wellQ2],
-                        [l3-1, r3-1, c3-1, self.wellQ3],
-                        [l4-1, r4-1, c4-1, self.wellQ4],
-                        [l5-1, r5-1, c5-1, self.wellQ5]]}
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            lrcq_ = [[l-1, r-1, c-1, self.wellQ]]
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                lrcq_.append([self.helperWells['l'+w]-1, self.helperWells['r'+w]-1, self.helperWells['c'+w]-1, self.helperWells['wellQ'+w]])
+            lrcq = {0: lrcq_}
         self.wel = ModflowWel(self.mf, stress_period_data=lrcq)
 
-    def constructingModel(self):
+    def constructModel(self):
         """Construct the groundwater flow model used for the arcade game.
         Flopy is used as a MODFLOW wrapper for input file construction.
         A specified head boundary condition is situated on the western, eastern
@@ -1937,12 +2112,12 @@ class FloPyEnv():
                                   )
 
         self.ibound = ones((self.nLay, self.nRow, self.nCol), dtype=int32)
-        if self.ENVTYPE == '1' or self.ENVTYPE == '3' or self.ENVTYPE == '4':
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c', '3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             self.ibound[:, 1:-1, 0] = -1
             self.ibound[:, 1:-1, -1] = -1
             self.ibound[:, 0, :] = -1
             self.ibound[:, -1, :] = -1
-        elif self.ENVTYPE == '2':
+        elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
             self.ibound[:, :-1, 0] = -1
             self.ibound[:, :-1, -1] = -1
             self.ibound[:, -1, :] = -1
@@ -1954,16 +2129,37 @@ class FloPyEnv():
         elif self.periodSteadiness == False:
             self.strt = self.headsPrev
 
-        if self.ENVTYPE == '1':
+        if self.timeStep > 0:
+            if self.ENVTYPE in ['3r-d', '3r-c', '4r-d', '4r-c', '5r-d', '5r-c', '6r-d', '6r-c']:
+                # generating random boundary condition fluctuations
+                dHSouth = uniform(low=-1.0, high=1.0)*self.maxHChange
+                dHNorth = uniform(low=-1.0, high=1.0)*self.maxHChange
+                updatedSpecSouth = self.headSpecSouth + dHSouth
+                updatedSpecNorth = self.headSpecNorth + dHNorth
+                # applying fluctuation if not surpassing head constraints
+                if updatedSpecSouth > self.minH and updatedSpecSouth < self.maxH:
+                    self.headSpecSouth = updatedSpecSouth
+                elif updatedSpecSouth < self.minH:
+                    self.headSpecSouth = self.minH
+                elif updatedSpecSouth > self.maxH:
+                    self.headSpecSouth = self.maxH
+                if updatedSpecNorth > self.minH and updatedSpecNorth < self.maxH:
+                    self.headSpecNorth = updatedSpecNorth
+                elif updatedSpecNorth < self.minH:
+                    self.headSpecNorth = self.minH
+                elif updatedSpecNorth > self.maxH:
+                    self.headSpecNorth = self.maxH
+
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
             self.strt[:, 1:-1, 0] = self.headSpecWest
             self.strt[:, 1:-1, -1] = self.headSpecEast
             self.strt[:, 0, :] = self.actionValueSouth
             self.strt[:, -1, :] = self.actionValueNorth
-        elif self.ENVTYPE == '2':
+        elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
             self.strt[:, :-1, 0] = self.headSpecWest
             self.strt[:, :-1, -1] = self.headSpecEast
             self.strt[:, -1, :] = self.actionValue
-        elif self.ENVTYPE == '3' or self.ENVTYPE == '4':
+        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             self.strt[:, 1:-1, 0] = self.headSpecWest
             self.strt[:, 1:-1, -1] = self.headSpecEast
             self.strt[:, 0, :] = self.headSpecSouth
@@ -1998,7 +2194,8 @@ class FloPyEnv():
 
         # writing MODFLOW input files
         self.mf.write_input()
-        # self.check = self.mf.check(verbose=False)
+        # debugging model setup if enabled
+        # self.check = self.mf.check(verbose=True)
 
         # running the MODFLOW model
         self.successMODFLOW, self.buff = self.mf.run_model(silent=True)
@@ -2336,7 +2533,6 @@ class FloPyEnv():
             if not maximized:
                 try:
                     self.figManager.full_screen_toggle()
-                    print('debug full screen')
                 except:
                     pass
 
@@ -2378,13 +2574,18 @@ class FloPyEnv():
           lw=2.0,
           label='protection zone')
         self.ax2.add_artist(wellBufferCircle)
-        if self.ENVTYPE == '4':
-            wellCoords = [
-             self.wellCoords1, self.wellCoords2, self.wellCoords3,
-             self.wellCoords4, self.wellCoords5]
-            for c in wellCoords:
-                wellBufferCircle = Circle((c[0], self.extentY - c[1]), (self.wellRadius),
-                  edgecolor='r',
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            wellCoords = []
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                wellCoords.append(self.helperWells['wellCoords'+w])
+            for i, c in enumerate(wellCoords):
+                if self.helperWells['wellQ'+str(i+1)] >= 0.:
+                    wellSafetyZoneColor = 'blue'
+                else:
+                    wellSafetyZoneColor = 'red'
+                wellBufferCircle = Circle((c[0], self.extentY - c[1]), (self.helperWellRadius),
+                  edgecolor=wellSafetyZoneColor,
                   facecolor=None,
                   fill=False,
                   zorder=zorder,
@@ -2456,7 +2657,7 @@ class FloPyEnv():
         """Remove axes ticks from figure."""
         (self.ax.set_xticks([]), self.ax.set_yticks([]))
         (self.ax2.set_xticks([]), self.ax2.set_yticks([]))
-        if self.ENVTYPE == '1' or self.ENVTYPE == '3' or self.ENVTYPE == '4':
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c', '3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             (
              self.ax3.set_xticks([]), self.ax3.set_yticks([]))
 
@@ -2476,17 +2677,15 @@ class FloPyEnv():
         top = bottom + height
         textRight = 'Destination:   ' + str('%.2f' % self.headSpecEast) + ' m'
         textLeft = 'Start:   ' + str('%.2f' % self.headSpecWest) + ' m'
-        if self.ENVTYPE == '1':
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
             textTop = str('%.2f' % self.actionValueNorth) + ' m'
             textBottom = str('%.2f' % self.actionValueSouth) + ' m'
-        else:
-            if self.ENVTYPE == '2':
-                textTop = ''
-                textBottom = str('%.2f' % self.actionValue) + ' m'
-            else:
-                if self.ENVTYPE == '3' or self.ENVTYPE == '4':
-                    textTop = str('%.2f' % self.headSpecNorth) + ' m'
-                    textBottom = str('%.2f' % self.headSpecSouth) + ' m'
+        elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
+            textTop = ''
+            textBottom = str('%.2f' % self.actionValue) + ' m'
+        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            textTop = str('%.2f' % self.headSpecNorth) + ' m'
+            textBottom = str('%.2f' % self.headSpecSouth) + ' m'
         self.ax2.text((self.minX + 2 * self.dCol), (0.5 * (bottom + top)), textLeft, horizontalalignment='left',
           verticalalignment='center',
           rotation='vertical',
@@ -2536,7 +2735,7 @@ class FloPyEnv():
         plotfile = join(self.plotspth, self.MODELNAME + '_' + str(self.timeStep).zfill(len(str(abs(self.NAGENTSTEPS))) + 1) + '.png')
 
         s = self.fig.get_size_inches()
-        
+
         self.fig.gca().set_axis_off()
         margins(0,0)
         self.fig.gca().xaxis.set_major_locator(NullLocator())
@@ -2562,7 +2761,7 @@ class FloPyEnv():
         except:
             pass
 
-        if self.ENVTYPE == '1' or self.ENVTYPE == '3' or self.ENVTYPE == '4':
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c', '3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             try:
                 self.ax3.cla()
                 self.ax3.clear()
@@ -2656,120 +2855,113 @@ class FloPyEnv():
         """Capture key pressed through manual user interaction."""
         self.keyPressed = event.key
 
-    def getActionValue(self, action):
-        """Retrieve a list of performable actions."""
-        if self.ENVTYPE == '1':
+    def setActionValue(self, action):
+        """Set values for performed actions."""
+        if self.ENVTYPE in ['1s-d', '1r-d']:
             if action == 'up':
-                self.actionValueNorth = self.actionValueNorth + self.actionRange
-                self.actionValueSouth = self.actionValueSouth + self.actionRange
-            else:
-                if action == 'down':
-                    self.actionValueNorth = self.actionValueNorth - self.actionRange
-                    self.actionValueSouth = self.actionValueSouth - self.actionRange
-        else:
-            if self.ENVTYPE == '2':
-                if action == 'up':
-                    self.actionValue = self.actionValue + 0.1 * self.actionRange
-                else:
-                    if action == 'down':
-                        self.actionValue = self.actionValue - 0.1 * self.actionRange
-            else:
-                if self.ENVTYPE == '3':
-                    if action == 'up':
-                        if self.wellY > self.dRow + self.actionRange:
-                            self.actionValueY = self.wellY - self.actionRange
-                    else:
-                        if action == 'left':
-                            if self.wellX > self.dCol + self.actionRange:
-                                self.actionValueX = self.wellX - self.actionRange
-                        else:
-                            if action == 'right':
-                                if self.wellX < self.extentX - self.dCol - self.actionRange:
-                                    self.actionValueX = self.wellX + self.actionRange
-                            else:
-                                if action == 'down' and self.wellY < self.extentY - self.dRow - self.actionRange:
-                                    self.actionValueY = self.wellY + self.actionRange
-                elif self.ENVTYPE == '4':
-                    actionList = []
-                    while len(action) != 0:
-                        for action_ in self.actionSpaceIndividual:
-                            if action[:len(action_)] == action_:
-                                actionList.append(action_)
-                                action = action[len(action_):]
+                self.actionValueNorth += self.actionRange
+                self.actionValueSouth += self.actionRange
+            elif action == 'down':
+                self.actionValueNorth -= self.actionRange
+                self.actionValueSouth -= self.actionRange
+        elif self.ENVTYPE in ['1s-c', '1r-c']:
+            self.actionValueNorth += action[0]*self.actionRange
+            self.actionValueSouth += action[0]*self.actionRange
+            self.actionValueNorth -= action[1]*self.actionRange
+            self.actionValueSouth -= action[1]*self.actionRange
 
-                    if actionList[0] == 'up':
-                        if self.wellY1 > self.dRow + self.actionRange:
-                            self.actionValueY1 = self.wellY1 - self.actionRange
-                    else:
-                        if actionList[0] == 'left':
-                            if self.wellX1 > self.dCol + self.actionRange:
-                                self.actionValueX1 = self.wellX1 - self.actionRange
-                        else:
-                            if actionList[0] == 'right':
-                                if self.wellX1 < self.extentX - self.dCol - self.actionRange:
-                                    self.actionValueX1 = self.wellX1 + self.actionRange
-                            else:
-                                if actionList[0] == 'down':
-                                    if self.wellY1 < self.extentY - self.dRow - self.actionRange:
-                                        self.actionValueY1 = self.wellY1 + self.actionRange
-                    if actionList[1] == 'up':
-                        if self.wellY2 > self.dRow + self.actionRange:
-                            self.actionValueY2 = self.wellY2 - self.actionRange
-                    else:
-                        if actionList[1] == 'left':
-                            if self.wellX2 > self.dCol + self.actionRange:
-                                self.actionValueX2 = self.wellX2 - self.actionRange
-                        else:
-                            if actionList[1] == 'right':
-                                if self.wellX2 < self.extentX - self.dCol - self.actionRange:
-                                    self.actionValueX2 = self.wellX2 + self.actionRange
-                            else:
-                                if actionList[1] == 'down':
-                                    if self.wellY2 < self.extentY - self.dRow - self.actionRange:
-                                        self.actionValueY2 = self.wellY2 + self.actionRange
-                                if actionList[2] == 'up':
-                                    if self.wellY3 > self.dRow + self.actionRange:
-                                        self.actionValueY3 = self.wellY3 - self.actionRange
-                                else:
-                                    if actionList[2] == 'left':
-                                        if self.wellX3 > self.dCol + self.actionRange:
-                                            self.actionValueX3 = self.wellX3 - self.actionRange
-                                    else:
-                                        if actionList[2] == 'right':
-                                            if self.wellX3 < self.extentX - self.dCol - self.actionRange:
-                                                self.actionValueX3 = self.wellX3 + self.actionRange
-                                        elif actionList[2] == 'down':
-                                            if self.wellY3 < self.extentY - self.dRow - self.actionRange:
-                                                self.actionValueY3 = self.wellY3 + self.actionRange
-                    if actionList[3] == 'up':
-                        if self.wellY4 > self.dRow + self.actionRange:
-                            self.actionValueY4 = self.wellY4 - self.actionRange
-                    else:
-                        if actionList[3] == 'left':
-                            if self.wellX4 > self.dCol + self.actionRange:
-                                self.actionValueX4 = self.wellX4 - self.actionRange
-                        else:
-                            if actionList[3] == 'right':
-                                if self.wellX4 < self.extentX - self.dCol - self.actionRange:
-                                    self.actionValueX4 = self.wellX4 + self.actionRange
-                            else:
-                                if actionList[3] == 'down':
-                                    if self.wellY4 < self.extentY - self.dRow - self.actionRange:
-                                        self.actionValueY4 = self.wellY4 + self.actionRange
-                                if actionList[4] == 'up':
-                                    if self.wellY5 > self.dRow + self.actionRange:
-                                        self.actionValueY5 = self.wellY5 - self.actionRange
-                                else:
-                                    if actionList[4] == 'left':
-                                        if self.wellX5 > self.dCol + self.actionRange:
-                                            self.actionValueX5 = self.wellX5 - self.actionRange
-                                    else:
-                                        if actionList[4] == 'right':
-                                            if self.wellX5 < self.extentX - self.dCol - self.actionRange:
-                                                self.actionValueX5 = self.wellX5 + self.actionRange
-                                        elif actionList[4] == 'down':
-                                            if self.wellY5 < self.extentY - self.dRow - self.actionRange:
-                                                self.actionValueY5 = self.wellY5 + self.actionRange
+        elif self.ENVTYPE in ['2s-d', '2r-d']:
+            if action == 'up':
+                self.actionValue += self.actionRange
+            elif action == 'down':
+                self.actionValue -= self.actionRange
+        elif self.ENVTYPE in ['2s-c', '2r-c']:
+            self.actionValue += action[0]*self.actionRange
+            self.actionValue -= action[1]*self.actionRange
+
+        elif self.ENVTYPE in ['3s-d', '3r-d']:
+            if action == 'up':
+                if self.wellY > self.dRow + self.actionRange:
+                    self.actionValueY = self.wellY - self.actionRange
+            elif action == 'down':
+                if self.wellY < self.extentY - self.dRow - self.actionRange:
+                    self.actionValueY = self.wellY + self.actionRange
+            elif action == 'left':
+                if self.wellX > self.dCol + self.actionRange:
+                    self.actionValueX = self.wellX - self.actionRange
+            elif action == 'right':
+                if self.wellX < self.extentX - self.dCol - self.actionRange:
+                    self.actionValueX = self.wellX + self.actionRange
+        elif self.ENVTYPE in ['3s-c', '3r-c']:
+            dyUp = action[0]*self.actionRange
+            dyDown = action[1]*self.actionRange
+            dy = dyUp - dyDown
+            dxLeft = action[2]*self.actionRange
+            dxRight = action[3]*self.actionRange
+            dx = dxLeft - dxRight
+            # sequence of action values currently might lead to counteracting actions not being allowed
+            if self.wellY + dy > self.dRow:
+                if self.wellY < self.extentY - self.dRow - dy:
+                    self.actionValueY = self.wellY + dy
+            if self.wellX + dx > self.dCol:
+                if self.wellX + dx < self.extentX - self.dCol:
+                    self.actionValueX = self.wellX + dx
+
+        elif self.ENVTYPE in ['4s-d', '4r-d', '5s-d', '5r-d', '6s-d', '6r-d']:
+            actionList = []
+            while len(action) != 0:
+                for action_ in self.actionSpaceIndividual:
+                    if action[:len(action_)] == action_:
+                        actionList.append(action_)
+                        action = action[len(action_):]
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                if actionList[i] == 'up':
+                    if self.helperWells['wellY'+w] > self.dRow + self.actionRange:
+                        self.helperWells['actionValueY'+w] = self.helperWells['wellY'+w] - self.actionRange
+                elif actionList[i] == 'down':
+                    if self.helperWells['wellY'+w] < self.extentY - self.dRow - self.actionRange:
+                        self.helperWells['actionValueY'+w] = self.helperWells['wellY'+w] + self.actionRange
+                elif actionList[i] == 'left':
+                    if self.helperWells['wellX'+w] > self.dCol + self.actionRange:
+                        self.helperWells['actionValueX'+w] = self.helperWells['wellX'+w] - self.actionRange
+                elif actionList[i] == 'right':
+                    if self.helperWells['wellX'+w] < self.extentX - self.dCol - self.actionRange:
+                        self.helperWells['actionValueX'+w] = self.helperWells['wellX'+w] + self.actionRange
+                elif actionList[i] == 'moreQ':
+                    if self.helperWells['wellQ'+w] - self.actionRangeQ > self.minQhelper:
+                        self.helperWells['actionValueQ'+w] = self.helperWells['wellQ'+w] - self.actionRangeQ
+                elif actionList[i] == 'lessQ':
+                    if self.helperWells['wellQ'+w] + self.actionRangeQ < self.maxQhelper:
+                        self.helperWells['actionValueQ'+w] = self.helperWells['wellQ'+w] + self.actionRangeQ
+        elif self.ENVTYPE in ['4s-c', '4r-c', '5s-c', '5r-c', '6s-c', '6r-c']:
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                offset = int(i*len(self.actionSpaceIndividual))
+                if self.ENVTYPE in ['4s-c', '4r-c', '6s-c', '6r-c']:
+                    dyUp = action[offset+0]*self.actionRange
+                    dyDown = action[offset+1]*self.actionRange
+                    dy = dyUp - dyDown
+                    dxLeft = action[offset+2]*self.actionRange
+                    dxRight = action[offset+3]*self.actionRange
+                    dx = dxLeft - dxRight
+                    if self.helperWells['wellY'+w] + dy > self.dRow:
+                        if self.helperWells['wellY'+w] < self.extentY - self.dRow - dy:
+                            self.helperWells['actionValueY'+w] = self.helperWells['wellY'+w] + dy
+                    if self.helperWells['wellX'+w] + dx > self.dCol:
+                        if self.helperWells['wellX'+w] + dx < self.extentX - self.dCol:
+                            self.helperWells['actionValueX'+w] = self.helperWells['wellX'+w] + dx
+                if self.ENVTYPE in ['5s-c', '5r-c', '6s-c', '6r-c']:
+                    if self.ENVTYPE in ['5s-c', '5r-c']:
+                        dQMore = action[offset+0]*self.actionRangeQ
+                        dQLess = action[offset+1]*self.actionRangeQ
+                    elif self.ENVTYPE in ['6s-c', '6r-c']:
+                        dQMore = action[offset+4]*self.actionRangeQ
+                        dQLess = action[offset+5]*self.actionRangeQ
+                    dQ = dQLess - dQMore
+                    if self.helperWells['wellQ'+w] + dQ > self.minQhelper:
+                        if self.helperWells['wellQ'+w] + dQ < self.maxQhelper:
+                            self.helperWells['actionValueQ'+w] = self.helperWells['wellQ'+w] + dQ
     
     def observationsDictToVector(self, observationsDict):
         """Convert dictionary of observations to list."""
@@ -2847,7 +3039,17 @@ class FloPyArcade():
         self.actions = actions
         self.nLay, self.nRow, self.nCol = nLay, nRow, nCol
 
-    def play(self, env=None, ENVTYPE='1', seed=None, returnReward=False, verbose=False):
+        self.ENVTYPES = ['1s-d', '1s-c', '1r-d', '1r-c',
+                         '2s-d', '2s-c', '2r-d', '2r-c',
+                         '3s-d', '3s-c', '3r-d', '3r-c',
+                         '4s-d', '4s-c', '4r-d', '4r-c',
+                         '5s-d', '5s-c', '5r-d', '5r-c',
+                         '6s-d', '6s-c', '6r-d', '6r-c'
+                         ]
+
+        self.wrkspc = FloPyEnv(initWithSolution=False).wrkspc
+
+    def play(self, env=None, ENVTYPE='1s-d', seed=None, returnReward=False, verbose=False):
         """Play an instance of the Flopy arcade game."""
 
         t0 = time()
@@ -2872,8 +3074,6 @@ class FloPyArcade():
                     _seed=seed,
                     NAGENTSTEPS=self.NAGENTSTEPS)
 
-        self.wrkspc = self.env.wrkspc
-
         # self.env.stepInitial()
         observations, self.done = self.env.observationsVectorNormalized, self.env.done
         if self.keepTimeSeries:
@@ -2888,7 +3088,8 @@ class FloPyArcade():
             heads.append(self.env.heads)
             wellCoords.append(self.env.wellCoords)
 
-        self.actionRange, self.actionSpace = self.env.actionRange, self.env.actionSpace
+        # self.actionRange, self.actionSpace = self.env.actionRange, self.env.actionSpace
+        self.actionSpace = self.env.actionSpace
         agent = FloPyAgent(actionSpace=self.actionSpace)
 
         # game loop
@@ -2899,34 +3100,33 @@ class FloPyArcade():
             if not self.done:
                 # without user control input: generating random agent action
                 t0getAction = time()
+
                 if self.MANUALCONTROL:
-                    action = agent.getAction('manual', self.env.keyPressed)
+                    action = agent.getAction('manual', self.env.keyPressed, actionType=self.env.actionType)
                 elif self.MANUALCONTROL == False:
                     if self.MODELNAMELOAD is None and self.agent is None:
-                        action = agent.getAction('random')
+                        action = agent.getAction('random', actionType=self.env.actionType)
                     elif self.MODELNAMELOAD is not None:
                         action = agent.getAction(
                             'modelNameLoad',
                             modelNameLoad=self.MODELNAMELOAD,
-                            state=self.env.observationsVectorNormalized
+                            state=self.env.observationsVectorNormalized,
+                            actionType=self.env.actionType
                             )
                     elif self.agent is not None:
                         action = agent.getAction(
                             'model',
                             agent=self.agent,
-                            state=self.env.observationsVectorNormalized
+                            state=self.env.observationsVectorNormalized,
+                            actionType=self.env.actionType
                             )
-                # print('debug time getAction', time() - t0getAction)
-                # print('debug action', action)
 
                 if self.actions is not None and self.actions != []:
                     action = self.actions[self.timeSteps]
 
                 t0step = time()
                 observations, reward, self.done, _ = self.env.step(
-                    # self.env.observationsVector, action, self.rewardTotal)
                     self.env.observationsVectorNormalized, action, self.rewardTotal)
-                # print('debug time step', time() - t0step)
 
                 if self.keepTimeSeries:
                     # collecting time series of game metrices
