@@ -2169,7 +2169,7 @@ class FloPyEnv():
         ModflowBas(self.mf, ibound=self.ibound, strt=self.strt)
 
         # adding LPF package to the MODFLOW model
-        ModflowLpf(self.mf, hk=10., vka=10., ipakcb=53)
+        ModflowLpf(self.mf, hk=10., vka=10., ss=1e-05, sy=0.15, ipakcb=53)
 
         # why is this relevant for particle tracking?
         stress_period_data = {}
@@ -3042,9 +3042,9 @@ class FloPyArcade():
         self.ENVTYPES = ['1s-d', '1s-c', '1r-d', '1r-c',
                          '2s-d', '2s-c', '2r-d', '2r-c',
                          '3s-d', '3s-c', '3r-d', '3r-c',
-                         '4s-d', '4s-c', '4r-d', '4r-c',
-                         '5s-d', '5s-c', '5r-d', '5r-c',
-                         '6s-d', '6s-c', '6r-d', '6r-c'
+                         '4s-c', '4r-c', # '4s-d', '4r-d'
+                         '5s-c', '5r-c', # '5s-d', '5r-d'
+                         '6s-c', '6r-c' # '6s-d', '6r-d'
                          ]
 
         self.wrkspc = FloPyEnv(initWithSolution=False).wrkspc
