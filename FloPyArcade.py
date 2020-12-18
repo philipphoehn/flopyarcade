@@ -1277,14 +1277,14 @@ class FloPyAgent():
             filehandler = open(path, 'rb')
             objectLoaded = load(filehandler)
             filehandler.close()
-        elif compressed == 'lz4':
+        elif compressed in ['lz4', 'lzma']:
             objectLoaded = joblibLoad(path)
         else:
             print('Unknown compression algorithm specified.')
 
         return objectLoaded
 
-    def pickleDump(self, path, objectToDump, compress=None):
+    def pickleDump(self, path, objectToDump, compress=None, compressLevel=3):
         """Store object to file using pickle."""
         if compress == None:
             filehandler = open(path, 'wb')
@@ -1292,7 +1292,10 @@ class FloPyAgent():
             filehandler.close()
         elif compress == 'lz4':
             with open(path, 'wb') as f:
-                joblibDump(objectToDump, f, compress='lz4')
+                joblibDump(objectToDump, f, compress=('lz4', compressLevel))
+        elif compress == 'lzma':
+            with open(path, 'wb') as f:
+                joblibDump(objectToDump, f, compress=('lzma', compressLevel))
         else:
             print('Unknown compression algorithm specified.')
 
