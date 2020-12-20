@@ -11,7 +11,8 @@ from matplotlib import use as matplotlibBackend
 matplotlibBackend('Agg')
 from flopy.modflow import Modflow, ModflowBas, ModflowDis, ModflowLpf
 from flopy.modflow import ModflowOc, ModflowPcg, ModflowWel
-from flopy.modpath import Modpath, ModpathBas
+from flopy.modpath import Modpath6 as Modpath
+from flopy.modpath import Modpath6Bas as ModpathBas
 from flopy.plot import PlotMapView
 from flopy.utils import CellBudgetFile, HeadFile, PathlineFile
 from imageio import get_writer, imread
