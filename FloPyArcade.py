@@ -2405,7 +2405,7 @@ class FloPyEnv():
             initWithSolution=initWithSolution)
         close()
 
-    def render(self, returnFigure=False):
+    def render(self, returnFigure=False, dpi=120):
         """Plot the simulation state at the current timestep.
         Displaying and/or saving the visualisation. The active display can take
         user input from the keyboard to control the environment.
@@ -2445,6 +2445,7 @@ class FloPyEnv():
             self.fig.gca().yaxis.set_major_locator(NullLocator())
             self.fig.tight_layout(pad=0.)
             self.fig.set_size_inches(7, 7)
+            self.fig.set_dpi(dpi)
             self.fig.canvas.draw()
             data = self.fig.canvas.tostring_rgb()
             rows, cols = self.fig.canvas.get_width_height()
@@ -2459,7 +2460,7 @@ class FloPyEnv():
                         show(block=False)
                         pause(self.MANUALCONTROLTIME)
             if self.SAVEPLOT:
-                self.renderSavePlot()
+                self.renderSavePlot(dpi=dpi)
                 if self.done or self.timeStep == self.NAGENTSTEPS:
                     self.renderAnimationFromFiles()
 
@@ -2679,7 +2680,7 @@ class FloPyEnv():
             show(block=False)
             waitforbuttonpress(timeout=(self.MANUALCONTROLTIME))
 
-    def renderSavePlot(self):
+    def renderSavePlot(self, dpi=120):
         """Save plot of the currently rendered timestep."""
         if self.timeStep == 0:
             self.plotsfolderpth = join(self.wrkspc, 'runs')
