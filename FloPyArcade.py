@@ -25,8 +25,8 @@ from matplotlib.pyplot import get_current_fig_manager
 from matplotlib.pyplot import margins, NullLocator
 from matplotlib.pyplot import waitforbuttonpress
 from numpy import abs, add, arange, argmax, argsort, array, ceil, copy, divide
-from numpy import extract, float32, int32, linspace, max, maximum, min, minimum
-from numpy import mean, ones, shape, sqrt, subtract, sum, zeros
+from numpy import extract, float32, fromstring, int32, linspace, max, maximum, min, minimum
+from numpy import mean, ones, shape, sqrt, subtract, sum, uint8, zeros
 from numpy.random import randint, random, randn, uniform
 from numpy.random import seed as numpySeed
 from os import environ, listdir, makedirs, remove, rmdir
@@ -2438,7 +2438,10 @@ class FloPyEnv():
             ax.axis('off')
 
         if returnFigure:
-            return self.fig
+            self.fig.canvas.draw()
+            data = self.fig.canvas.tostring_rgb()
+            rows, cols = self.fig.canvas.get_width_height()
+            imarray = copy(fromstring(data, dtype=uint8).reshape(cols, rows, 3))
         if not returnFigure:
             if self.MANUALCONTROL:
                 self.renderUserInterAction()
@@ -2451,70 +2454,11 @@ class FloPyEnv():
                 self.renderSavePlot()
                 if self.done or self.timeStep == self.NAGENTSTEPS:
                     self.renderAnimationFromFiles()
-            self.renderClearAxes()
-            del self.headsplot
-
-    def render3d(self):
-        """Render environment in 3 dimensions."""
-        from mpl_toolkits import mplot3d
-        import numpy as np
-        from numpy import mgrid, pi
-        import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import axes3d
-        from matplotlib import cm
-        if self.timeStep == 0:
-            self.fig = figure(figsize=(15, 12))
-            self.ax = self.fig.gca(projection='3d')
-            self.ax.view_init(22.5, 90)
-            self.plotfilesSaved = []
-        test = self.dis.get_node_coordinates()
-        x1, y1 = np.meshgrid(test[0], test[1])
-        z1 = np.reshape(np.ndarray.flatten(self.heads), (self.nRow, self.nCol))
-        lParticle, cParticle, rParticle = self.cellInfoFromCoordinates([
-         self.particleCoords[0], self.particleCoords[1], self.particleCoords[2]])
-        hParticle = self.heads[(lParticle - 1, rParticle - 1, cParticle - 1)]
-        if self.timeStep == 0:
-            self.ax.scatter((self.minX), (self.particleCoords[1]), lw=2, c='red', zorder=6,
-              alpha=1.0)
-        if self.timeStep > 0:
-            self.ax.scatter((self.trajectories['x'][(-1)][(-1)]), (self.trajectories['y'][(-1)][(-1)]), lw=2,
-              c='red',
-              zorder=6,
-              alpha=1.0)
-            xs = [
-             self.trajectories['x'][(-1)][(-1)], self.trajectories['x'][(-1)][(-1)]]
-            ys = [self.trajectories['y'][(-1)][(-1)], self.trajectories['y'][(-1)][(-1)]]
-            zs = [hParticle, 12]
-            self.ax.plot(xs, ys, zs, 'red', alpha=0.8, linewidth=2.5, zorder=2)
-        self.modelmap = PlotMapView(model=(self.mf), layer=0, ax=(self.ax))
-        from numpy import cos, sin
-        u = np.linspace(0, 2 * np.pi, 100)
-        v = np.linspace(0, np.pi, 100)
-        x2 = 1 * np.outer(np.cos(u), np.sin(v)) + self.particleCoords[0]
-        y2 = 1 * np.outer(np.sin(u), np.sin(v)) + self.particleCoords[1]
-        z2 = 0.2 * np.outer(np.ones(np.size(u)), np.cos(v)) + hParticle
-        self.ax.plot_surface(x1, y2, np.where(z1 < z2, z1, np.nan))
-        self.ax.plot_surface(x2, y2, z2)
-        self.ax.plot_surface(x1, y1, np.where(z1 >= z2, z1, np.nan))
-        cset = self.ax.contour(x1, y1, z1, zdir='z', offset=(-0.5), cmap=(get_cmap('terrain')))
-        cset = self.ax.contour(x1, y1, z1, zdir='x', offset=0.0, cmap=(get_cmap('terrain')))
-        cset = self.ax.contour(x1, y1, z1, zdir='y', offset=0.0, cmap=(get_cmap('terrain')))
-        self.ax.plot([50], [50], [8], 'k--', alpha=0.5, linewidth=2.5)
-        self.ax.set_xlim(0.0, 100.0)
-        self.ax.set_ylim(0.0, 100.0)
-        self.ax.set_zlim(0.0, 20.0)
-        if self.MANUALCONTROL:
-            self.renderUserInterAction()
-        else:
-            if not self.MANUALCONTROL:
-                if self.RENDER:
-                    show(block=False)
-                    pause(self.MANUALCONTROLTIME)
-        if self.SAVEPLOT:
-            self.renderSavePlot()
-            if self.done or self.timeStep == self.NAGENTSTEPS:
-                self.renderAnimationFromFiles()
         self.renderClearAxes()
+        del self.headsplot
+
+        if returnFigure:
+            return imarray
 
     def renderInitializeCanvas(self):
         """Initialize plot canvas with figure and axes."""
