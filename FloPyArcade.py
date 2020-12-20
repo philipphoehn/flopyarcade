@@ -2438,10 +2438,18 @@ class FloPyEnv():
             ax.axis('off')
 
         if returnFigure:
+            s = self.fig.get_size_inches()
+            self.fig.gca().set_axis_off()
+            margins(0,0)
+            self.fig.gca().xaxis.set_major_locator(NullLocator())
+            self.fig.gca().yaxis.set_major_locator(NullLocator())
+            self.fig.tight_layout(pad=0.)
+            self.fig.set_size_inches(7, 7)
             self.fig.canvas.draw()
             data = self.fig.canvas.tostring_rgb()
             rows, cols = self.fig.canvas.get_width_height()
             imarray = copy(fromstring(data, dtype=uint8).reshape(cols, rows, 3))
+            self.fig.set_size_inches(s)
         if not returnFigure:
             if self.MANUALCONTROL:
                 self.renderUserInterAction()
@@ -2454,6 +2462,7 @@ class FloPyEnv():
                 self.renderSavePlot()
                 if self.done or self.timeStep == self.NAGENTSTEPS:
                     self.renderAnimationFromFiles()
+
         self.renderClearAxes()
         del self.headsplot
 
