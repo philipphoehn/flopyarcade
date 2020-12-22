@@ -42,7 +42,7 @@ from time import sleep, time
 # suppressing TensorFlow output on import, except fatal errors
 # https://stackoverflow.com/questions/40426502/is-there-a-way-to-suppress-the-messages-tensorflow-prints
 from logging import getLogger, FATAL
-environ['TF_CPP_MIN_LOG_LEVEL'] = '3s-d'
+environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 getLogger('tensorflow').setLevel(FATAL)
 
 # additional imports for agents
@@ -734,7 +734,7 @@ class FloPyAgent():
 
         MODELNAMETEMP = ('Temp' + self.pid +
             '_' + str(agentCount + 1))
-        SEEDTEMP = self.envSettings['SEEDENV'] + self.currentGame
+        SEEDTEMP = self.envSettings['SEEDENV'] + self.currentGame-1
         if self.envSettings['SURROGATESIMULATOR'] is None:
             env = self.env
             # resetting to unique temporary folder to enable parallelism
@@ -1230,7 +1230,7 @@ class FloPyAgent():
             nLay=env.nLay, nRow=env.nRow, nCol=env.nCol)
         game.play(
             ENVTYPE=self.envSettings['ENVTYPE'],
-            seed=self.envSettings['SEEDENV'] + self.currentGame)
+            seed=self.envSettings['SEEDENV'] + self.currentGame-1)
 
     def generatePathPrefixes(self):
         self.tempModelPrefix = join(self.tempModelpth,
@@ -1311,7 +1311,7 @@ class FloPyAgent():
         # suppressing TensorFlow output on import, except fatal errors
         # https://stackoverflow.com/questions/40426502/is-there-a-way-to-suppress-the-messages-tensorflow-prints
         from logging import getLogger, FATAL
-        environ['TF_CPP_MIN_LOG_LEVEL'] = '3s-d'
+        environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
         getLogger('tensorflow').setLevel(FATAL)
 
 class FloPyEnv():
@@ -2564,9 +2564,9 @@ class FloPyEnv():
         gameResult = ''
         if self.done:
             if self.success:
-                gameResult = 'You won.'
+                gameResult = 'Success.'
             elif self.success == False:
-                gameResult = 'You lost.'
+                gameResult = 'Failure.'
         self.ax2.text(35, 80, gameResult, fontsize=30,
           color='red',
           zorder=zorder)
