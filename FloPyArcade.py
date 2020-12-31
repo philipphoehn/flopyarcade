@@ -465,6 +465,7 @@ class FloPyAgent():
             model.add(Dense(units=nHiddenNodes[layerIdx],
                 input_shape=inputShape,
                 kernel_initializer=glorot_uniform(seed=seed),
+                bias_initializer='zeros',
                 use_bias=True))
             if self.hyParams['BATCHNORMALIZATION']:
                 model.add(BatchNormalization())
@@ -476,11 +477,11 @@ class FloPyAgent():
         # adding output layer
         if actionType == 'discrete':
             model.add(Dense(self.actionSpaceSize, activation='linear',
-                kernel_initializer=initializer))
+                kernel_initializer=initializer), bias_initializer='zeros')
         elif actionType == 'continuous':
             # sigmoid used here as actions are predicted as fraction of actionRange
             model.add(Dense(self.actionSpaceSize, activation='sigmoid',
-                kernel_initializer=initializer))
+                kernel_initializer=initializer, bias_initializer='zeros'))
 
         # compiling to avoid warning while saving agents in genetic search
         # specifics are irrelevant, as genetic models are not optimized
@@ -959,6 +960,7 @@ class FloPyAgent():
         mProb = self.hyParams['MUTATIONPROBABILITY']
         mPower = self.hyParams['MUTATIONPOWER']
         weights, paramIdx = agent.get_weights(), 0
+        # mutating weights and biases
         for parameters in weights:
             if self.mutateDecision(mProb):
                 weights[paramIdx] = add(parameters, mPower * randn())
@@ -1331,7 +1333,7 @@ class FloPyEnv():
                  MODELNAME='FloPyArcade', ANIMATIONFOLDER='FloPyArcade',
                  _seed=None, flagSavePlot=False, flagManualControl=False,
                  manualControlTime=0.1, flagRender=False, NAGENTSTEPS=None,
-                 nLay=1, nRow=100, nCol=100,
+                 nLay=1, nRow=100, nCol=100, OBSPREP='vector',
                  initWithSolution=True):
         """Constructor."""
 
@@ -1347,6 +1349,7 @@ class FloPyEnv():
         self.info, self.comments = '', ''
         self.done = False
         self.nLay, self.nRow, self.nCol = nLay, nRow, nCol
+        self.OBSPREP = OBSPREP
         self.initWithSolution = initWithSolution
 
         self.wrkspc = dirname(abspath(__file__))
@@ -1437,9 +1440,12 @@ class FloPyEnv():
         self.observations = {}
         self.observationsNormalized, self.observationsNormalizedHeads = {}, {}
         self.observations['particleCoords'] = self.particleCoords
-        self.observations['headsSampledField'] = self.heads[0::self.sampleHeadsEvery,
-                                                0::self.sampleHeadsEvery,
-                                                0::self.sampleHeadsEvery]
+        if self.OBSPREP != 'convolutional':
+            self.observations['headsSampledField'] = self.heads[0::self.sampleHeadsEvery,
+                                                    0::self.sampleHeadsEvery,
+                                                    0::self.sampleHeadsEvery]
+        elif self.OBSPREP == 'convolutional':
+            self.observations['heads'] = self.heads
         lParticle, cParticle, rParticle = self.cellInfoFromCoordinates(
             [self.particleCoords[0], self.particleCoords[1], self.particleCoords[2]])
         lWell, cWell, rWell = self.cellInfoFromCoordinates(
@@ -1464,7 +1470,6 @@ class FloPyEnv():
         # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=1.5*self.wellRadius)
         # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=2.0*self.wellRadius)
         self.observations['heads'] += list(array(self.observations['headsSampledField']).flatten())
-
         self.observations['wellQ'] = self.wellQ
         self.observations['wellCoords'] = self.wellCoords
         if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
@@ -1490,12 +1495,18 @@ class FloPyEnv():
         self.observationsNormalizedHeads['heads'] = divide(array(self.heads) - self.minH,
             self.maxH - self.minH)
 
-        self.observationsVector = self.observationsDictToVector(
-            self.observations)
-        self.observationsVectorNormalized = self.observationsDictToVector(
-            self.observationsNormalized)
-        self.observationsVectorNormalizedHeads = self.observationsDictToVector(
-            self.observationsNormalizedHeads)
+        if self.OBSPREP != 'convolutional':
+            self.observationsVector = self.observationsDictToVector(
+                self.observations)
+            self.observationsVectorNormalized = self.observationsDictToVector(
+                self.observationsNormalized)
+            self.observationsVectorNormalizedHeads = self.observationsDictToVector(
+                self.observationsNormalizedHeads)
+        elif self.OBSPREP != 'convolutional':
+            self.observationsVector = self.observationsDictToVector(
+                self.observations)
+            self.observationsVectorNormalized = self.observationsDictToVector(
+                self.observationsNormalized)
 
         # alternatively normalize well z coordinate to vertical extent
         if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
@@ -1591,9 +1602,12 @@ class FloPyEnv():
         self.observations = {}
         self.observationsNormalized, self.observationsNormalizedHeads = {}, {}
         self.observations['particleCoords'] = self.particleCoords
-        self.observations['headsSampledField'] = self.heads[0::self.sampleHeadsEvery,
-                                                0::self.sampleHeadsEvery,
-                                                0::self.sampleHeadsEvery]
+        if self.OBSPREP != 'convolutional':
+            self.observations['headsSampledField'] = self.heads[0::self.sampleHeadsEvery,
+                                                    0::self.sampleHeadsEvery,
+                                                    0::self.sampleHeadsEvery]
+        elif self.OBSPREP == 'convolutional':
+            self.observations['headsSampledField'] = self.heads
         lParticle, cParticle, rParticle = self.cellInfoFromCoordinates(
             [self.particleCoords[0], self.particleCoords[1], self.particleCoords[2]])
         lWell, cWell, rWell = self.cellInfoFromCoordinates(
@@ -1617,7 +1631,6 @@ class FloPyEnv():
         # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=1.5*self.wellRadius)
         # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=2.0*self.wellRadius)
         self.observations['heads'] += list(array(self.observations['headsSampledField']).flatten())
-
         self.observations['wellQ'] = self.wellQ
         self.observations['wellCoords'] = self.wellCoords
         if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
@@ -1643,12 +1656,18 @@ class FloPyEnv():
         self.observationsNormalizedHeads['heads'] = divide(array(self.heads) - self.minH,
             self.maxH - self.minH)
 
-        self.observationsVector = self.observationsDictToVector(
-            self.observations)
-        self.observationsVectorNormalized = self.observationsDictToVector(
-            self.observationsNormalized)
-        self.observationsVectorNormalizedHeads = self.observationsDictToVector(
-            self.observationsNormalizedHeads)
+        if self.OBSPREP != 'convolutional':
+            self.observationsVector = self.observationsDictToVector(
+                self.observations)
+            self.observationsVectorNormalized = self.observationsDictToVector(
+                self.observationsNormalized)
+            self.observationsVectorNormalizedHeads = self.observationsDictToVector(
+                self.observationsNormalizedHeads)
+        elif self.OBSPREP == 'convolutional':
+            self.observationsVector = self.observationsDictToVector(
+                self.observations)
+            self.observationsVectorNormalized = self.observationsDictToVector(
+                self.observationsNormalized)
 
         if self.observations['particleCoords'][0] >= self.extentX - self.dCol:
             self.success = True
@@ -1782,16 +1801,19 @@ class FloPyEnv():
         if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
             self.minH = 56.0
             self.maxH = 60.0
+            self.nHelperWells = 0
             self.deviationPenaltyFactor = 10.0
             self.actionRange = 0.5
         elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
             self.minH = 56.0
             self.maxH = 62.0
+            self.nHelperWells = 0
             self.deviationPenaltyFactor = 4.0
             self.actionRange = 0.5
         elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c']:
             self.minH = 56.0
             self.maxH = 60.0
+            self.nHelperWells = 0
             self.deviationPenaltyFactor = 10.0
             self.actionRange = 10.0
         elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
@@ -2802,9 +2824,12 @@ class FloPyEnv():
         """Calculate length of advectively traveled path."""
         n = len(x)
         lv = []
-        for i in range(n):
-            if i > 0:
-                lv.append(sqrt((x[i] - x[(i - 1)]) ** 2 + (y[i] - y[(i - 1)]) ** 2))
+
+        # for i in range(n):
+        #     if i > 0:
+        #         lv.append(sqrt((x[i] - x[(i - 1)]) ** 2 + (y[i] - y[(i - 1)]) ** 2))
+        for i in range(n-1):
+            lv.append(sqrt((x[i+1] - x[(i+1 - 1)]) ** 2 + (y[i+1] - y[(i+1 - 1)]) ** 2))
 
         pathLength = sum(lv)
         return pathLength
@@ -2924,30 +2949,51 @@ class FloPyEnv():
     def observationsDictToVector(self, observationsDict):
         """Convert dictionary of observations to list."""
         observationsVector = []
-        if 'particleCoords' in observationsDict.keys():
-            for obs in observationsDict['particleCoords']:
-                observationsVector.append(obs)
-        # full field not longer part of reported state
-        # for obs in observationsDict['headsSampledField'].flatten().flatten():
-        #     observationsVector.append(obs)
-        if 'heads' in observationsDict.keys():
-            for obs in observationsDict['heads']:
-                observationsVector.append(obs)
-        # print('len(observationsDict[heads])', len(observationsDict['heads']))
-        if 'wellQ' in observationsDict.keys():
-            observationsVector.append(observationsDict['wellQ'])
-        if 'wellCoords' in observationsDict.keys():
-            for obs in observationsDict['wellCoords']:
-                observationsVector.append(obs)
+        if self.OBSPREP != 'convolutional':
+            if 'particleCoords' in observationsDict.keys():
+                for obs in observationsDict['particleCoords']:
+                    observationsVector.append(obs)
+            # full field not longer part of reported state
+            # for obs in observationsDict['headsSampledField'].flatten().flatten():
+            #     observationsVector.append(obs)
+            if 'heads' in observationsDict.keys():
+                for obs in observationsDict['heads']:
+                    observationsVector.append(obs)
+            if 'wellQ' in observationsDict.keys():
+                observationsVector.append(observationsDict['wellQ'])
+            if 'wellCoords' in observationsDict.keys():
+                for obs in observationsDict['wellCoords']:
+                    observationsVector.append(obs)
+            for i in range(self.nHelperWells):
+                iStr = str(i)
+                if 'wellQ'+iStr in observationsDict.keys():
+                    observationsVector.append(observationsDict['wellQ'+iStr])
+                if 'wellCoords'+iStr in observationsDict.keys():
+                    for obs in observationsDict['wellCoords'+iStr]:
+                        observationsVector.append(obs)
+        elif self.OBSPREP == 'convolutional':
+            pass
+            # span across layer for all others
+
         return observationsVector
 
     def observationsVectorToDict(self, observationsVector):
         """Convert list of observations to dictionary."""
+
+        # needs knowledge of number of helper wells
+
         observationsDict = {}
+        offset = 4*self.nHelperWells
         observationsDict['particleCoords'] = observationsVector[:3]
-        observationsDict['heads'] = observationsVector[3:-4]
-        observationsDict['wellQ'] = observationsVector[-4]
-        observationsDict['wellCoords'] = observationsVector[-3:]
+        observationsDict['heads'] = observationsVector[3:-(4-offset)]
+        observationsDict['wellQ'] = observationsVector[-(4-offset)]
+        observationsDict['wellCoords'] = observationsVector[-(3-offset):]
+        for i in range(self.nHelperWells):
+            iStr = str(i)
+            offset = offset-4
+            observationsDict['wellQ'+iStr] = observationsVector[-(4-offset)]
+            observationsDict['wellCoords'+iStr] = observationsVector[-(3-offset):]
+
         return observationsDict
 
     def unnormalize(self, data):
@@ -3081,6 +3127,111 @@ class FloPyArcade():
 
                 if self.actions is not None and self.actions != []:
                     action = self.actions[self.timeSteps]
+                # print('actions', action)
+
+
+
+                '''
+                # this section can be used for visualizing neural network at work
+
+                from matplotlib.pyplot import hist, savefig, figure, subplots
+                from numpy import unique, concatenate
+                import tensorflow as tf
+
+                agentModel = FloPyAgent().loadAgentModel(self.MODELNAMELOAD)
+                weights = agentModel.get_weights()
+                input_ = self.env.observationsVectorNormalized
+                layers = agentModel.layers
+                # print(layers[0].weights)
+                # print(agentModel.layers)
+
+                # shape 409, 300 and 300,
+                denseIdxs = [0, 2, 4, 6, 8, 10]
+                activationIdxs = [1, 3, 5, 7, 9]
+                weightsComp, biasComp, activationsComp = [], [], []
+                for idx in denseIdxs:
+                    layer = layers[idx]
+                    weights_ = layer.weights[0]
+                    bias = layer.weights[1]
+                    # print('shape(weights_)', shape(weights_))
+                    # for j in range(shape(weights_)[0]):
+                    #     weightsComp += list(weights_[j])
+                    weightsComp += list(array(weights_).flatten())
+                    # print('shape(bias)', shape(bias))
+                    biasComp += list(array(bias))
+                    # print('mean bias', mean(array(bias)))
+                # print('biasComp', biasComp)
+
+                # activationModels = 
+                # for iLayer in activationIdxs:
+
+                aux_model1 = tf.keras.Model(inputs=agentModel.inputs,
+                                           outputs=[agentModel.layers[1].output])
+                aux_model2 = tf.keras.Model(inputs=agentModel.inputs,
+                                           outputs=[agentModel.layers[3].output])
+                aux_model3 = tf.keras.Model(inputs=agentModel.inputs,
+                                           outputs=[agentModel.layers[5].output])
+                aux_model4 = tf.keras.Model(inputs=agentModel.inputs,
+                                           outputs=[agentModel.layers[7].output])
+                aux_model5 = tf.keras.Model(inputs=agentModel.inputs,
+                                           outputs=[agentModel.layers[9].output])
+
+                intermediate_layer_output1 = aux_model1.predict_on_batch(
+                    array(input_).reshape(-1, (*shape(input_))))[0]
+                intermediate_layer_output2 = aux_model2.predict_on_batch(
+                    array(input_).reshape(-1, (*shape(input_))))[0]
+                intermediate_layer_output3 = aux_model3.predict_on_batch(
+                    array(input_).reshape(-1, (*shape(input_))))[0]
+                intermediate_layer_output4 = aux_model4.predict_on_batch(
+                    array(input_).reshape(-1, (*shape(input_))))[0]
+                intermediate_layer_output5 = aux_model5.predict_on_batch(
+                    array(input_).reshape(-1, (*shape(input_))))[0]
+
+                activations = (list(intermediate_layer_output1.flatten())
+                    + list(intermediate_layer_output2.flatten())
+                    + list(intermediate_layer_output3.flatten())
+                    + list(intermediate_layer_output4.flatten())
+                    + list(intermediate_layer_output5.flatten()))
+
+                print(self.env.timeStep, mean(action), min(action), max(action), shape(input_), mean(input_))
+                print(self.env.timeStep, mean(activations), min(activations), max(activations))
+                print('----')
+
+                figWeights, axWeights = subplots()
+                axWeights.hist(array(weightsComp), bins=100)
+                figWeights.tight_layout()
+                axWeights.set_xlim(-1., 1.)
+                figWeights.savefig('C:\\weights' + str(self.env.timeStep) + '.png')
+                close(figWeights)
+
+                figBias, axBias = subplots()
+                print('mean bias', min(biasComp), mean(biasComp), max(biasComp))
+                axBias.hist(array(biasComp), bins=100)
+                figBias.tight_layout()
+                axBias.set_xlim(-1., 1.)
+                figBias.savefig('C:\\bias' + str(self.env.timeStep) + '.png')
+                close(figBias)
+
+                figActions, axActions = subplots()
+                figActions.tight_layout()
+                axActions.plot(action)
+                axActions.set_ylim(0, 1)
+                figActions.savefig('C:\\actions' + str(self.env.timeStep) + '.png')
+                close(figActions)
+
+                figActivations, axActivations = subplots()
+                figActivations.tight_layout()
+                axActivations.plot(activations)
+                figActivations.savefig('C:\\activations' + str(self.env.timeStep) + '.png')
+                close(figActivations)
+
+                figInput, axInput = subplots()
+                axInput.hist(input_, bins=arange(-1., 2.05, 0.05))
+                axInput.set_xlim(-1., 2.)
+                figInput.savefig('C:\\inputs' + str(self.env.timeStep) + '.png')
+                close(figInput)
+                '''
+
 
                 t0step = time()
                 observations, reward, self.done, _ = self.env.step(
