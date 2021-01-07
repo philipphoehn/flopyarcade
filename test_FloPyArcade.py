@@ -22,11 +22,13 @@ class TestFloPyEnvPlay(unittest.TestCase):
     def test_FloPyEnvPlay_noExceptionRaised(self):
         """Test a game run of every existing environment."""
 
+        from FloPyArcadePlay import envSettings, gameSettings
+
         failed = []
         for ENVTYPE in FloPyArcade().ENVTYPES:
             raised = False
             try:
-                from FloPyArcadePlay import envSettings, gameSettings
+                # environment settings
                 envSettings['ENVTYPE'] = ENVTYPE
                 envSettings['MODELNAMELOAD'] = None
                 envSettings['MODELNAME'] = 'unittest'
@@ -34,6 +36,7 @@ class TestFloPyEnvPlay(unittest.TestCase):
                 envSettings['SAVEPLOTALLAGENTS'] = False
                 envSettings['MANUALCONTROL'] = False
                 envSettings['RENDER'] = False
+                # game settings
                 gameSettings['NGAMES'] = 1
                 gameSettings['NAGENTSTEPS'] = 2
                 FloPyArcadePlay.main(envSettings, gameSettings)
@@ -53,11 +56,12 @@ class TestFloPyAgentDQN(unittest.TestCase):
         computationally simple case.
         """
 
+        from FloPyArcadeDQN import envSettings, hyParams
+
         failed = []
         for ENVTYPE in FloPyArcade().ENVTYPES:
             raised = False
             try:
-                from FloPyArcadeDQN import envSettings, hyParams
                 # environment settings
                 envSettings['ENVTYPE'] = '1s-d'
                 envSettings['MODELNAME'] = 'unittest'
@@ -89,16 +93,17 @@ class TestFloPyAgentGenetic(unittest.TestCase):
     def test_FloPyAgentGenetic_noExceptionRaised(self):
         """Test the genetic algorithm on a computationally simple case."""
 
+        from FloPyArcadeGeneticNetwork import envSettings, hyParams
+        from matplotlib import use as matplotlibBackend
+
         failed = []
         for ENVTYPE in FloPyArcade().ENVTYPES:
             raised = False
             try:
-                from FloPyArcadeGeneticNetwork import envSettings, hyParams
-                from matplotlib import use as matplotlibBackend
                 matplotlibBackend('Agg')
                 # environment settings
                 envSettings['ENVTYPE'] = ENVTYPE
-                envSettings['MODELNAME'] = 'unittest'
+                envSettings['MODELNAME'] = 'unittest_' + ENVTYPE
                 envSettings['NAGENTSPARALLEL'] = 2
                 envSettings['RENDER'] = False
                 envSettings['BESTAGENTANIMATION'] = True
