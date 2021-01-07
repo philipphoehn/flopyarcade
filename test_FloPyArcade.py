@@ -134,13 +134,10 @@ if __name__ == '__main__':
     wrkspc = dirname(abspath(__file__))
     unittestFilesAndFolders = glob(join(wrkspc, 'models', 'unittest*'))
     for obj in unittestFilesAndFolders:
-        if 'unittestAgent1.model' not in obj:
-            if 'unittestAgent2.model' not in obj:
-                if 'unittestAgent3.model' not in obj:
-                    if isdir(obj):
-                        rmtree(obj)
-                    elif isfile(obj):
-                        remove(obj)
+        if isdir(obj):
+            rmtree(obj)
+        elif isfile(obj):
+            remove(obj)
     unittestFilesAndFolders = glob(join(wrkspc, 'temp', 'unittest*'))
     for obj in unittestFilesAndFolders:
         if isdir(obj):
