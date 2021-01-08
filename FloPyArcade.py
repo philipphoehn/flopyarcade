@@ -885,7 +885,8 @@ class FloPyAgent():
             bestAgent.save(join(tempNextModelPrefix + '_agent' +
                 str(self.hyParams['NAGENTS']).zfill(self.zFill) + '.h5'))
             nAgentElites = self.hyParams['NAGENTELITES']
-            nNoveltyAgents = self.hyParams['NNOVELTYELITES']
+            # nNoveltyAgents = self.hyParams['NNOVELTYELITES']
+            nNoveltyAgents = self.hyParams['NNOVELTYAGENTS']
             self.candidateParentIdxs = sortedParentIdxs[:nAgentElites]
             chunksTotal = self.yieldChunks(arange(self.hyParams['NAGENTS']-1),
                 self.envSettings['NAGENTSPARALLEL']*self.maxTasksPerWorkerMutate)
@@ -915,15 +916,19 @@ class FloPyAgent():
                 else:
                     generation = self.geneticGeneration + 1
                 if (childIdx+1 ==
-                    remainingElites - self.hyParams['NNOVELTYELITES']):
+                    # remainingElites - self.hyParams['NNOVELTYELITES']):
+                    remainingElites - self.hyParams['NNOVELTYAGENTS']):
 
                     print('Performing novelty evolution after generation',
                         generation)
-                if remainingElites <= self.hyParams['NNOVELTYELITES']:
-                    # selecting a novelty parent randomly, might skip most novel
-                    # len_ = len(self.candidateNoveltyParentIdxs)
-                    # selected_agent_index = self.candidateNoveltyParentIdxs[randint(len_)]
-                    # selecting each novelty parent individually
+                # if remainingElites <= self.hyParams['NNOVELTYELITES']:
+                if remainingElites <= self.hyParams['NNOVELTYAGENTS']:
+                    # selecting a novelty parent randomly
+                    len_ = len(self.candidateNoveltyParentIdxs)
+                    selected_agent_index = self.candidateNoveltyParentIdxs[randint(len_)]
+                    agentPth = self.noveltyFilenames[selected_agent_index]
+                if remainingElites == 1:
+                    # Keeping agent with highest novelty
                     selected_agent_index = self.candidateNoveltyParentIdxs[int(
                         remainingElites)-1]
                     agentPth = self.noveltyFilenames[selected_agent_index]
@@ -958,11 +963,14 @@ class FloPyAgent():
 
         mProb = self.hyParams['MUTATIONPROBABILITY']
         mPower = self.hyParams['MUTATIONPOWER']
-        weights, paramIdx = agent.get_weights(), 0
-        for parameters in weights:
-            if self.mutateDecision(mProb):
-                weights[paramIdx] = add(parameters, mPower * randn())
-            paramIdx += 1
+        weights = agent.get_weights()
+        # nParameters = 0
+        for iParam, parameters in enumerate(weights):
+            # nParameters += parameters.size
+            randn_ = mPower * randn(*shape(parameters))
+            mutateDecisions_ = self.mutateDecisions(mProb, shape(parameters))
+            permutation = randn_*mutateDecisions_
+            weights[iParam] = add(parameters, permutation)
         agent.set_weights(weights)
 
         return agent
@@ -970,6 +978,10 @@ class FloPyAgent():
     def mutateDecision(self, probability):
         """Return boolean defining whether to mutate or not."""
         return random() < probability
+
+    def mutateDecisions(self, probability, shape):
+        """Return boolean defining whether to mutate or not."""
+        return random(shape) < probability
 
     def getqsGivenAgentModel(self, agentModel, state):
         """ Query given model for Q values given observations of state
