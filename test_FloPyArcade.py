@@ -137,15 +137,11 @@ if __name__ == '__main__':
 
     # deleting all test-related files, except unittestAgent.h5
     wrkspc = dirname(abspath(__file__))
-    unittestFilesAndFolders = glob(join(wrkspc, 'models', 'unittest*'))
-    for obj in unittestFilesAndFolders:
-        if isdir(obj):
-            rmtree(obj)
-        elif isfile(obj):
-            remove(obj)
-    unittestFilesAndFolders = glob(join(wrkspc, 'temp', 'unittest*'))
-    for obj in unittestFilesAndFolders:
-        if isdir(obj):
-            rmtree(obj)
-        elif isfile(obj):
-            remove(obj)
+    folders = ['models', 'runs', 'temp']
+    for folder in folders:
+        unittestFilesAndFolders = glob(join(wrkspc, folder, 'unittest*'))
+        for obj in unittestFilesAndFolders:
+            if isdir(obj):
+                rmtree(obj)
+            elif isfile(obj):
+                remove(obj)
