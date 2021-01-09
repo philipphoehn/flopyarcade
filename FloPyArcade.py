@@ -25,9 +25,9 @@ from matplotlib.pyplot import Circle, close, figure, pause, show
 from matplotlib.pyplot import get_current_fig_manager
 from matplotlib.pyplot import margins, NullLocator
 from matplotlib.pyplot import waitforbuttonpress
-from numpy import abs, add, arange, argmax, argsort, array, ceil, copy, divide
+from numpy import abs, add, arange, argmax, argsort, array, ceil, copy, concatenate, divide, expand_dims
 from numpy import extract, float32, fromstring, int32, linspace, max, maximum, min, minimum
-from numpy import mean, ones, shape, sqrt, subtract, sum, uint8, zeros
+from numpy import mean, multiply, ones, shape, sqrt, subtract, sum, uint8, zeros
 from numpy.random import randint, random, randn, uniform
 from numpy.random import seed as numpySeed
 from os import environ, listdir, makedirs, remove, rmdir
@@ -55,8 +55,8 @@ from pathos.pools import _ProcessPool as Pool
 from pathos.pools import _ThreadPool as ThreadPool
 from pickle import dump, load
 from tensorflow.keras.initializers import glorot_uniform
-from tensorflow.keras.layers import Activation, BatchNormalization, Dense
-from tensorflow.keras.layers import Dropout
+from tensorflow.keras.layers import Activation, BatchNormalization, Conv2D, Dense
+from tensorflow.keras.layers import Dropout, Flatten, MaxPooling2D
 from tensorflow.keras.models import clone_model, load_model, model_from_json
 from tensorflow.keras.models import save_model
 from tensorflow.keras.models import Sequential
@@ -447,7 +447,7 @@ class FloPyAgent():
                         str(agentIdx + 1).zfill(self.zFill) + '.h5'))
 
     def createNNModel(self, actionType, seed=None):
-        """Create fully-connected feed-forward multi-layer neural network."""
+        """Create neural network."""
         if seed is None:
             seed = self.SEED
         model = Sequential()
@@ -456,26 +456,45 @@ class FloPyAgent():
         # resetting numpy seeds to generate reproducible architecture
         numpySeed(seed)
 
-        # applying architecture (variable number of nodes per hidden layer)
-        if self.agentMode == 'genetic' and self.hyParams['ARCHITECTUREVARY']:
-            for layerIdx in range(len(nHiddenNodes)):
-                nHiddenNodes[layerIdx] = randint(2, self.hyParams['NHIDDENNODES'][layerIdx]+1)
-        for layerIdx in range(len(nHiddenNodes)):
-            inputShape = shape(self.observationsVector) if layerIdx == 0 else []
-            model.add(Dense(units=nHiddenNodes[layerIdx],
-                input_shape=inputShape,
-                kernel_initializer=glorot_uniform(seed=seed),
-                use_bias=True))
-            if self.hyParams['BATCHNORMALIZATION']:
-                model.add(BatchNormalization())
-            model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][layerIdx]))
-            if 'DROPOUTS' in self.hyParams:
-                if self.hyParams['DROPOUTS'][layerIdx] != 0.0:
-                    model.add(Dropout(self.hyParams['DROPOUTS'][layerIdx]))
+        if self.hyParams['NNTYPE'] == 'perceptron':
+            # fully-connected feed-forward multi-layer neural network
 
+            # applying architecture (variable number of nodes per hidden layer)
+            if self.agentMode == 'genetic' and self.hyParams['ARCHITECTUREVARY']:
+                for layerIdx in range(len(nHiddenNodes)):
+                    nHiddenNodes[layerIdx] = randint(2, self.hyParams['NHIDDENNODES'][layerIdx]+1)
+            for layerIdx in range(len(nHiddenNodes)):
+                inputShape = shape(self.observationsVector) if layerIdx == 0 else []
+                model.add(Dense(units=nHiddenNodes[layerIdx],
+                    input_shape=inputShape,
+                    kernel_initializer=glorot_uniform(seed=seed),
+                    use_bias=True))
+                if self.hyParams['BATCHNORMALIZATION']:
+                    model.add(BatchNormalization())
+                model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][layerIdx]))
+                if 'DROPOUTS' in self.hyParams:
+                    if self.hyParams['DROPOUTS'][layerIdx] != 0.0:
+                        model.add(Dropout(self.hyParams['DROPOUTS'][layerIdx]))
+
+        elif self.hyParams['NNTYPE'] == 'convolution':
+            # convolutional feed-forward neural network
+            
+            inputShape = shape(self.observationsVector)
+            model.add(Conv2D(32, kernel_size=(8, 8), strides=(4, 4),
+                             activation='relu',
+                             input_shape=inputShape, padding='same'))
+            # model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+            model.add(Conv2D(64, kernel_size=(4, 4), strides=(2, 2),
+                             activation='relu', padding='same'))
+            # model.add(MaxPooling2D(pool_size=(2, 2)))
+            model.add(Conv2D(64, kernel_size=(3, 3), strides=(1, 1),
+                             activation='relu', padding='same'))
+            model.add(Flatten())
+            model.add(Dense(512, activation='relu'))
+            
         # adding output layer
         if actionType == 'discrete':
-            model.add(Dense(self.actionSpaceSize, activation='linear',
+            model.add(Dense(self.actionSpaceSize, activation='linear', # 'softmax'
                 kernel_initializer=initializer))
         elif actionType == 'continuous':
             # sigmoid used here as actions are predicted as fraction of actionRange
@@ -1239,7 +1258,8 @@ class FloPyAgent():
             PATHMP6=self.envSettings['PATHMP6'],
             flagSavePlot=True, flagManualControl=False,
             flagRender=False,
-            nLay=env.nLay, nRow=env.nRow, nCol=env.nCol)
+            nLay=env.nLay, nRow=env.nRow, nCol=env.nCol,
+            OBSPREP=self.hyParams['NNTYPE'])
         game.play(
             ENVTYPE=self.envSettings['ENVTYPE'],
             seed=self.envSettings['SEEDENV'] + self.currentGame-1)
@@ -1343,7 +1363,7 @@ class FloPyEnv():
                  MODELNAME='FloPyArcade', ANIMATIONFOLDER='FloPyArcade',
                  _seed=None, flagSavePlot=False, flagManualControl=False,
                  manualControlTime=0.1, flagRender=False, NAGENTSTEPS=None,
-                 nLay=1, nRow=100, nCol=100,
+                 nLay=1, nRow=100, nCol=100, OBSPREP='perceptron',
                  initWithSolution=True):
         """Constructor."""
 
@@ -1359,6 +1379,7 @@ class FloPyEnv():
         self.info, self.comments = '', ''
         self.done = False
         self.nLay, self.nRow, self.nCol = nLay, nRow, nCol
+        self.OBSPREP = OBSPREP
         self.initWithSolution = initWithSolution
 
         self.wrkspc = dirname(abspath(__file__))
@@ -1452,30 +1473,34 @@ class FloPyEnv():
         self.observations['headsSampledField'] = self.heads[0::self.sampleHeadsEvery,
                                                 0::self.sampleHeadsEvery,
                                                 0::self.sampleHeadsEvery]
+        self.observations['heads'] = self.heads
         lParticle, cParticle, rParticle = self.cellInfoFromCoordinates(
             [self.particleCoords[0], self.particleCoords[1], self.particleCoords[2]])
         lWell, cWell, rWell = self.cellInfoFromCoordinates(
             [self.wellX, self.wellY, self.wellZ])
 
-        # note: these heads from actions are not necessary to return as observations for surrogate modeling
-        # but for reinforcement learning
-        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
-            self.observations['heads'] = [self.actionValueNorth,
-                                          self.actionValueSouth]
-        elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
-            # this can cause issues with unit testing, as model expects different input 
-            self.observations['heads'] = [self.actionValue]
-        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
-            self.observations['heads'] = [self.headSpecNorth,
-                                          self.headSpecSouth]
-        # note: it sees the surrounding heads of the particle and the well
-        # self.observations['heads'] += [self.heads[lParticle-1, rParticle-1, cParticle-1]]
-        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=0.5*self.wellRadius)
-        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=1.5*self.wellRadius)
-        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=2.5*self.wellRadius)
-        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=1.5*self.wellRadius)
-        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=2.0*self.wellRadius)
-        self.observations['heads'] += list(array(self.observations['headsSampledField']).flatten())
+        if self.OBSPREP == 'perceptron':
+            # note: these heads from actions are not necessary to return as observations for surrogate modeling
+            # but for reinforcement learning
+            if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
+                self.observations['heads'] = [self.actionValueNorth,
+                                              self.actionValueSouth]
+            elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
+                # this can cause issues with unit testing, as model expects different input 
+                self.observations['heads'] = [self.actionValue]
+            elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+                self.observations['heads'] = [self.headSpecNorth,
+                                              self.headSpecSouth]
+            # note: it sees the surrounding heads of the particle and the well
+            # self.observations['heads'] += [self.heads[lParticle-1, rParticle-1, cParticle-1]]
+            # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=0.5*self.wellRadius)
+            # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=1.5*self.wellRadius)
+            # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=2.5*self.wellRadius)
+            # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=1.5*self.wellRadius)
+            # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=2.0*self.wellRadius)
+            self.observations['heads'] += list(array(self.observations['headsSampledField']).flatten())
+        elif self.OBSPREP == 'convolution':
+            self.observations['heads'] = self.heads
 
         self.observations['wellQ'] = self.wellQ
         self.observations['wellCoords'] = self.wellCoords
@@ -1488,8 +1513,6 @@ class FloPyEnv():
             copy(self.particleCoords), self.minX + self.extentX)
         self.observationsNormalized['heads'] = divide(array(self.observations['heads']) - self.minH,
             self.maxH - self.minH)
-        # self.observationsNormalized['heads'] = divide(array(self.observations['heads']) - self.minH,
-        #     self.maxH - self.minH)
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
             self.wellCoords, self.minX + self.extentX)
@@ -1502,12 +1525,18 @@ class FloPyEnv():
         self.observationsNormalizedHeads['heads'] = divide(array(self.heads) - self.minH,
             self.maxH - self.minH)
 
-        self.observationsVector = self.observationsDictToVector(
-            self.observations)
-        self.observationsVectorNormalized = self.observationsDictToVector(
-            self.observationsNormalized)
-        self.observationsVectorNormalizedHeads = self.observationsDictToVector(
-            self.observationsNormalizedHeads)
+        if self.OBSPREP == 'perceptron':
+            self.observationsVector = self.observationsDictToVector(
+                self.observations)
+            self.observationsVectorNormalized = self.observationsDictToVector(
+                self.observationsNormalized)
+            self.observationsVectorNormalizedHeads = self.observationsDictToVector(
+                self.observationsNormalizedHeads)
+        elif self.OBSPREP == 'convolution':
+            self.observationsVector = self.observationsDictToVector(
+                self.observations)
+            self.observationsVectorNormalized = self.observationsDictToVector(
+                self.observationsNormalized)
 
         # alternatively normalize well z coordinate to vertical extent
         if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
@@ -1606,29 +1635,34 @@ class FloPyEnv():
         self.observations['headsSampledField'] = self.heads[0::self.sampleHeadsEvery,
                                                 0::self.sampleHeadsEvery,
                                                 0::self.sampleHeadsEvery]
+        self.observations['heads'] = self.heads
         lParticle, cParticle, rParticle = self.cellInfoFromCoordinates(
             [self.particleCoords[0], self.particleCoords[1], self.particleCoords[2]])
         lWell, cWell, rWell = self.cellInfoFromCoordinates(
             [self.wellX, self.wellY, self.wellZ])
-        # note: these heads from actions are not necessary to return as observations for surrogate modeling
-        # but for reinforcement learning
-        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
-            self.observations['heads'] = [self.actionValueNorth,
-                                          self.actionValueSouth]
-        elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
-            # this can cause issues with unit testing, as model expects different input 
-            self.observations['heads'] = [self.actionValue]
-        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
-            self.observations['heads'] = [self.headSpecNorth,
-                                          self.headSpecSouth]
-        # note: it sees the surrounding heads of the particle and the well
-        # self.observations['heads'] += [self.heads[lParticle-1, rParticle-1, cParticle-1]]
-        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=0.5*self.wellRadius)
-        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=1.5*self.wellRadius)
-        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=2.5*self.wellRadius)
-        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=1.5*self.wellRadius)
-        # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=2.0*self.wellRadius)
-        self.observations['heads'] += list(array(self.observations['headsSampledField']).flatten())
+
+        if self.OBSPREP == 'perceptron':
+            # note: these heads from actions are not necessary to return as observations for surrogate modeling
+            # but for reinforcement learning
+            if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
+                self.observations['heads'] = [self.actionValueNorth,
+                                              self.actionValueSouth]
+            elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
+                # this can cause issues with unit testing, as model expects different input 
+                self.observations['heads'] = [self.actionValue]
+            elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+                self.observations['heads'] = [self.headSpecNorth,
+                                              self.headSpecSouth]
+            # note: it sees the surrounding heads of the particle and the well
+            # self.observations['heads'] += [self.heads[lParticle-1, rParticle-1, cParticle-1]]
+            # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=0.5*self.wellRadius)
+            # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=1.5*self.wellRadius)
+            # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.particleCoords, distance=2.5*self.wellRadius)
+            # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=1.5*self.wellRadius)
+            # self.observations['heads'] += self.surroundingHeadsFromCoordinates(self.wellCoords, distance=2.0*self.wellRadius)
+            self.observations['heads'] += list(array(self.observations['headsSampledField']).flatten())
+        elif self.OBSPREP == 'convolution':
+            self.observations['heads'] = self.heads
 
         self.observations['wellQ'] = self.wellQ
         self.observations['wellCoords'] = self.wellCoords
@@ -1655,12 +1689,18 @@ class FloPyEnv():
         self.observationsNormalizedHeads['heads'] = divide(array(self.heads) - self.minH,
             self.maxH - self.minH)
 
-        self.observationsVector = self.observationsDictToVector(
-            self.observations)
-        self.observationsVectorNormalized = self.observationsDictToVector(
-            self.observationsNormalized)
-        self.observationsVectorNormalizedHeads = self.observationsDictToVector(
-            self.observationsNormalizedHeads)
+        if self.OBSPREP == 'perceptron':
+            self.observationsVector = self.observationsDictToVector(
+                self.observations)
+            self.observationsVectorNormalized = self.observationsDictToVector(
+                self.observationsNormalized)
+            self.observationsVectorNormalizedHeads = self.observationsDictToVector(
+                self.observationsNormalizedHeads)
+        elif self.OBSPREP == 'convolution':
+            self.observationsVector = self.observationsDictToVector(
+                self.observations)
+            self.observationsVectorNormalized = self.observationsDictToVector(
+                self.observationsNormalized)
 
         if self.observations['particleCoords'][0] >= self.extentX - self.dCol:
             self.success = True
@@ -1794,16 +1834,19 @@ class FloPyEnv():
         if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
             self.minH = 56.0
             self.maxH = 60.0
+            self.nHelperWells = 0
             self.deviationPenaltyFactor = 10.0
             self.actionRange = 0.5
         elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
             self.minH = 56.0
             self.maxH = 62.0
+            self.nHelperWells = 0
             self.deviationPenaltyFactor = 4.0
             self.actionRange = 0.5
         elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c']:
             self.minH = 56.0
             self.maxH = 60.0
+            self.nHelperWells = 0
             self.deviationPenaltyFactor = 10.0
             self.actionRange = 10.0
         elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
@@ -2414,7 +2457,7 @@ class FloPyEnv():
             self.MODELNAME if MODELNAME is None else MODELNAME,
             _seed=_seed, flagSavePlot=self.SAVEPLOT,
             flagManualControl=self.MANUALCONTROL, flagRender=self.RENDER,
-            nLay=self.nLay, nRow=self.nRow, nCol=self.nCol,
+            nLay=self.nLay, nRow=self.nRow, nCol=self.nCol, OBSPREP=self.OBSPREP,
             initWithSolution=initWithSolution)
         close()
 
@@ -2937,30 +2980,93 @@ class FloPyEnv():
     def observationsDictToVector(self, observationsDict):
         """Convert dictionary of observations to list."""
         observationsVector = []
-        if 'particleCoords' in observationsDict.keys():
-            for obs in observationsDict['particleCoords']:
-                observationsVector.append(obs)
-        # full field not longer part of reported state
-        # for obs in observationsDict['headsSampledField'].flatten().flatten():
-        #     observationsVector.append(obs)
-        if 'heads' in observationsDict.keys():
-            for obs in observationsDict['heads']:
-                observationsVector.append(obs)
-        # print('len(observationsDict[heads])', len(observationsDict['heads']))
-        if 'wellQ' in observationsDict.keys():
-            observationsVector.append(observationsDict['wellQ'])
-        if 'wellCoords' in observationsDict.keys():
-            for obs in observationsDict['wellCoords']:
-                observationsVector.append(obs)
+        if self.OBSPREP == 'perceptron':
+            if 'particleCoords' in observationsDict.keys():
+                for obs in observationsDict['particleCoords']:
+                    observationsVector.append(obs)
+            # full field not longer part of reported state
+            # for obs in observationsDict['headsSampledField'].flatten().flatten():
+            #     observationsVector.append(obs)
+            if 'heads' in observationsDict.keys():
+                for obs in observationsDict['heads']:
+                    observationsVector.append(obs)
+            if 'wellQ' in observationsDict.keys():
+                observationsVector.append(observationsDict['wellQ'])
+            if 'wellCoords' in observationsDict.keys():
+                for obs in observationsDict['wellCoords']:
+                    observationsVector.append(obs)
+            for i in range(self.nHelperWells):
+                iStr = str(i)
+                if 'wellQ'+iStr in observationsDict.keys():
+                    observationsVector.append(observationsDict['wellQ'+iStr])
+                if 'wellCoords'+iStr in observationsDict.keys():
+                    for obs in observationsDict['wellCoords'+iStr]:
+                        observationsVector.append(obs)
+        elif self.OBSPREP == 'convolution':
+            valsExtra = []
+            if 'particleCoords' in observationsDict.keys():
+                for obs in observationsDict['particleCoords']:
+                    valsExtra.append(obs)
+            if 'heads' in observationsDict.keys():
+                observationsVector = array(observationsDict['heads'])
+            if 'wellQ' in observationsDict.keys():
+                valsExtra.append(observationsDict['wellQ'])
+            if 'wellCoords' in observationsDict.keys():
+                for obs in observationsDict['wellCoords']:
+                    valsExtra.append(obs)
+            if self.nHelperWells > 0:
+                for i in range(self.nHelperWells):
+                    iStr = str(i)
+                    if 'wellQ'+iStr in observationsDict.keys():
+                        valsExtra.append(observationsDict['wellQ'+iStr])
+                    if 'wellCoords'+iStr in observationsDict.keys():
+                        for obs in observationsDict['wellCoords'+iStr]:
+                            valsExtra.append(obs)
+            for val in valsExtra:
+                add_ = multiply(observationsDict['heads'][0, :, :], 0.)
+                add_ = add(add_, val)
+                add_ = expand_dims(add_, axis=0)
+                observationsVector = concatenate((observationsVector, add_), axis=0)
+
         return observationsVector
 
     def observationsVectorToDict(self, observationsVector):
         """Convert list of observations to dictionary."""
         observationsDict = {}
-        observationsDict['particleCoords'] = observationsVector[:3]
-        observationsDict['heads'] = observationsVector[3:-4]
-        observationsDict['wellQ'] = observationsVector[-4]
-        observationsDict['wellCoords'] = observationsVector[-3:]
+        if self.OBSPREP == 'perceptron':
+            # offset to capture helper well data
+            offset = 4*self.nHelperWells
+            observationsDict['particleCoords'] = observationsVector[:3]
+            observationsDict['heads'] = observationsVector[3:-(4-offset)]
+            observationsDict['wellQ'] = observationsVector[-(4-offset)]
+            observationsDict['wellCoords'] = observationsVector[-(3-offset):]
+            for i in range(self.nHelperWells):
+                iStr = str(i)
+                offset = offset-4
+                observationsDict['wellQ'+iStr] = observationsVector[-(4-offset)]
+                observationsDict['wellCoords'+iStr] = observationsVector[-(3-offset):]
+        elif self.OBSPREP == 'convolution':
+            observationsDict['particleCoords'] = [
+                observationsVector[0, 0, 0],
+                observationsVector[1, 0, 0],
+                observationsVector[2, 0, 0]]
+            observationsDict['heads'] = observationsVector[3, :, :]
+            observationsDict['wellQ'] = observationsVector[4, 0, 0]
+            observationsDict['wellCoords'] = [
+                observationsVector[5, 0, 0],
+                observationsVector[6, 0, 0],
+                observationsVector[7, 0, 0]]
+            if self.nHelperWells > 0:
+                for i in range(self.nHelperWells):
+                    print('debug i', i)
+                    iStr = str(i)
+                    offset = i*4
+                    observationsDict['wellQ'+iStr] = observationsVector[8+offset, 0, 0]
+                    observationsDict['wellCoords'+iStr]= [
+                        observationsVector[9+offset, 0, 0],
+                        observationsVector[10+offset, 0, 0],
+                        observationsVector[11+offset, 0, 0]]
+
         return observationsDict
 
     def unnormalize(self, data):
@@ -2991,7 +3097,8 @@ class FloPyArcade():
         animationFolder=None, NAGENTSTEPS=200, PATHMF2005=None, PATHMP6=None,
         surrogateSimulator=None, flagSavePlot=False,
         flagManualControl=False, actions=None, flagRender=False,
-        keepTimeSeries=False, nLay=1, nRow=100, nCol=100):
+        keepTimeSeries=False, nLay=1, nRow=100, nCol=100,
+        OBSPREP='perceptron'):
         """Constructor."""
 
         self.PATHMF2005 = PATHMF2005
@@ -3009,6 +3116,7 @@ class FloPyArcade():
         self.keepTimeSeries = keepTimeSeries
         self.actions = actions
         self.nLay, self.nRow, self.nCol = nLay, nRow, nCol
+        self.OBSPREP = OBSPREP
         self.ENVTYPES = ['1s-d', '1s-c', '1r-d', '1r-c',
                          '2s-d', '2s-c', '2r-d', '2r-c',
                          '3s-d', '3s-c', '3r-d', '3r-c',
@@ -3036,7 +3144,8 @@ class FloPyArcade():
                     NAGENTSTEPS=self.NAGENTSTEPS,
                     nLay=self.nLay,
                     nRow=self.nRow,
-                    nCol=self.nCol)
+                    nCol=self.nCol,
+                    OBSPREP=self.OBSPREP)
             elif self.SURROGATESIMULATOR is not None:
                 self.env = FloPyEnvSurrogate(self.SURROGATESIMULATOR, ENVTYPE,
                     MODELNAME=self.MODELNAME if not None else 'FloPyArcade',
