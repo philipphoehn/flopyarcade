@@ -11,7 +11,7 @@ from FloPyArcade import FloPyEnv
 
 # environment settings
 envSettings = {
-    'ENVTYPE': '3',						# string defining environment
+    'ENVTYPE': '3s-d',			        # string defining environment
     'MODELNAME': 'test',	            # string defining model basename
     'PATHMF2005': None,					# string of local path to MODFLOW 2005 executable
     'PATHMP6': None,					# string of local path to MODPATH 6 executable
@@ -32,6 +32,7 @@ hyParams = {
     'REPLAYMEMORYSIZEMIN': 512,			# integer defining the minimum number of steps required for training
     'MINIBATCHSIZE': 512,				# integer defining the number of sampled steps used for training
     'UPDATEPREDICTIVEMODELEVERY': 5, 	# integer defining after how many games the predictive model is updated
+    'NNTYPE': 'convolution',            # string defining neural network type ['perceptron', 'convolution']
     'NHIDDENNODES': [40] * 5,			# list of integers of nodes per hidden layer to define architecture
     'HIDDENACTIVATIONS': ['relu'] * 5,	# list of strings defining hidden nodal activations
     'DROPOUTS': [0.0] * 5,				# list of floats defining hidden layer dropouts
@@ -40,8 +41,8 @@ hyParams = {
     'EPSILONINITIAL': 1.0,				# float defining the exploration fraction
     'EPSILONDECAY': 0.99995,			# float defining the factor to decay the exploration fraction
     'EPSILONMIN': 0.005,				# float defining the lowest exploration fraction following decay
-    'CROSSVALIDATEEVERY': 250,			# integer defining the number of games between cross-validation
-    'NGAMESCROSSVALIDATED': 200			# integer defining the number of games during cross-validation
+    'CROSSVALIDATEEVERY': 2,			# integer defining the number of games between cross-validation
+    'NGAMESCROSSVALIDATED': 2			# integer defining the number of games during cross-validation
 }
 
 
@@ -53,7 +54,8 @@ def main(envSettings, hyParams):
         envSettings['PATHMP6'],
         envSettings['MODELNAME'],
         flagRender=envSettings['RENDER'],
-        NAGENTSTEPS=hyParams['NAGENTSTEPS'])
+        NAGENTSTEPS=hyParams['NAGENTSTEPS'],
+        OBSPREP=hyParams['NNTYPE'])
 
     # initializing agent
     agent = FloPyAgent(
