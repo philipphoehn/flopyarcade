@@ -27,7 +27,8 @@ from matplotlib.pyplot import margins, NullLocator
 from matplotlib.pyplot import waitforbuttonpress
 from numpy import abs, add, arange, argmax, argsort, array, ceil, copy, concatenate, divide, expand_dims
 from numpy import extract, float32, fromstring, int32, linspace, max, maximum, min, minimum
-from numpy import mean, multiply, ones, shape, sqrt, subtract, sum, uint8, zeros
+from numpy import mean, multiply, ones, shape, sqrt, subtract, uint8, zeros
+from numpy import sum as numpySum
 from numpy.random import randint, random, randn, uniform
 from numpy.random import seed as numpySeed
 from os import environ, listdir, makedirs, remove, rmdir
@@ -378,7 +379,7 @@ class FloPyAgent():
                 if not self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS']:
                     print('Novelty search:', len(self.agentsUnique), 'unique agents', len(self.agentsDuplicate), 'duplicate agents')
                 else:
-                    print('Novelty search')
+                    print('Novelty search (neighbor level reached):', len(self.agentsUnique), 'unique agents', len(self.agentsDuplicate), 'duplicate agents')
                 # updating novelty of unique agents
                 # Note: This can become a massive bottleneck with increasing
                 # number of stored agent information and generations
@@ -1202,17 +1203,15 @@ class FloPyAgent():
 
     def actionNoveltyMetric(self, actions1, actions2):
         # finding largest object, or determining equal length
-        actions1 = array(actions1)
-        actions2 = array(actions2)
+        # actions1 = array(actions1)
+        # actions2 = array(actions2)
 
         if self.env.actionType == 'discrete':
             if len(actions1) > len(actions2):
-                shorterObj = actions2
-                longerObj = actions1
-            if len(actions1) <= len(actions2):
-                shorterObj = actions1
-                longerObj = actions2
-            diffsCount = len(shorterObj) - sum(array(shorterObj) == array(longerObj[:len(shorterObj)]))
+                shorterObj, longerObj = actions2, actions1[:len(actions2)]
+            elif len(actions1) <= len(actions2):
+                shorterObj, longerObj = actions1, actions2[:len(actions1)]
+            diffsCount = len(shorterObj) - numpySum(1 for x, y in zip(longerObj, shorterObj) if x == y)
 
             # enabling this might promote agents having acted longer but not
             # too different to begin with
@@ -1222,9 +1221,6 @@ class FloPyAgent():
             novelty = diffsCount/len(shorterObj)
 
         elif self.env.actionType == 'continuous':
-            actions1 = array(actions1)
-            actions2 = array(actions2)
-
             # there are values per action in the action space
             ln = min([len(actions1[:,0]), len(actions2[:,0])])
             nActionLists = shape(actions2)[1]
