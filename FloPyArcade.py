@@ -105,10 +105,7 @@ class FloPyAgent():
 
         # setting seeds
         if self.envSettings is not None:
-            self.SEED = self.envSettings['SEEDAGENT']
-            numpySeed(self.SEED)
-            randomSeed(self.SEED)
-            set_random_seed(self.SEED)
+            self.setSeeds()
 
         # creating required folders if inexistent
         self.modelpth = join(self.wrkspc, 'models')
@@ -193,6 +190,13 @@ class FloPyAgent():
     # https://stackoverflow.com/questions/52839758/matplotlib-and-runtimeerror-main-thread-is-not-in-main-loop
     # matplotlibBackend('Agg')
 
+    def setSeeds(self):
+        """Set seeds."""
+        self.SEED = self.envSettings['SEEDAGENT']
+        numpySeed(self.SEED)
+        randomSeed(self.SEED)
+        set_random_seed(self.SEED)
+
     def runDQN(self, env):
         """
         Run main pipeline for Deep Q-Learning optimisation.
@@ -245,7 +249,16 @@ class FloPyAgent():
                 self.epsilon *= self.hyParams['EPSILONDECAY']
                 self.epsilon = max([self.hyParams['EPSILONMIN'], self.epsilon])
 
-    def runGenetic(self, env, noveltySearch=False):
+    class noveltyArchiver():
+
+        def __init__(self):
+            pass
+
+        def prepareResume(self):
+            pass
+
+
+    def runGenetic(self, env, searchNovelty=False):
         """Run main pipeline for genetic agent optimisation.
         # Inspiration and larger parts of code modified after and inspired by:
         # https://github.com/paraschopra/deepneuroevolution
@@ -268,8 +281,9 @@ class FloPyAgent():
 
         # setting environment and number of games
         self.env, n = env, self.hyParams['NGAMESAVERAGED']
-        if noveltySearch:
-            self.noveltySearch, self.noveltyArchive = noveltySearch, {}
+        if searchNovelty:
+            self.searchNovelty, self.noveltyArchive = searchNovelty, {}
+            self.noveltyArchiver_ = self.noveltyArchiver()
             self.noveltyItemCount = 0
             self.agentsUnique, self.agentsUniqueIDs = [], []
             self.agentsDuplicate = []
@@ -286,7 +300,7 @@ class FloPyAgent():
             self.generatePathPrefixes()
 
             if self.envSettings['RESUME']:
-                if self.noveltySearch:
+                if self.searchNovelty:
                     if self.geneticGeneration > 0:
                         self.noveltyArchive = self.pickleLoad(join(
                             self.tempPrevModelPrefix + '_noveltyArchive.p'))
@@ -295,7 +309,7 @@ class FloPyAgent():
                 if continueFlag: continue
                 if breakFlag: break
 
-                if self.noveltySearch:
+                if self.searchNovelty:
                     # regenerating list of unique and duplicate agents
                     # in case of resume
                     for iAgent in range(self.noveltyItemCount):
@@ -325,7 +339,7 @@ class FloPyAgent():
             self.pickleDump(join(self.tempModelPrefix +
                 '_agentsSortedParentIndexes.p'), sortedParentIdxs)
 
-            if self.noveltySearch:
+            if self.searchNovelty:
                 print('Performing novelty search')
                 # iterating through agents and storing with novelty in archive
                 # calculating average nearest-neighbor novelty score
@@ -352,23 +366,30 @@ class FloPyAgent():
                     # self.noveltyArchive[agentStr]['actions'] = actions
 
                     if env.actionType == 'discrete':
-                        if not self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS']:
-                                # removing duplicate novelty calculation only in case neighbour limit is not reached
-                                # as otherwise the same novelty might not apply
-                                if actionsUniqueID not in self.agentsUniqueIDs:
-                                    # checking if unique ID from actions already exists
-                                    self.agentsUnique.append(k)
-                                    self.agentsUniqueIDs.append(actionsUniqueID)
-                                else:
-                                    self.agentsDuplicate.append(k)
+                        # if not self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS']:
+                        # removing duplicate novelty calculation only in case neighbour limit is not reached
+                        # as otherwise the same novelty might not apply
+                        if actionsUniqueID not in self.agentsUniqueIDs:
+                            # checking if unique ID from actions already exists
+                            self.agentsUnique.append(k)
+                            self.agentsUniqueIDs.append(actionsUniqueID)
                         else:
-                            self.agentsUnique, self.agentsUniqueIDs, self.agentsDuplicate = [], [], []
-                            # otherwise computed as if unique to avoid assigning novelty
-                            # from duplicates with different nearest neighbours
-                            for iNov in range(self.noveltyItemCount+1):
-                                self.agentsUnique.append(iNov)
-                                self.noveltyArchive['agent' + str(iNov+1)]['actionsUniqueID'] = iNov
-                                # self.agentsUniqueIDs.append(iNov)
+                            self.agentsDuplicate.append(k)
+
+
+
+                        # is this necessary?
+
+
+
+                        # else:
+                        #     self.agentsUnique, self.agentsUniqueIDs, self.agentsDuplicate = [], [], []
+                        #     # otherwise computed as if unique to avoid assigning novelty
+                        #     # from duplicates with different nearest neighbours
+                        #     for iNov in range(self.noveltyItemCount+1):
+                        #         self.agentsUnique.append(iNov)
+                        #         self.noveltyArchive['agent' + str(iNov+1)]['actionsUniqueID'] = iNov
+                        #         # self.agentsUniqueIDs.append(iNov)
                     elif env.actionType == 'continuous':
                             self.agentsUnique, self.agentsUniqueIDs, self.agentsDuplicate = [], [], []
                             for iNov in range(self.noveltyItemCount+1):
@@ -393,8 +414,6 @@ class FloPyAgent():
                     noveltiesPerAgent = self.multiprocessChunks(
                         self.calculateNoveltyPerAgent, chunk)
                     noveltiesUniqueAgents += noveltiesPerAgent
-
-                    # self.noveltyArchive[agentStr]['modelFile'] = modelFile
 
                 # calculating novelty of unique agents
                 for iUniqueAgent in self.agentsUnique:
@@ -875,7 +894,7 @@ class FloPyAgent():
             self.envSettings['MODELNAME'] + '_gen' +
             str(generation+1).zfill(self.zFill))
 
-        if self.noveltySearch:
+        if self.searchNovelty:
             recalculateNovelties = False
             try:
                 self.novelties
@@ -928,7 +947,7 @@ class FloPyAgent():
         agentPth = join(self.tempModelPrefix + '_agent' +
             str(selected_agent_index + 1).zfill(self.zFill) + '.h5')
 
-        if self.noveltySearch:
+        if self.searchNovelty:
             if ((self.geneticGeneration+1) % self.hyParams['ADDNOVELTYEVERY']) == 0:
                 remainingElites = self.hyParams['NAGENTS'] - (childIdx+1)
                 if self.rereturnChildrenGenetic:
@@ -1125,7 +1144,6 @@ class FloPyAgent():
         pth2 = join(tempAgentPrefix2 + '_results.p')
         actions = self.pickleLoad(pth)['actions']
         actions2 = self.pickleLoad(pth2)['actions']
-
         # actions = self.noveltyArchive[agentStr]['actions']
         # actions2 = self.noveltyArchive[agentStr2]['actions']
 
@@ -1146,9 +1164,9 @@ class FloPyAgent():
             with open(join(self.tempNoveltypth, agentStr + '_novelties.p'), 'rb') as f:
                 agentNovelties = self.pickleLoad(f, compressed='lz4')
 
+        neighborLimitReached = (self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS'])
         novelties = []
-        if self.noveltyItemCount <= self.hyParams['NNOVELTYNEIGHBORS']:
-            # neighborLimitReached = False
+        if not neighborLimitReached:
             for iAgent2 in range(self.noveltyItemCount):
                 if iAgent != iAgent2:
                     try:
@@ -1160,9 +1178,7 @@ class FloPyAgent():
                         agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)] = novelty
                     novelties.append(novelty)
 
-        elif self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS']:
-            # neighborLimitReached = True
-
+        elif neighborLimitReached:
             # checking if half of NNOVELTYNEIGHBORS are available surrounding the given index
             # if not agents are selected until the index boundary and more from the other end
             nLower = int(floor(self.hyParams['NNOVELTYNEIGHBORS']/2))
