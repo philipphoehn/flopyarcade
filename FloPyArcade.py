@@ -16,7 +16,7 @@ from flopy.modpath import Modpath6Bas as ModpathBas
 from flopy.plot import PlotMapView
 from flopy.utils import CellBudgetFile, HeadFile, PathlineFile
 from imageio import get_writer, imread
-from itertools import product
+from itertools import chain, product
 from joblib import dump as joblibDump
 from joblib import load as joblibLoad
 from math import ceil, floor
@@ -25,10 +25,11 @@ from matplotlib.pyplot import Circle, close, figure, pause, show
 from matplotlib.pyplot import get_current_fig_manager
 from matplotlib.pyplot import margins, NullLocator
 from matplotlib.pyplot import waitforbuttonpress
-from numpy import abs, add, arange, argmax, argsort, array, ceil, copy, concatenate, divide, expand_dims
+from numpy import add, arange, argmax, argsort, array, ceil, copy, concatenate, divide, expand_dims
 from numpy import extract, float32, fromstring, int32, linspace, max, maximum, min, minimum
 from numpy import mean, multiply, ones, shape, sqrt, subtract, uint8, zeros
 from numpy import sum as numpySum
+from numpy import abs as numpyAbs
 from numpy.random import randint, random, randn, uniform
 from numpy.random import seed as numpySeed
 from os import environ, listdir, makedirs, remove, rmdir
@@ -1231,22 +1232,37 @@ class FloPyAgent():
 
             # enabling this might promote agents having acted longer but not
             # too different to begin with
-            # diffsCount += float(abs(len(longerObj) - len(shorterObj)))
+            # diffsCount += float(numpyAbs(len(longerObj) - len(shorterObj)))
 
             # dividing by the length of it, to avoid rewarding longer objects
             novelty = diffsCount/len(shorterObj)
 
         elif self.env.actionType == 'continuous':
             # there are values per action in the action space
-            ln = min([len(actions1[:,0]), len(actions2[:,0])])
-            nActionLists = shape(actions2)[1]
+            n = min([len(actions1), len(actions2)])
+            nActionLists = len(actions1[0])
+            nValues = n*nActionLists
+            
+            actions1_, actions2_ = [], []
+            for iStep in range(n):
+                actions1_.append(actions1[iStep])
+                actions2_.append(actions2[iStep])
+            actions1 = list(chain.from_iterable(actions1_))
+            actions2 = list(chain.from_iterable(actions2_))
+            
+            diffs = numpySum(numpyAbs(subtract(actions1, actions2)))
+            novelty = diffs/nValues
 
-            diffsCount = ln*nActionLists
-            diffs = sum(abs(subtract(
-                actions1[:ln,:].flatten(),
-                actions2[:ln,:].flatten()
-                )))
-            novelty = diffs/diffsCount
+            # # there are values per action in the action space
+            # ln = min([len(actions1[:,0]), len(actions2[:,0])])
+            # nActionLists = shape(actions2)[1]
+
+            # diffsCount = ln*nActionLists
+            # diffs = sum(abs(subtract(
+            #     actions1[:ln,:].flatten(),
+            #     actions2[:ln,:].flatten()
+            #     )))
+            # novelty = diffs/diffsCount
 
         return novelty
 
@@ -1909,7 +1925,6 @@ class FloPyEnv():
                 self.actionSpaceIndividual = ['up', 'down', 'left', 'right', 'moreQ', 'lessQ']
                 self.actionRange = 2.5
                 self.actionRangeQ = 50.0
-
             self.actionSpace = []
             for i in range(self.nHelperWells):
                 self.actionSpace += [j+str(i+1) for j in self.actionSpaceIndividual]
@@ -2758,7 +2773,7 @@ class FloPyEnv():
                 makedirs(self.plotsfolderpth)
             if not exists(self.plotspth):
                 makedirs(self.plotspth)
-        plotfile = join(self.plotspth, self.MODELNAME + '_' + str(self.timeStep).zfill(len(str(abs(self.NAGENTSTEPS))) + 1) + '.png')
+        plotfile = join(self.plotspth, self.MODELNAME + '_' + str(self.timeStep).zfill(len(str(numpyAbs(self.NAGENTSTEPS))) + 1) + '.png')
 
         s = self.fig.get_size_inches()
 
@@ -3028,7 +3043,7 @@ class FloPyEnv():
                     valsExtra.append(obs)
             if self.nHelperWells > 0:
                 for i in range(self.nHelperWells):
-                    iStr = str(i)
+                    iStr = str(i+1)
                     if 'wellQ'+iStr in observationsDict.keys():
                         valsExtra.append(observationsDict['wellQ'+iStr])
                     if 'wellCoords'+iStr in observationsDict.keys():
@@ -3070,8 +3085,8 @@ class FloPyEnv():
                 observationsVector[7, 0, 0]]
             if self.nHelperWells > 0:
                 for i in range(self.nHelperWells):
-                    print('debug i', i)
-                    iStr = str(i)
+                    # print('debug i', i)
+                    iStr = str(i+1)
                     offset = i*4
                     observationsDict['wellQ'+iStr] = observationsVector[8+offset, 0, 0]
                     observationsDict['wellCoords'+iStr]= [
