@@ -44,6 +44,7 @@ hyParams = {
     'NHIDDENNODES': [1000] * 4,                 # list of integers defining nodes per hidden layer to define architecture
     'ARCHITECTUREVARY': False,                  # boolean defining to allow architecture variation
     'HIDDENACTIVATIONS': ['relu'] * 4,          # list of strings defining hidden nodal activations
+    'DROPOUTS': [0.0] * 4,                      # list of floats defining hidden layer dropouts
     'NCONVFILTERS': [32, 64, 64],               # list of integers defining numbers of convolutional filters
     'CONVKERNELSIZES': [8, 4, 3],               # list of integers defining convolutional kernel sizes
     'CONVSTRIDES': [4, 2, 1],                   # list of integers defining convolutional stride sizes 
