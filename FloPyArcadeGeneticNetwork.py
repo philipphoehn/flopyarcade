@@ -44,6 +44,13 @@ hyParams = {
     'NHIDDENNODES': [1000] * 4,                 # list of integers defining nodes per hidden layer to define architecture
     'ARCHITECTUREVARY': False,                  # boolean defining to allow architecture variation
     'HIDDENACTIVATIONS': ['relu'] * 4,          # list of strings defining hidden nodal activations
+    'NCONVFILTERS': [32, 64, 64],               # list of integers defining numbers of convolutional filters
+    'CONVKERNELSIZES': [8, 4, 3],               # list of integers defining convolutional kernel sizes
+    'CONVSTRIDES': [4, 2, 1],                   # list of integers defining convolutional stride sizes 
+    'CONVACTIVATIONS': ['relu'] * 3,            # list of strings defining convolutional activations
+    'CONVPOOLING': None,                        # string defining type of pooling, options: [None, 'mean', 'max']
+    'CONVPOOLSIZES': [1, 1, 1],                 # list of integers defining sizes of convolutional pool
+    'CONVPOOLSTRIDES': [1, 1, 1],               # list of integers defining strides of convolutional pool
     'BATCHNORMALIZATION': False,                # boolean defining batch normalization
     'NOVELTYSEARCH': True,                      # boolean defining novelty search
     'ADDNOVELTYEVERY': 1,                       # integer defining generations between novelty update
@@ -81,4 +88,12 @@ def main(envSettings, hyParams):
 
 
 if __name__ == '__main__':
-    main(envSettings, hyParams)
+    unfinished = True
+    while unfinished:
+        try:
+            main(envSettings, hyParams)
+            unfinished = False
+        except Exception as e:
+            # enabling resume in case for random error
+            print('resumed with error', e)
+            envSettings['RESUME'] = True
