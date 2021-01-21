@@ -97,37 +97,40 @@ class TestFloPyAgentGenetic(unittest.TestCase):
         from matplotlib import use as matplotlibBackend
 
         failed = []
-        for ENVTYPE in FloPyArcade().ENVTYPES:
-            raised = False
-            try:
-                matplotlibBackend('Agg')
-                # environment settings
-                envSettings['ENVTYPE'] = ENVTYPE
-                envSettings['MODELNAME'] = 'unittest_' + ENVTYPE
-                envSettings['NAGENTSPARALLEL'] = 2
-                envSettings['RENDER'] = False
-                envSettings['BESTAGENTANIMATION'] = True
-                envSettings['KEEPMODELHISTORY'] = True
-                envSettings['RESUME'] = False
-                # hyperparameters
-                hyParams['NAGENTS'] = 4
-                hyParams['NAGENTELITES'] = 3
-                hyParams['NGENERATIONS'] = 2
-                hyParams['NGAMESAVERAGED'] = 2
-                hyParams['NAGENTSTEPS'] = 2
-                hyParams['NHIDDENNODES'] = [5] * 2
-                hyParams['HIDDENACTIVATIONS'] = ['relu'] * 2
-                hyParams['BATCHNORMALIZATION'] = True
-                hyParams['NOVELTYSEARCH'] = True
-                hyParams['ADDNOVELTYEVERY'] = 1
-                hyParams['NNOVELTYELITES'] = 2
-                hyParams['NNOVELTYNEIGHBORS'] = 5
-                FloPyArcadeGeneticNetwork.main(envSettings, hyParams)
-                print('Genetic agent in environment ' + ENVTYPE + ' succeeded.')
-            except Exception as e:
-                raised = True
-                failed.append(ENVTYPE)
-                print('error FloPyArcadeGeneticNetwork', e)
+        for KEEPMODELHISTORY in [True, False]:
+            for NNTYPE in ['convolution', 'perceptron']:
+                for ENVTYPE in FloPyArcade().ENVTYPES:
+                    raised = False
+                    try:
+                        matplotlibBackend('Agg')
+                        # environment settings
+                        envSettings['ENVTYPE'] = ENVTYPE
+                        envSettings['MODELNAME'] = 'unittest_' + ENVTYPE
+                        envSettings['NAGENTSPARALLEL'] = 2
+                        envSettings['RENDER'] = False
+                        envSettings['BESTAGENTANIMATION'] = True
+                        envSettings['KEEPMODELHISTORY'] = KEEPMODELHISTORY
+                        envSettings['RESUME'] = False
+                        # hyperparameters
+                        hyParams['NAGENTS'] = 4
+                        hyParams['NAGENTELITES'] = 3
+                        hyParams['NGENERATIONS'] = 2
+                        hyParams['NGAMESAVERAGED'] = 2
+                        hyParams['NAGENTSTEPS'] = 2
+                        hyParams['NNTYPE'] = NNTYPE
+                        hyParams['NHIDDENNODES'] = [5] * 2
+                        hyParams['HIDDENACTIVATIONS'] = ['relu'] * 2
+                        hyParams['BATCHNORMALIZATION'] = True
+                        hyParams['NOVELTYSEARCH'] = True
+                        hyParams['ADDNOVELTYEVERY'] = 1
+                        hyParams['NNOVELTYELITES'] = 2
+                        hyParams['NNOVELTYNEIGHBORS'] = 5
+                        FloPyArcadeGeneticNetwork.main(envSettings, hyParams)
+                        print('Genetic agent in environment ' + ENVTYPE + ' succeeded.')
+                    except Exception as e:
+                        raised = True
+                        failed.append(ENVTYPE)
+                        print('error FloPyArcadeGeneticNetwork', e)
         for ENVTYPE in failed:
             self.assertFalse(raised, 'Genetic agent in environment ' + ENVTYPE + ' failed.')
 
@@ -137,11 +140,15 @@ if __name__ == '__main__':
 
     # deleting all test-related files, except unittestAgent.h5
     wrkspc = dirname(abspath(__file__))
-    folders = ['models', 'runs', 'temp']
-    for folder in folders:
-        unittestFilesAndFolders = glob(join(wrkspc, folder, 'unittest*'))
-        for obj in unittestFilesAndFolders:
-            if isdir(obj):
-                rmtree(obj)
-            elif isfile(obj):
-                remove(obj)
+    unittestFilesAndFolders = glob(join(wrkspc, 'models', 'unittest*'))
+    for obj in unittestFilesAndFolders:
+        if isdir(obj):
+            rmtree(obj)
+        elif isfile(obj):
+            remove(obj)
+    unittestFilesAndFolders = glob(join(wrkspc, 'temp', 'unittest*'))
+    for obj in unittestFilesAndFolders:
+        if isdir(obj):
+            rmtree(obj)
+        elif isfile(obj):
+            remove(obj)
