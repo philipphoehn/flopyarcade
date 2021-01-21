@@ -15,6 +15,7 @@ from flopy.modpath import Modpath6 as Modpath
 from flopy.modpath import Modpath6Bas as ModpathBas
 from flopy.plot import PlotMapView
 from flopy.utils import CellBudgetFile, HeadFile, PathlineFile
+from glob import glob
 from imageio import get_writer, imread
 from itertools import chain, product
 from joblib import dump as joblibDump
@@ -25,16 +26,19 @@ from matplotlib.pyplot import Circle, close, figure, pause, show
 from matplotlib.pyplot import get_current_fig_manager
 from matplotlib.pyplot import margins, NullLocator
 from matplotlib.pyplot import waitforbuttonpress
+from matplotlib import text as mtext
+from matplotlib.transforms import Bbox
 from numpy import add, arange, argmax, argsort, array, ceil, copy, concatenate, divide, expand_dims
-from numpy import extract, float32, fromstring, int32, linspace, max, maximum, min, minimum
+from numpy import extract, float32, frombuffer, int32, linspace, max, maximum, min, minimum
 from numpy import mean, multiply, ones, shape, sqrt, subtract, uint8, zeros
 from numpy import sum as numpySum
 from numpy import abs as numpyAbs
 from numpy.random import randint, random, randn, uniform
 from numpy.random import seed as numpySeed
 from os import environ, listdir, makedirs, remove, rmdir
-from os.path import abspath, dirname, exists, join
+from os.path import abspath, dirname, exists, isdir, join
 from platform import system
+from shutil import rmtree
 from sys import modules
 if 'ipykernel' in modules:
     from IPython import display
@@ -58,7 +62,7 @@ from pathos.pools import _ThreadPool as ThreadPool
 from pickle import dump, load
 from tensorflow.keras.initializers import glorot_uniform
 from tensorflow.keras.layers import Activation, BatchNormalization, Conv2D, Dense
-from tensorflow.keras.layers import Dropout, Flatten, MaxPooling2D
+from tensorflow.keras.layers import Dropout, Flatten, AveragePooling2D, MaxPooling2D
 from tensorflow.keras.models import clone_model, load_model, model_from_json
 from tensorflow.keras.models import save_model
 from tensorflow.keras.models import Sequential
@@ -67,7 +71,6 @@ from random import sample as randomSample, seed as randomSeed
 from tensorflow.compat.v1 import ConfigProto, set_random_seed
 from tensorflow.compat.v1 import Session as TFSession
 from tensorflow.compat.v1.keras import backend as K
-from tensorflow.keras.models import load_model as TFload_model
 from tqdm import tqdm
 from uuid import uuid4
 
@@ -75,6 +78,10 @@ from uuid import uuid4
 # https://github.com/keras-team/keras/issues/9964
 # https://stackoverflow.com/questions/40615795/pathos-enforce-spawning-on-linux
 pathosHelpers.mp.context._force_start_method('spawn')
+
+# to avoid thread erros
+# https://stackoverflow.com/questions/52839758/matplotlib-and-runtimeerror-main-thread-is-not-in-main-loop
+# matplotlibBackend('Agg')
 
 
 class FloPyAgent():
@@ -84,7 +91,7 @@ class FloPyAgent():
 
     def __init__(self, observationsVector=None, actionSpace=['keep'],
                  hyParams=None, envSettings=None, mode='random',
-                 maxTasksPerWorker=20, maxTasksPerWorkerMutate=10,
+                 maxTasksPerWorker=20, maxTasksPerWorkerMutate=20,
                  maxTasksPerWorkerNoveltySearch=100000, zFill=6):
         """Constructor"""
 
@@ -115,12 +122,29 @@ class FloPyAgent():
 
         if self.agentMode == 'DQN':
             # initializing DQN agent
+            self.actionType = FloPyEnv(initWithSolution=False).getActionType(self.envSettings['ENVTYPE'])
             self.initializeDQNAgent()
 
         if self.agentMode == 'genetic':
+            self.actionType = FloPyEnv(initWithSolution=False).getActionType(self.envSettings['ENVTYPE'])
+
             # creating required folders if inexistent
             self.tempModelpth = join(self.wrkspc, 'temp', 
                 self.envSettings['MODELNAME'])
+
+            if not self.envSettings['RESUME']:
+                # removing previous models if existing to avoid loading outdated models
+                modelFiles = glob(join(self.modelpth, self.envSettings['MODELNAME'] + '_' + '*'))
+                for item in modelFiles:
+                    try:
+                        remove(item)
+                    except:
+                        files = glob(join(item, '*'))
+                        for f in files:
+                            remove(f)
+                if isdir(self.tempModelpth):
+                    rmtree(self.tempModelpth)
+
             if not exists(self.tempModelpth):
                 makedirs(self.tempModelpth)
             if self.envSettings['BESTAGENTANIMATION']:
@@ -161,14 +185,10 @@ class FloPyAgent():
         https://github.com/keras-team/keras/issues/6462
         """
 
-        # actionType = self.envSettings
-
-        actionType = FloPyEnv(initWithSolution=False).getActionType(self.envSettings['ENVTYPE'])
-        
         # initializing main predictive and target model
-        self.mainModel = self.createNNModel(actionType)
+        self.mainModel = self.createNNModel(self.actionType)
         # self.mainModel._make_predict_function()
-        self.targetModel = self.createNNModel(actionType)
+        self.targetModel = self.createNNModel(self.actionType)
         # self.targetModel._make_predict_function()
         self.targetModel.set_weights(self.mainModel.get_weights())
 
@@ -182,14 +202,19 @@ class FloPyAgent():
     def initializeGeneticAgents(self):
         """Initialize genetic ensemble of agents."""
 
-        chunksTotal = self.yieldChunks(arange(self.hyParams['NAGENTS']),
-            self.envSettings['NAGENTSPARALLEL']*self.maxTasksPerWorkerMutate)
-        for chunk in chunksTotal:
-            _ = self.multiprocessChunks(self.randomAgentGenetic, chunk)
-
-    # to avoid thread erros
-    # https://stackoverflow.com/questions/52839758/matplotlib-and-runtimeerror-main-thread-is-not-in-main-loop
-    # matplotlibBackend('Agg')
+        if self.envSettings['KEEPMODELHISTORY']:
+            chunksTotal = self.yieldChunks(arange(self.hyParams['NAGENTS']),
+                self.envSettings['NAGENTSPARALLEL']*self.maxTasksPerWorkerMutate)
+            for chunk in chunksTotal:
+                print(chunk)
+                _ = self.multiprocessChunks(self.saveRandomAgentGenetic, chunk)
+        else:
+            self.mutationHistory = {}
+            for iAgent in range(self.hyParams['NAGENTS']):
+                creationSeed = iAgent+1
+                agentNumber = iAgent+1
+                # agent = self.createNNModel(self.actionType, seed=creationSeed)
+                self.mutationHistory = self.updateMutationHistory(self.mutationHistory, agentNumber, creationSeed, mutationSeeds=[], mutationSeed=None)
 
     def setSeeds(self):
         """Set seeds."""
@@ -204,8 +229,6 @@ class FloPyAgent():
         # Inspiration and larger parts of code modified after sentdex
         # https://pythonprogramming.net/deep-q-learning-dqn-reinforcement-learning-python-tutorial/
         """
-
-        self.actionType = env.actionType
 
         # generating seeds to generate reproducible cross-validation data
         # note: avoids variability from averaged new games
@@ -268,16 +291,16 @@ class FloPyAgent():
 
         self.actionType = env.actionType
 
-        if self.hyParams['NOVELTYSEARCH'] and not self.envSettings['KEEPMODELHISTORY']:
-            raise ValueError('Settings and hyperparameters require changes: ' + \
-                             'If model history is not kept, novelty search cannot ' + \
-                             'be performed as it updates novelty archive regularly ' + \
-                             'and might require loading agents of previous generations.')
+        # if self.hyParams['NOVELTYSEARCH'] and not self.envSettings['KEEPMODELHISTORY']:
+        #     raise ValueError('Settings and hyperparameters require changes: ' + \
+        #                      'If model history is not kept, novelty search cannot ' + \
+        #                      'be performed as it updates novelty archive regularly ' + \
+        #                      'and might require loading agents of previous generations.')
 
         if self.hyParams['NAGENTS'] <= self.hyParams['NNOVELTYELITES']:
             raise ValueError('Settings and hyperparameters require changes: ' + \
                              'The number of novelty elites considered during novelty search ' + \
-                             'should be lower than the number of agents considered.' + \
+                             'should be lower than the number of agents considered ' + \
                              'to evolve.')
 
         # setting environment and number of games
@@ -305,6 +328,9 @@ class FloPyAgent():
                     if self.geneticGeneration > 0:
                         self.noveltyArchive = self.pickleLoad(join(
                             self.tempPrevModelPrefix + '_noveltyArchive.p'))
+                        if not self.envSettings['KEEPMODELHISTORY']:
+                            self.mutationHistory = self.pickleLoad(join(
+                                self.tempPrevModelPrefix + '_mutationHistory.p'))
                         self.noveltyItemCount = len(self.noveltyArchive.keys())
                 sortedParentIdxs, continueFlag, breakFlag = self.resumeGenetic()
                 if continueFlag: continue
@@ -377,12 +403,7 @@ class FloPyAgent():
                         else:
                             self.agentsDuplicate.append(k)
 
-
-
                         # is this necessary?
-
-
-
                         # else:
                         #     self.agentsUnique, self.agentsUniqueIDs, self.agentsDuplicate = [], [], []
                         #     # otherwise computed as if unique to avoid assigning novelty
@@ -432,6 +453,10 @@ class FloPyAgent():
 
                 self.pickleDump(join(self.tempModelPrefix +
                     '_noveltyArchive.p'), self.noveltyArchive)
+                if not self.envSettings['KEEPMODELHISTORY']:
+                    self.pickleDump(join(self.tempModelPrefix +
+                        '_mutationHistory.p'), self.mutationHistory)
+
                 self.novelties, self.noveltyFilenames = [], []
                 for k in range(self.noveltyItemCount):
                     agentStr = 'agent' + str(k+1)
@@ -460,67 +485,119 @@ class FloPyAgent():
                 if not self.flagSkipGeneration:
                     self.saveBestAgentAnimation(env, self.bestAgentFileName,
                         MODELNAMEGENCOUNT, MODELNAME)
-            if not self.envSettings['KEEPMODELHISTORY']:
-                # removing stored agent models of finished generation
-                # as the storage requirements can be substantial
-                for agentIdx in range(self.hyParams['NAGENTS']):
-                    remove(join(self.tempModelPrefix + '_agent' +
-                        str(agentIdx + 1).zfill(self.zFill) + '.h5'))
+            # if not self.envSettings['KEEPMODELHISTORY']:
+            #     # removing stored agent models of finished generation
+            #     # as the storage requirements can be substantial
+            #     for agentIdx in range(self.hyParams['NAGENTS']):
+            #         remove(join(self.tempModelPrefix + '_agent' +
+            #             str(agentIdx + 1).zfill(self.zFill) + '.h5'))
 
     def createNNModel(self, actionType, seed=None):
         """Create neural network."""
         if seed is None:
             seed = self.SEED
         model = Sequential()
-        initializer = glorot_uniform(seed=seed)
-        nHiddenNodes = copy(self.hyParams['NHIDDENNODES'])
+        seedOffset = 0
         # resetting numpy seeds to generate reproducible architecture
         numpySeed(seed)
+        inputShape = shape(self.observationsVector)
 
         if self.hyParams['NNTYPE'] == 'perceptron':
             # fully-connected feed-forward multi-layer neural network
 
+            nHiddenNodes = copy(self.hyParams['NHIDDENNODES'])
             # applying architecture (variable number of nodes per hidden layer)
             if self.agentMode == 'genetic' and self.hyParams['ARCHITECTUREVARY']:
-                for layerIdx in range(len(nHiddenNodes)):
-                    nHiddenNodes[layerIdx] = randint(2, self.hyParams['NHIDDENNODES'][layerIdx]+1)
-            for layerIdx in range(len(nHiddenNodes)):
-                inputShape = shape(self.observationsVector) if layerIdx == 0 else []
-                model.add(Dense(units=nHiddenNodes[layerIdx],
-                    input_shape=inputShape,
-                    kernel_initializer=glorot_uniform(seed=seed),
-                    use_bias=True))
+                for iLayer in range(len(nHiddenNodes)):
+                    nHiddenNodes[iLayer] = randint(2, self.hyParams['NHIDDENNODES'][iLayer]+1)
+            for iLayer in range(len(nHiddenNodes)):
+                if iLayer == 0:
+                    model.add(Dense(units=nHiddenNodes[iLayer],
+                        input_shape=inputShape,
+                        kernel_initializer=glorot_uniform(seed=seed+seedOffset),
+                        use_bias=True))
+                    seedOffset += 1
+                else:
+                    model.add(Dense(units=nHiddenNodes[iLayer],
+                        kernel_initializer=glorot_uniform(seed=seed+seedOffset),
+                        use_bias=True))
+                    seedOffset += 1
                 if self.hyParams['BATCHNORMALIZATION']:
                     model.add(BatchNormalization())
-                model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][layerIdx]))
+                model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][iLayer]))
                 if 'DROPOUTS' in self.hyParams:
-                    if self.hyParams['DROPOUTS'][layerIdx] != 0.0:
-                        model.add(Dropout(self.hyParams['DROPOUTS'][layerIdx]))
+                    if self.hyParams['DROPOUTS'][iLayer] != 0.0:
+                        model.add(Dropout(self.hyParams['DROPOUTS'][iLayer]))
 
         elif self.hyParams['NNTYPE'] == 'convolution':
             # convolutional feed-forward neural network
-            
-            inputShape = shape(self.observationsVector)
-            model.add(Conv2D(32, kernel_size=(8, 8), strides=(4, 4),
-                             activation='relu',
-                             input_shape=inputShape, padding='same'))
-            # model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-            model.add(Conv2D(64, kernel_size=(4, 4), strides=(2, 2),
-                             activation='relu', padding='same'))
-            # model.add(MaxPooling2D(pool_size=(2, 2)))
-            model.add(Conv2D(64, kernel_size=(3, 3), strides=(1, 1),
-                             activation='relu', padding='same'))
+
+            nConvFilters = copy(self.hyParams['NCONVFILTERS'])
+            for iLayer in range(len(nConvFilters)):
+                if iLayer == 0:
+                    model.add(Conv2D(nConvFilters[iLayer],
+                        kernel_size=(self.hyParams['CONVKERNELSIZES'][iLayer], self.hyParams['CONVKERNELSIZES'][iLayer]),
+                        strides=(self.hyParams['CONVSTRIDES'][iLayer], self.hyParams['CONVSTRIDES'][iLayer]),
+                        activation=self.hyParams['CONVACTIVATIONS'][iLayer],
+                        input_shape=inputShape,
+                        kernel_initializer=glorot_uniform(seed=seed+seedOffset),
+                        use_bias=True,
+                        padding='same')
+                    )
+                    seedOffset += 1
+                else:
+                    model.add(Conv2D(nConvFilters[iLayer],
+                        kernel_size=(self.hyParams['CONVKERNELSIZES'][iLayer], self.hyParams['CONVKERNELSIZES'][iLayer]),
+                        strides=(self.hyParams['CONVSTRIDES'][iLayer], self.hyParams['CONVSTRIDES'][iLayer]),
+                        activation=self.hyParams['CONVACTIVATIONS'][iLayer],
+                        kernel_initializer=glorot_uniform(seed=seed+seedOffset),
+                        use_bias=True,
+                        padding='same')
+                    )
+                    seedOffset += 1
+
+                if self.hyParams['CONVPOOLING'] != None:
+                    if iLayer+1 != len(nConvFilters):
+                        if self.hyParams['CONVPOOLING'] == 'max':
+                            model.add(MaxPooling2D(
+                                pool_size=(self.hyParams['CONVPOOLSIZES'][iLayer], self.hyParams['CONVPOOLSIZES'][iLayer]),
+                                strides=(self.hyParams['CONVPOOLSTRIDES'][iLayer], self.hyParams['CONVPOOLSTRIDES'][iLayer]))
+                            )
+                        if self.hyParams['CONVPOOLING'] == 'mean':
+                            model.add(AveragePooling2D(
+                                pool_size=(self.hyParams['CONVPOOLSIZES'][iLayer], self.hyParams['CONVPOOLSIZES'][iLayer]),
+                                strides=(self.hyParams['CONVPOOLSTRIDES'][iLayer], self.hyParams['CONVPOOLSTRIDES'][iLayer]))
+                            )
             model.add(Flatten())
-            model.add(Dense(512, activation='relu'))
-            
+
+            nHiddenNodes = copy(self.hyParams['NHIDDENNODES'])
+            # applying architecture (variable number of nodes per hidden layer)
+            if self.agentMode == 'genetic' and self.hyParams['ARCHITECTUREVARY']:
+                for iLayer in range(len(nHiddenNodes)):
+                    nHiddenNodes[iLayer] = randint(2, self.hyParams['NHIDDENNODES'][iLayer]+1)
+
+            for iLayer in range(len(nHiddenNodes)):
+                model.add(Dense(units=nHiddenNodes[iLayer],
+                    kernel_initializer=glorot_uniform(seed=seed+seedOffset),
+                    use_bias=True))
+                seedOffset += 1
+                if self.hyParams['BATCHNORMALIZATION']:
+                    model.add(BatchNormalization())
+                model.add(Activation(self.hyParams['HIDDENACTIVATIONS'][iLayer]))
+                if 'DROPOUTS' in self.hyParams:
+                    if self.hyParams['DROPOUTS'][iLayer] != 0.0:
+                        model.add(Dropout(self.hyParams['DROPOUTS'][iLayer]))
+
         # adding output layer
         if actionType == 'discrete':
             model.add(Dense(self.actionSpaceSize, activation='linear', # 'softmax'
-                kernel_initializer=initializer))
+                kernel_initializer=glorot_uniform(seed=seed+seedOffset)))
+            seedOffset += 1
         elif actionType == 'continuous':
             # sigmoid used here as actions are predicted as fraction of actionRange
             model.add(Dense(self.actionSpaceSize, activation='sigmoid',
-                kernel_initializer=initializer))
+                kernel_initializer=glorot_uniform(seed=seed+seedOffset)))
+            seedOffset += 1
 
         # compiling to avoid warning while saving agents in genetic search
         # specifics are irrelevant, as genetic models are not optimized
@@ -529,6 +606,43 @@ class FloPyAgent():
                       metrics=['mean_squared_error'])
 
         return model
+
+    def checkParameterMean(self, agent):
+        
+        weights, means = agent.get_weights(), []
+        for iParam, parameters in enumerate(weights):
+            means.append(mean(weights[iParam]))
+        
+        return mean(means)
+
+    def loadModelFromMutationHistory(self, creationSeed, mutationSeeds):
+
+        agent = self.createNNModel(self.actionType, seed=creationSeed)
+
+        for mutationSeed in mutationSeeds:
+            agent = self.mutateGenetic(agent, mutationSeed)
+        
+        return agent
+
+    def updateMutationHistory(self, mutationHistory, agentNumber, creationSeed, mutationSeeds=[], mutationSeed=None):
+
+        mutationHistory['agent' + str(agentNumber)] = {}
+        mutationHistory['agent' + str(agentNumber)]['creationSeed'] = creationSeed
+        mutationHistory['agent' + str(agentNumber)]['mutationSeeds'] = mutationSeeds
+        if mutationSeed != None:
+            mutationHistory['agent' + str(agentNumber)]['mutationSeeds'].append(mutationSeed)
+        
+        return mutationHistory
+
+    def createMutationRecord(self, creationSeed, mutationSeeds=[], mutationSeed=None):
+
+        record = {}
+        record['creationSeed'] = creationSeed
+        record['mutationSeeds'] = mutationSeeds
+        if mutationSeed != None:
+            record['mutationSeeds'].append(mutationSeed)
+        
+        return record
 
     def updateReplayMemory(self, transition):
         """Update replay memory by adding a given step's data to a memory
@@ -767,9 +881,18 @@ class FloPyAgent():
         #     + str(agentCount + 1).zfill(self.zFill))
         tempAgentPrefix = join(self.tempModelPrefix + '_agent'
             + str(agentCount + 1).zfill(self.zFill))
-        t0load_model = time()
+
         # loading specific agent and weights with given ID
-        agent = load_model(join(tempAgentPrefix + '.h5'), compile=False)
+        t0load_model = time()
+        if self.envSettings['KEEPMODELHISTORY']:
+            agent = load_model(join(tempAgentPrefix + '.h5'), compile=False)
+        else:
+            agentOffset = self.hyParams['NAGENTS'] * (self.geneticGeneration)
+            # print(self.mutationHistory)
+            agentNumber = agentCount + 1 + agentOffset
+            creationSeed = self.mutationHistory['agent' + str(agentNumber)]['creationSeed']
+            mutationSeeds = self.mutationHistory['agent' + str(agentNumber)]['mutationSeeds']
+            agent = self.loadModelFromMutationHistory(creationSeed, mutationSeeds)
         # print('debug duration load_model compiled', time() - t0load_model)
 
         MODELNAMETEMP = ('Temp' + self.pid +
@@ -834,6 +957,7 @@ class FloPyAgent():
                 pth = join(tempAgentPrefix + '_results.p')
                 self.pickleDump(pth, results)
                 break
+        # print(agentCount, ' game time', time()-t0game, 'step time', (time()-t0game)/step, 'reward', r, 'steps', step)
 
         return r
 
@@ -863,7 +987,7 @@ class FloPyAgent():
 
         return reward_agentsMean
 
-    def randomAgentGenetic(self, agentIdx, generation=1):
+    def saveRandomAgentGenetic(self, agentIdx, generation=1):
         """Creates an agent for genetic optimisation and saves
         it to disk individually.
         """
@@ -915,24 +1039,45 @@ class FloPyAgent():
             self.candidateNoveltyParentIdxs = argsort(
                 self.novelties)[::-1][:self.hyParams['NNOVELTYELITES']]
 
-        bestAgent = load_model(join(self.tempModelPrefix + '_agent' +
-            str(sortedParentIdxs[0] + 1).zfill(self.zFill) + '.h5'),
-            compile=False)
+        if self.envSettings['KEEPMODELHISTORY']:
+            bestAgent = load_model(join(self.tempModelPrefix + '_agent' +
+                str(sortedParentIdxs[0] + 1).zfill(self.zFill) + '.h5'),
+                compile=False)
+        else:
+            agentOffsetBest = self.hyParams['NAGENTS'] * (self.geneticGeneration)
+            agentNumberBest = sortedParentIdxs[0] + 1 + agentOffsetBest
+            creationSeedBest = self.mutationHistory['agent' + str(agentNumberBest)]['creationSeed']
+            mutationSeedsBest = self.mutationHistory['agent' + str(agentNumberBest)]['mutationSeeds']
+            bestAgent = self.loadModelFromMutationHistory(creationSeedBest, mutationSeedsBest)
 
         if not self.rereturnChildrenGenetic:
             bestAgent.save(join(self.tempModelPrefix + '_agentBest.h5'))
         if generation < self.hyParams['NGENERATIONS']:
-            bestAgent.save(join(tempNextModelPrefix + '_agent' +
-                str(self.hyParams['NAGENTS']).zfill(self.zFill) + '.h5'))
+            if self.envSettings['KEEPMODELHISTORY']:
+                bestAgent.save(join(tempNextModelPrefix + '_agent' +
+                    str(self.hyParams['NAGENTS']).zfill(self.zFill) + '.h5'))
             nAgentElites = self.hyParams['NAGENTELITES']
-            # nNoveltyAgents = self.hyParams['NNOVELTYELITES']
             nNoveltyAgents = self.hyParams['NNOVELTYAGENTS']
             self.candidateParentIdxs = sortedParentIdxs[:nAgentElites]
+
+            records = []
             chunksTotal = self.yieldChunks(arange(self.hyParams['NAGENTS']-1),
                 self.envSettings['NAGENTSPARALLEL']*self.maxTasksPerWorkerMutate)
             for chunk in chunksTotal:
-                _ = self.multiprocessChunks(self.returnChildrenGeneticSingleRun,
+                records += self.multiprocessChunks(self.returnChildrenGeneticSingleRun,
                     chunk)
+
+            if not self.envSettings['KEEPMODELHISTORY']:
+                agentOffset = self.hyParams['NAGENTS'] * (self.geneticGeneration+1)
+                # agentNumber = sortedParentIdxs[0] + 1 + agentOffset
+                # storing updates to mutation history
+                for iRecord, record in enumerate(records):
+                    self.mutationHistory['agent' + str(iRecord+1+agentOffset)] = record
+                # saving best agent to mutation history
+                creationSeed = self.mutationHistory['agent' + str(agentNumberBest)]['creationSeed']
+                mutationSeeds = self.mutationHistory['agent' + str(agentNumberBest)]['mutationSeeds']
+                recordBest = self.createMutationRecord(creationSeed, mutationSeeds, None)
+                self.mutationHistory['agent' + str(self.hyParams['NAGENTS']+agentOffset)] = recordBest
 
         if self.rereturnChildrenGenetic:
             # resetting temporarily changed prefixes
@@ -942,6 +1087,9 @@ class FloPyAgent():
     def returnChildrenGeneticSingleRun(self, childIdx):
         """
         """
+
+        numpySeed(childIdx)
+        # numpySeed(selected_agent_index+1)
 
         len_ = len(self.candidateParentIdxs)
         selected_agent_index = self.candidateParentIdxs[randint(len_)]
@@ -956,12 +1104,10 @@ class FloPyAgent():
                 else:
                     generation = self.geneticGeneration + 1
                 if (childIdx+1 ==
-                    # remainingElites - self.hyParams['NNOVELTYELITES']):
                     remainingElites - self.hyParams['NNOVELTYAGENTS']):
 
                     print('Performing novelty evolution after generation',
                         generation)
-                # if remainingElites <= self.hyParams['NNOVELTYELITES']:
                 if remainingElites <= self.hyParams['NNOVELTYAGENTS']:
                     # selecting a novelty parent randomly
                     len_ = len(self.candidateNoveltyParentIdxs)
@@ -978,49 +1124,76 @@ class FloPyAgent():
         success = False
         while not success:
             try:
-                agent = load_model(agentPth,
-                    compile=False)
+                if self.envSettings['KEEPMODELHISTORY']:
+                    agent = load_model(agentPth,
+                        compile=False)
+                else:
+                    # agentOffset = self.hyParams['NAGENTS'] * (self.geneticGeneration)
+                    # agentNumber = selected_agent_index + 1 + agentOffset
+                    agentNumber = selected_agent_index + 1
+                    # print('debug selected_agent_index', selected_agent_index, 'agentNumber', agentNumber)
+                    creationSeed = self.mutationHistory['agent' + str(agentNumber)]['creationSeed']
+                    mutationSeeds = self.mutationHistory['agent' + str(agentNumber)]['mutationSeeds']
+                    agent = self.loadModelFromMutationHistory(creationSeed, mutationSeeds)
                 success = True
             except Exception as e:
                 success = False
                 print('Retrying loading parent agent, possibly due to lock.')
                 print(e)
                 sleep(1)
+
+        mutationSeed = selected_agent_index+1 + randint(0, 1000000000)
         # altering parent agent to create child agent
-        childrenAgent = self.mutateGenetic(agent)
-        childrenAgent.save(join(self.tempNextModelPrefix +
-            '_agent' + str(childIdx + 1).zfill(self.zFill) + '.h5'))
+        childrenAgent = self.mutateGenetic(agent, mutationSeed)
 
-        # print('debug loading', agentPth)
-        # print('debug saving', join(self.tempNextModelPrefix +
-        #     '_agent' + str(childIdx + 1).zfill(self.zFill) + '.h5'))
+        if self.envSettings['KEEPMODELHISTORY']:
+            childrenAgent.save(join(self.tempNextModelPrefix +
+                '_agent' + str(childIdx + 1).zfill(self.zFill) + '.h5'))
+            return ''
+        else:
+            creationSeed = self.mutationHistory['agent' + str(agentNumber)]['creationSeed']
+            mutationSeeds = self.mutationHistory['agent' + str(agentNumber)]['mutationSeeds']
+            record = self.createMutationRecord(creationSeed, mutationSeeds, mutationSeed)
+            return record
 
-    def mutateGenetic(self, agent):
+    def countParameters(self, agent):
+        """Count number of policy model parameters."""
+
+        parameters = agent.get_weights()
+        nParameters = 0
+        for iParam, parameters in enumerate(parameters):
+            nParameters += parameters.size
+
+        return nParameters
+
+    def mutateGenetic(self, agent, seed):
         """Mutate single agent model.
         Mutation power is a hyperparameter. Find example values at:
         https://arxiv.org/pdf/1712.06567.pdf
         """
 
+        numpySeed(seed)
+
         mProb = self.hyParams['MUTATIONPROBABILITY']
         mPower = self.hyParams['MUTATIONPOWER']
-        weights = agent.get_weights()
-        # nParameters = 0
-        for iParam, parameters in enumerate(weights):
-            # nParameters += parameters.size
-            randn_ = mPower * randn(*shape(parameters))
-            mutateDecisions_ = self.mutateDecisions(mProb, shape(parameters))
+        parameters = agent.get_weights()
+        for iParam, parameters_ in enumerate(parameters):
+            randn_ = mPower * randn(*shape(parameters_))
+            mutateDecisions_ = self.mutateDecisions(mProb, shape(parameters_))
             permutation = randn_*mutateDecisions_
-            weights[iParam] = add(parameters, permutation)
-        agent.set_weights(weights)
+            parameters[iParam] = add(parameters_, permutation)
+        agent.set_weights(parameters)
 
         return agent
 
     def mutateDecision(self, probability):
         """Return boolean defining whether to mutate or not."""
+
         return random() < probability
 
     def mutateDecisions(self, probability, shape):
         """Return boolean defining whether to mutate or not."""
+
         return random(shape) < probability
 
     def getqsGivenAgentModel(self, agentModel, state):
@@ -1037,7 +1210,6 @@ class FloPyAgent():
         # Note: change model load and save as json mode is faster
         # this is a temporary quickfix
 
-        # self.modelpth
         modelPrefix = join(self.modelpth, modelNameLoad)
         if exists(modelPrefix + '.json'):
             with open(modelPrefix + '.json') as json_file:
@@ -1106,10 +1278,10 @@ class FloPyAgent():
         if exists(bestAgentpth):
             indexespth = join(self.tempModelPrefix +
                 '_agentsSortedParentIndexes.p')
-            noveltyArchivepth = join(self.tempModelPrefix +
-                '_noveltyArchive.p')
             self.sortedParentIdxs = self.pickleLoad(indexespth)
-            self.noveltyArchive = self.pickleLoad(noveltyArchivepth)
+            self.noveltyArchive = self.pickleLoad(join(self.tempModelPrefix + '_noveltyArchive.p'))
+            if not self.envSettings['KEEPMODELHISTORY']:
+                self.mutationHistory = self.pickleLoad(join(self.tempModelPrefix + '_mutationHistory.p'))
             self.flagSkipGeneration, continueFlag = True, True
 
             self.novelties, self.noveltyFilenames = [], []
@@ -1122,14 +1294,14 @@ class FloPyAgent():
 
         # regenerating children for generation to resume at
         else:
-            if self.envSettings['KEEPMODELHISTORY']:
-                with Pool(1) as executor:
-                    self.rereturnChildrenGenetic = True
-                    self.returnChildrenGenetic(self.sortedParentIdxs)
-                    self.rereturnChildrenGenetic = False
-            elif not self.envSettings['KEEPMODELHISTORY']:
-                print('Resuming impossible with missing model history.')
-                breakFlag = True
+            # if self.envSettings['KEEPMODELHISTORY']:
+            with Pool(1) as executor:
+                self.rereturnChildrenGenetic = True
+                self.returnChildrenGenetic(self.sortedParentIdxs)
+                self.rereturnChildrenGenetic = False
+            # elif not self.envSettings['KEEPMODELHISTORY']:
+                # print('Resuming impossible with missing model history.')
+                # breakFlag = True
             # changing resume flag if resuming
             self.envSettings['RESUME'] = False
 
@@ -1390,7 +1562,7 @@ class FloPyEnv():
                  ENVTYPE='1s-d', PATHMF2005=None, PATHMP6=None,
                  MODELNAME='FloPyArcade', ANIMATIONFOLDER='FloPyArcade',
                  _seed=None, flagSavePlot=False, flagManualControl=False,
-                 manualControlTime=0.1, flagRender=False, NAGENTSTEPS=None,
+                 manualControlTime=0.1, flagRender=False, NAGENTSTEPS=200,
                  nLay=1, nRow=100, nCol=100, OBSPREP='perceptron',
                  initWithSolution=True):
         """Constructor."""
@@ -1538,18 +1710,18 @@ class FloPyEnv():
                 self.observations['wellQ'+w] = self.helperWells['wellQ'+w]
                 self.observations['wellCoords'+w] = self.helperWells['wellCoords'+w]
         self.observationsNormalized['particleCoords'] = divide(
-            copy(self.particleCoords), self.minX + self.extentX)
+            copy(self.particleCoords), numpyAbs(self.minX + self.extentX))
         self.observationsNormalized['heads'] = divide(array(self.observations['heads']) - self.minH,
             self.maxH - self.minH)
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
-            self.wellCoords, self.minX + self.extentX)
+            self.wellCoords, numpyAbs(self.minX + self.extentX))
         if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             for i in range(self.nHelperWells):
                 w = str(i+1)
                 self.observationsNormalized['wellQ'+w] = self.helperWells['wellQ'+w] / self.minQhelper
                 self.observationsNormalized['wellCoords'+w] = divide(
-                    self.helperWells['wellCoords'+w], self.minX + self.extentX)
+                    self.helperWells['wellCoords'+w], numpyAbs(self.minX + self.extentX))
         self.observationsNormalizedHeads['heads'] = divide(array(self.heads) - self.minH,
             self.maxH - self.minH)
 
@@ -1589,10 +1761,13 @@ class FloPyEnv():
                 self.stressesVectorNormalized += [self.helperWells['wellQ'+w]/self.minQ, self.helperWells['wellX'+w]/(self.minX+self.extentX),
                     self.helperWells['wellY'+w]/(self.minY+self.extentY), self.helperWells['wellZ'+w]/(self.zBot+self.zTop)]
 
-        self.timeStepDuration = []
+        # self.timeStepDuration = []
 
     def step(self, observations, action, rewardCurrent):
         """Perform a single step of forwards simulation."""
+
+        t0 = time()
+        self.debugTimeBlind = time()-t0
 
         if self.timeStep == 0:
             if not self.initWithSolution:
@@ -1603,7 +1778,7 @@ class FloPyEnv():
         self.timeStep += 1
         self.keyPressed = None
         self.periodSteadiness = False
-        t0total = time()
+        # t0total = time()
 
         # print('debug action step', action)
         self.setActionValue(action)
@@ -1620,13 +1795,22 @@ class FloPyEnv():
         # if self._SEED is not None:
         #     numpySeed(self._SEED)
 
+        self.debugTime1 = time()-t0
+
         self.initializeState(self.state)
+        self.debugTime2 = time()-t0
         self.updateModel()
+        self.debugTime3 = time()-t0
         self.updateWellRate()
+        self.debugTime4 = time()-t0
         self.updateWell()
+        self.debugTime5 = time()-t0
         self.runMODFLOW()
+        self.debugTime6 = time()-t0
         self.runMODPATH()
+        self.debugTime7 = time()-t0
         self.evaluateParticleTracking()
+        self.debugTime8 = time()-t0
 
         # calculating game reward
         self.reward = self.calculateGameReward(self.trajectories) 
@@ -1700,20 +1884,20 @@ class FloPyEnv():
                 self.observations['wellQ'+w] = self.helperWells['wellQ'+w]
                 self.observations['wellCoords'+w] = self.helperWells['wellCoords'+w]
         self.observationsNormalized['particleCoords'] = divide(
-            copy(self.particleCoordsAfter), self.minX + self.extentX)
+            copy(self.particleCoordsAfter), numpyAbs(self.minX + self.extentX))
         self.observationsNormalized['heads'] = divide(array(self.observations['heads']) - self.minH,
             self.maxH - self.minH)
         # self.observationsNormalized['heads'] = divide(array(self.observations['heads']) - self.minH,
         #     self.maxH - self.minH)
         self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
         self.observationsNormalized['wellCoords'] = divide(
-            self.wellCoords, self.minX + self.extentX)
+            self.wellCoords, numpyAbs(self.minX + self.extentX))
         if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             for i in range(self.nHelperWells):
                 w = str(i+1)
                 self.observationsNormalized['wellQ'+w] = self.helperWells['wellQ'+w] / self.minQhelper
                 self.observationsNormalized['wellCoords'+w] = divide(
-                    self.helperWells['wellCoords'+w], self.minX + self.extentX)
+                    self.helperWells['wellCoords'+w], numpyAbs(self.minX + self.extentX))
         self.observationsNormalizedHeads['heads'] = divide(array(self.heads) - self.minH,
             self.maxH - self.minH)
 
@@ -1808,7 +1992,7 @@ class FloPyEnv():
                 self.reward = (self.rewardCurrent) * (-1.0)
 
         self.rewardCurrent += self.reward
-        self.timeStepDuration.append(time() - t0total)
+        # self.timeStepDuration.append(time() - t0total)
 
         if self.RENDER or self.MANUALCONTROL or self.SAVEPLOT:
             self.render()
@@ -1817,7 +2001,8 @@ class FloPyEnv():
             # print('debug average timeStepDuration', mean(self.timeStepDuration))
 
             # necessary to remove these file handles to release file locks
-            del self.mf, self.cbb, self.hdobj
+            # del self.mf
+            # self.cbb, self.hdobj
 
             for f in listdir(self.modelpth):
                 # removing files in folder
@@ -1846,8 +2031,8 @@ class FloPyEnv():
         self.maxQ = -500.0
         self.wellSpawnBufferXWest, self.wellSpawnBufferXEast = 50.0, 20.0
         self.wellSpawnBufferY = 20.0
-        self.periods, self.periodLength, self.periodSteps = 1, 1.0, 11
-        self.periodSteadiness = True
+        self.periods, self.periodLength, self.periodSteps = 1, 1.0, 11 # 11
+        self.periodSteadiness = True # to get steady-state starting solution, will change later
         self.maxSteps = self.NAGENTSTEPS
         self.sampleHeadsEvery = 5
 
@@ -2149,7 +2334,7 @@ class FloPyEnv():
                 w = str(i+1)
                 lrcq_.append([self.helperWells['l'+w]-1, self.helperWells['r'+w]-1, self.helperWells['c'+w]-1, self.helperWells['wellQ'+w]])
             lrcq = {0: lrcq_}
-        self.wel = ModflowWel(self.mf, stress_period_data=lrcq)
+        self.wel = ModflowWel(self.mf, stress_period_data=lrcq, options=['NOPRINT'])
 
     def constructModel(self):
         """Construct the groundwater flow model used for the arcade game.
@@ -2209,10 +2394,12 @@ class FloPyEnv():
             self.ibound[:, -1, :] = -1
 
         if self.periodSteadiness:
+            # steady-state case: assigning ones as initial heads as they will be solved for
             self.strt = ones((self.nLay, self.nRow, self.nCol),
                              dtype=float32
                              )
         elif self.periodSteadiness == False:
+            # transient case: assigning last solution as initial heads
             self.strt = self.headsPrev
 
         if self.timeStep > 0:
@@ -2251,89 +2438,131 @@ class FloPyEnv():
             self.strt[:, 0, :] = self.headSpecSouth
             self.strt[:, -1, :] = self.headSpecNorth
 
-
-        ModflowBas(self.mf, ibound=self.ibound, strt=self.strt)
+        self.mf_bas = ModflowBas(self.mf, ibound=self.ibound, strt=self.strt)
 
         # adding LPF package to the MODFLOW model
-        ModflowLpf(self.mf, hk=10., vka=10., ss=1e-05, sy=0.15, ipakcb=53)
+        self.mf_lpf = ModflowLpf(self.mf, hk=10., vka=10., ss=1e-05, sy=0.15, ipakcb=53)
 
         # why is this relevant for particle tracking?
-        stress_period_data = {}
-        for kper in range(self.periods):
-            for kstp in range([self.periodSteps][kper]):
-                stress_period_data[(kper, kstp)] = ['save head',
-                                                    'save drawdown',
-                                                    'save budget',
-                                                    'print head',
-                                                    'print budget'
-                                                    ]
+        # stress_period_data = {}
+        # for kper in range(self.periods):
+        #     for kstp in range([self.periodSteps][kper]):
+        #         # budget is necessary for particle tracking
+        #         stress_period_data[(kper, kstp)] = ['save head',
+        #                                             'save budget',
+        #                                             # 'save drawdown',
+        #                                             ]
+
+        # print(stress_period_data)
+        # this only saves first and last result of stress period
+        stress_period_data = {(0,0): ['save head', 'save budget'], (0,self.periodSteps-1): ['save head', 'save budget']}
+        # print(stress_period_data)
 
         # adding OC package to the MODFLOW model for output control
-        ModflowOc(self.mf, stress_period_data=stress_period_data,
+        self.mf_oc = ModflowOc(self.mf, stress_period_data=stress_period_data, # stress_period_data
             compact=True)
 
         # adding PCG package to the MODFLOW model
-        ModflowPcg(self.mf)
+        # termination criteria currently empirically set
+        # self.mf_pcg = ModflowPcg(self.mf, hclose=1e1, rclose=1e1)
+        # self.mf_pcg = ModflowPcg(self.mf)
 
-    def runMODFLOW(self):
+        # for speed-ups try different solvers
+
+        from flopy.modflow import ModflowPcgn
+        self.mf_pcg = ModflowPcgn(self.mf, close_h=1e0, close_r=1e0)
+
+        # this solver seems slightly quicker
+        # from flopy.modflow import ModflowGmg
+        # self.mf_pcg = ModflowGmg(self.mf, hclose=1e1, rclose=1e1)
+
+        # from flopy.modflow import ModflowSms
+        # self.mf_pcg = ModflowSms(self.mf)
+
+        # from flopy.modflow import ModflowDe4
+        # self.mf_pcg = ModflowDe4(self.mf)
+
+        # from flopy.modflow import ModflowNwt
+        # self.mf_pcg = ModflowNwt(self.mf)
+
+    def runMODFLOW(self, check=False):
         """Execute forward groundwater flow simulation using MODFLOW."""
 
         # writing MODFLOW input files
-        self.mf.write_input()
+        t0 = time()
+        if self.timeStep >= 1:
+            # https://stackoverflow.com/questions/59187633/load-existing-mf2005-model-into-flopy-and-change-parameters
+            self.debugWritten = 'partial'
+            # self.dis.write_file()
+            # self.mf_lpf.write_file()
+            # self.mf_oc.write_file()
+            # self.mf_pcg.write_file()
+            # it could help if there was a method to write only changes to this file
+            # https://github.com/modflowpy/flopy/blob/fdcc35ff5a7e7a809d7d10eff914881351a8f738/flopy/modflow/mfbas.py
+            self.mf_bas.write_file(check=False)
+            self.wel.write_file()
+            # this will force finding a solution to take twice as long with no visible difference in heads and particle tracking
+            # self.mf.write_input()
+        elif self.timeStep == 0:
+            self.debugWritten = 'full'
+            self.mf.write_input()
+        self.tWrite = time() - t0
+
         # debugging model setup if enabled
-        # self.check = self.mf.check(verbose=True)
+        if check:
+            self.check = self.mf.check(verbose=True)
 
         # running the MODFLOW model
+        t0 = time()
         self.successMODFLOW, self.buff = self.mf.run_model(silent=True)
+        self.tSimulate = time() - t0
         if not self.successMODFLOW:
             raise Exception('MODFLOW did not terminate normally.')
 
         # loading simulation heads and times
         self.fnameHeads = join(self.modelpth, self.MODELNAME + '.hds')
         with HeadFile(self.fnameHeads) as hf:
-            self.hdobj = hf
+            self.times = hf.get_times()
             # shouldn't we pick the heads at a specific runtime?
-            self.times = self.hdobj.get_times()
-            self.realTime = self.times[-1]
-            # print('debug self.times', self.times)
-            # print('debug self.realTime', self.realTime)
-            self.heads = self.hdobj.get_data(totim=self.times[-1])
+            # self.realTime = self.times[-1]
+            self.heads = hf.get_data(totim=self.times[-1])
 
-        # loading discharge data
-        self.fnameBudget = join(self.modelpth, self.MODELNAME + '.cbc')
-        with CellBudgetFile(self.fnameBudget) as cbf:
-            self.cbb = cbf
-            self.frf = self.cbb.get_data(text='FLOW RIGHT FACE')[0]
-            self.fff = self.cbb.get_data(text='FLOW FRONT FACE')[0]
+        # loading discharge data, currently unneeded
+        # self.fnameBudget = join(self.modelpth, self.MODELNAME + '.cbc')
+        # with CellBudgetFile(self.fnameBudget) as cbf:
+            # self.cbb = cbf
+            # self.frf = self.cbb.get_data(text='FLOW RIGHT FACE')[0]
+            # self.fff = self.cbb.get_data(text='FLOW FRONT FACE')[0]
 
     def runMODPATH(self):
         """Execute forward particle tracking simulation using MODPATH."""
 
+        t0 = time()
+
         # this needs to be transformed, yet not understood why
         self.particleCoords[0] = self.extentX - self.particleCoords[0]
 
-        # creating MODPATH simulation objects
-        self.mp = Modpath(self.MODELNAME, exe_name=self.exe_mp,
-                          modflowmodel=self.mf,
-                          model_ws=self.modelpth
-                          )
-        self.mpbas = ModpathBas(self.mp,
-                                hnoflo=self.mf.bas6.hnoflo,
-                                hdry=self.mf.lpf.hdry,
-                                ibound=self.mf.bas6.ibound.array,
-                                prsity=0.2,
-                                prsityCB=0.2
-                                )
-        self.sim = self.mp.create_mpsim(trackdir='forward', simtype='pathline',
-                                        packages='RCH')
-
-        # writing MODPATH input files
-        self.mp.write_input()
+        if self.timeStep == 1:
+            # creating MODPATH simulation objects
+            # only needs to be created initially, when first simulation timestep has passed
+            self.mp = Modpath(self.MODELNAME, exe_name=self.exe_mp,
+                              modflowmodel=self.mf,
+                              model_ws=self.modelpth
+                              )
+            self.mpbas = ModpathBas(self.mp,
+                                    hnoflo=self.mf.bas6.hnoflo,
+                                    hdry=self.mf.lpf.hdry,
+                                    ibound=self.mf.bas6.ibound.array,
+                                    prsity=0.2,
+                                    prsityCB=0.2
+                                    )
+            self.sim = self.mp.create_mpsim(trackdir='forward', simtype='pathline',
+                                            packages='RCH')
+            self.mp.write_input()
 
         # manipulating input file to contain custom particle location
         # refer to documentation https://pubs.usgs.gov/tm/6a41/pdf/TM_6A_41.pdf
-        out = []
-        keepFlag = True
+        out, keepFlag = [], True
         fIn = open(join(self.modelpth, self.MODELNAME + '.mpsim'),
                    'r', encoding='utf-8')
         inLines = fIn.readlines()
@@ -2357,8 +2586,6 @@ class FloPyEnv():
             if keepFlag:
                 out.append(line)
         fIn.close()
-
-        # print('debug self.realTime', self.realTime)
 
         # writing particle tracking settings to file
         fOut = open(join(self.modelpth, self.MODELNAME + '.mpsim'),
@@ -2401,9 +2628,14 @@ class FloPyEnv():
         # LocationCount, ReleaseStartTime, ReleaseOption
         fOut.write('1 0.000000 1\n')
         fOut.close()
+        self.tMPInitialize = time() - t0
 
+        t0 = time()
         # running the MODPATH model
         self.mp.run_model(silent=True)
+        self.tMPSimulate = time() - t0
+        # print(self.timeStep, 'time MF write', self.tWrite, 'time MF sim', self.tSimulate,
+        #     'timeMP init', self.tMPInitialize, 'time MP sim', self.tMPSimulate, self.debugWritten)
 
     def evaluateParticleTracking(self):
         """Evaluate particle tracking results from MODPATH.
@@ -2494,8 +2726,9 @@ class FloPyEnv():
         user input from the keyboard to control the environment.
         """
         if self.timeStep == 0:
-            self.renderInitializeCanvas()
+            self.renderInitializeCanvas(dpi)
             self.plotfilesSaved = []
+            self.plotArrays = []
             self.extent = (self.dRow / 2.0, self.extentX - self.dRow / 2.0,
              self.extentY - self.dCol / 2.0, self.dCol / 2.0)
 
@@ -2510,7 +2743,8 @@ class FloPyEnv():
         self.renderContourLines(n=30, zorder=4)
         self.renderIdealParticleTrajectory(zorder=5)
         self.renderTextOnCanvasPumpingRate(zorder=10)
-        self.renderTextOnCanvasGameOutcome(zorder=10)
+        if self.done:
+            self.renderTextOnCanvasGameOutcome(zorder=10)
         self.renderParticle(zorder=6)
         self.renderParticleTrajectory(zorder=6)
         self.renderTextOnCanvasTimeAndScore(zorder=10)
@@ -2519,6 +2753,9 @@ class FloPyEnv():
         self.renderAddAxesTextLabels()
         for ax in [self.ax, self.ax2, self.ax3]:
             ax.axis('off')
+        if self.done:
+            pauseDuration = 4
+            waitforbuttonpress(timeout=pauseDuration)
 
         if returnFigure:
             s = self.fig.get_size_inches()
@@ -2532,7 +2769,7 @@ class FloPyEnv():
             self.fig.canvas.draw()
             data = self.fig.canvas.tostring_rgb()
             rows, cols = self.fig.canvas.get_width_height()
-            imarray = copy(fromstring(data, dtype=uint8).reshape(cols, rows, 3))
+            imarray = copy(frombuffer(data, dtype=uint8).reshape(cols, rows, 3))
             self.fig.set_size_inches(s)
         if not returnFigure:
             if self.MANUALCONTROL:
@@ -2545,7 +2782,8 @@ class FloPyEnv():
             if self.SAVEPLOT:
                 self.renderSavePlot(dpi=dpi)
                 if self.done or self.timeStep == self.NAGENTSTEPS:
-                    self.renderAnimationFromFiles()
+                    pathGIF = join(self.wrkspc, 'runs', self.ANIMATIONFOLDER, self.MODELNAME + '.gif')
+                    self.writeGIFtodisk(pathGIF, self.plotArrays, optimizeSize=True)
 
         self.renderClearAxes()
         del self.headsplot
@@ -2553,9 +2791,10 @@ class FloPyEnv():
         if returnFigure:
             return imarray
 
-    def renderInitializeCanvas(self):
+    def renderInitializeCanvas(self, dpi=120):
         """Initialize plot canvas with figure and axes."""
         self.fig = figure(figsize=(7, 7))
+        self.fig.dpi = dpi
 
         if 'ipykernel' in modules:
             self.flagFromIPythonNotebook = True
@@ -2588,13 +2827,20 @@ class FloPyEnv():
 
     def renderIdealParticleTrajectory(self, zorder=5):
         """Plot ideal particle trajectory associated with maximum reward."""
-        self.ax2.plot([self.minX, self.minX + self.extentX], [
-         self.particleY, self.particleY],
-          lw=1.5,
-          c='white',
-          linestyle='--',
-          zorder=zorder,
-          alpha=0.5)
+        try:
+            x0, x1 = self.particleTrajX[-1], self.minX + self.extentX
+            y0, y1 = self.particleTrajY[-1], self.particleTrajY[-1]
+        except:
+            x0, x1 = self.minX, self.minX + self.extentX
+            y0, y1 = self.particleY, self.particleY
+
+        # original ideal trajectory
+        self.ax2.plot([self.minX, self.minX + self.extentX], [self.particleY, self.particleY],
+            lw=1.5, c='grey', linestyle='--', zorder=zorder, alpha=0.2)
+
+        # adapted ideal trajectory
+        self.ax2.plot([x0, x1], [y0, y1],
+            lw=1.5, c='white', linestyle='--', zorder=zorder, alpha=0.5)
 
     def renderContourLines(self, n=30, zorder=4):
         """Plot n contour lines of the head field."""
@@ -2605,53 +2851,292 @@ class FloPyEnv():
 
     def renderWellSafetyZone(self, zorder=3):
         """Plot well safety zone."""
+
+        color = self.renderGetWellColor(self.wellQ)
         wellBufferCircle = Circle((self.wellCoords[0], self.extentY - self.wellCoords[1]), (self.wellRadius),
-          edgecolor='r',
-          facecolor=None,
-          fill=False,
-          zorder=zorder,
-          alpha=1.0,
-          lw=2.0,
-          label='protection zone')
+          edgecolor=color, facecolor='none', fill=False, zorder=zorder, alpha=1.0, lw=1.0)
         self.ax2.add_artist(wellBufferCircle)
+        alpha = self.renderGetWellCircleAlpha(self.wellQ, self.minQ)
+        wellBufferCircleFilled = Circle((self.wellCoords[0], self.extentY - self.wellCoords[1]), (self.wellRadius),
+          edgecolor='none', facecolor=color, fill=True, zorder=zorder, alpha=alpha)
+        self.ax2.add_artist(wellBufferCircleFilled)
+
         if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             wellCoords = []
             for i in range(self.nHelperWells):
                 w = str(i+1)
                 wellCoords.append(self.helperWells['wellCoords'+w])
             for i, c in enumerate(wellCoords):
-                if self.helperWells['wellQ'+str(i+1)] >= 0.:
-                    wellSafetyZoneColor = 'blue'
-                else:
-                    wellSafetyZoneColor = 'red'
+                color = self.renderGetWellColor(self.helperWells['wellQ'+str(i+1)])
                 wellBufferCircle = Circle((c[0], self.extentY - c[1]), (self.helperWellRadius),
-                  edgecolor=wellSafetyZoneColor,
-                  facecolor=None,
-                  fill=False,
-                  zorder=zorder,
-                  alpha=0.5,
-                  lw=2.0,
-                  label='protection zone')
+                  edgecolor=color, facecolor='none', fill=False, zorder=zorder, alpha=1.0, lw=1.0)
                 self.ax2.add_artist(wellBufferCircle)
+                alpha = self.renderGetWellCircleAlpha(self.helperWells['wellQ'+str(i+1)], self.minQhelper)
+                wellBufferCircleFilled = Circle((c[0], self.extentY - c[1]), (self.helperWellRadius),
+                  edgecolor='none', facecolor=color, fill=True, zorder=zorder, alpha=alpha)
+                self.ax2.add_artist(wellBufferCircleFilled)
 
     def renderTextOnCanvasPumpingRate(self, zorder=10):
         """Plot pumping rate on figure."""
-        self.ax2.text((self.wellX + 3.0), (self.extentY - self.wellY), (str(int(self.wellQ)) + '\nm3/d'),
-          fontsize=12,
-          color='black',
-          zorder=zorder)
+        color = self.renderGetWellColor(self.wellQ)
+        label_nextToCircle = str(int(self.wellQ)) + '\n' + r'm$^\mathrm{\mathsf{3}}$ d$^\mathrm{\mathsf{-1}}$'
+        # self.ax2.text((self.wellX + 3.0), (self.extentY - self.wellY), label_nextToCircle,
+        #     fontsize=12, color=color, zorder=zorder, alpha=0.5)
+
+        class CurvedText(mtext.Text):
+            """
+            A text object that follows an arbitrary curve.
+            https://stackoverflow.com/questions/19353576/curved-text-rendering-in-matplotlib
+            """
+            def __init__(self, x, y, text, axes, delimiter, **kwargs):
+                super(CurvedText, self).__init__(x[0],y[0],' ', **kwargs)
+
+                axes.add_artist(self)
+
+                # saving the curve:
+                self.__x = x
+                self.__y = y
+                self.__zorder = self.get_zorder()
+                self.delimiter = delimiter
+
+                # creating the text objects
+                self.__Characters = []
+                texts = text.split(self.delimiter)
+                # print(text, self.delimiter)
+                # print(texts)
+                for c in texts:
+                    # print(c)
+                    if c == ' ':
+                        # making this an invisible 'a':
+                        t = mtext.Text(0,0,'a')
+                        t.set_alpha(0.0)
+                    else:
+                        t = mtext.Text(0,0,c, **kwargs)
+
+                    self.__Characters.append((c,t))
+                    axes.add_artist(t)
+
+
+            # overloading some member functions, to assure correct functionality on update
+            def set_zorder(self, zorder):
+                super(CurvedText, self).set_zorder(zorder)
+                self.__zorder = self.get_zorder()
+                for c,t in self.__Characters:
+                    t.set_zorder(self.__zorder+1)
+
+            def draw(self, renderer, *args, **kwargs):
+                """
+                Overload of the Text.draw() function. Do not do
+                do any drawing, but update the positions and rotation
+                angles of self.__Characters.
+                """
+                self.update_positions(renderer)
+
+            def update_positions(self,renderer):
+                """
+                Update positions and rotations of the individual text elements.
+                """
+
+                # determining the aspect ratio:
+                # from https://stackoverflow.com/a/42014041/2454357
+
+                # data limits
+                xlim = self.axes.get_xlim()
+                ylim = self.axes.get_ylim()
+                # axis size on figure
+                figW, figH = self.axes.get_figure().get_size_inches()
+                # ratio of display units
+                _, _, w, h = self.axes.get_position().bounds
+                # final aspect ratio
+                aspect = ((figW * w)/(figH * h))*(ylim[1]-ylim[0])/(xlim[1]-xlim[0])
+
+                # points of the curve in figure coordinates:
+                x_fig,y_fig = (
+                    np.array(l) for l in zip(*self.axes.transData.transform([
+                    (i,j) for i,j in zip(self.__x,self.__y)
+                    ]))
+                )
+
+                # point distances in figure coordinates
+                x_fig_dist = (x_fig[1:]-x_fig[:-1])
+                y_fig_dist = (y_fig[1:]-y_fig[:-1])
+                r_fig_dist = np.sqrt(x_fig_dist**2+y_fig_dist**2)
+
+                # arc length in figure coordinates
+                l_fig = np.insert(np.cumsum(r_fig_dist),0,0)
+
+                # angles in figure coordinates
+                rads = np.arctan2((y_fig[1:] - y_fig[:-1]),(x_fig[1:] - x_fig[:-1]))
+                degs = np.rad2deg(rads)
+
+                rel_pos = 10
+                for c,t in self.__Characters:
+                    # finding the width of c:
+                    t.set_rotation(0)
+                    t.set_va('center')
+                    bbox1  = t.get_window_extent(renderer=renderer)
+                    w = bbox1.width
+                    h = bbox1.height
+
+                    # ignoring all letters that don't fit:
+                    if rel_pos+w/2 > l_fig[-1]:
+                        t.set_alpha(0.0)
+                        rel_pos += w
+                        continue
+
+                    elif c != ' ':
+                        t.set_alpha(1.0)
+
+                    # finding the two data points between which the horizontal
+                    # center point of the character will be situated
+                    # left and right indices:
+                    il = np.where(rel_pos+w/2 >= l_fig)[0][-1]
+                    ir = np.where(rel_pos+w/2 <= l_fig)[0][0]
+
+                    # if we exactly hit a data point:
+                    if ir == il:
+                        ir += 1
+
+                    # how much of the letter width was needed to find il:
+                    used = l_fig[il]-rel_pos
+                    rel_pos = l_fig[il]
+
+                    # relative distance between il and ir where the center
+                    # of the character will be
+                    fraction = (w/2-used)/r_fig_dist[il]
+
+                    # setting the character position in data coordinates:
+                    # interpolating between the two points:
+                    x = self.__x[il]+fraction*(self.__x[ir]-self.__x[il])
+                    y = self.__y[il]+fraction*(self.__y[ir]-self.__y[il])
+
+                    # getting the offset when setting correct vertical alignment
+                    # in data coordinates
+                    t.set_va(self.get_va())
+                    bbox2  = t.get_window_extent(renderer=renderer)
+
+                    bbox1d = self.axes.transData.inverted().transform(bbox1)
+                    bbox2d = self.axes.transData.inverted().transform(bbox2)
+                    dr = np.array(bbox2d[0]-bbox1d[0])
+
+                    # the rotation/stretch matrix
+                    rad = rads[il]
+                    rot_mat = np.array([
+                        [math.cos(rad), math.sin(rad)*aspect],
+                        [-math.sin(rad)/aspect, math.cos(rad)]
+                    ])
+
+                    # computing the offset vector of the rotated character
+                    drp = np.dot(dr,rot_mat)
+
+                    # setting final position and rotation:
+                    t.set_position(np.array([x,y])+drp)
+                    t.set_rotation(degs[il])
+
+                    t.set_va('center')
+                    t.set_ha('center')
+
+                    # updating rel_pos to right edge of character
+                    rel_pos += w-used
+
+        import math
+        import numpy as np
+        N = 500
+        self.wellSafetyZone_outer = [-1.0*self.wellRadius*np.cos(np.linspace(0, 2*np.pi, N)),
+                                      1.0*self.wellRadius*np.sin(np.linspace(0, 2*np.pi, N))]
+
+        label_onCircle = str(int(abs(self.wellQ))).replace("", ";")[1: -1] + r'   ;m;$^\mathrm{\mathsf{3}}$;   ;d;$^\mathrm{\mathsf{-1}}$'
+        text = CurvedText(
+            x = self.wellSafetyZone_outer[0] + self.wellCoords[0],
+            y = self.wellSafetyZone_outer[1] + self.extentY - self.wellCoords[1],
+            text=label_onCircle, va = 'bottom', axes = self.ax2, delimiter = ';', fontsize=8, color=color)
+
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            wellCoords = []
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                wellCoords.append(self.helperWells['wellCoords'+w])
+            for i, c in enumerate(wellCoords):
+                Q = self.helperWells['wellQ'+str(i+1)]
+                color = self.renderGetWellColor(self.helperWells['wellQ'+str(i+1)])
+                helperWellSafetyZone_outer = [-1.0*self.helperWellRadius*np.cos(np.linspace(0, 2*np.pi, N)),
+                                              1.0*self.helperWellRadius*np.sin(np.linspace(0, 2*np.pi, N))]
+
+                label_onCircle = str(int(abs(Q))).replace("", ";")[1: -1] # + r' ;m;$^\mathrm{\mathsf{3}}$; ;d;$^\mathrm{\mathsf{-1}}$'
+                text = CurvedText(
+                    x = helperWellSafetyZone_outer[0] + c[0],
+                    y = helperWellSafetyZone_outer[1] + self.extentY - c[1],
+                    text=label_onCircle, va = 'bottom', axes = self.ax2, delimiter = ';', fontsize=5, color=color)
+
+    def renderGetWellColor(self, Q):
+        """Return color symbolizing pumping or injection well regime."""
+        if Q < 0.:
+            color = 'red'
+        else:
+            color = 'blue'
+
+        return color
+
+    def renderGetWellCircleAlpha(self, Q, maxQ):
+        """Return transparency level representing pumping or injection magnitude."""
+
+        alphaMax = 0.9
+        Q = abs(Q)
+        fraction = Q/abs(maxQ)
+        alpha = fraction*alphaMax
+
+        return alpha
 
     def renderTextOnCanvasGameOutcome(self, zorder=10):
         """Plot final game outcome on figure."""
         gameResult = ''
         if self.done:
             if self.success:
-                gameResult = 'Success.'
+                gameResult = 'Success'
             elif self.success == False:
-                gameResult = 'Failure.'
-        self.ax2.text(35, 80, gameResult, fontsize=30,
-          color='red',
-          zorder=zorder)
+                gameResult = 'Failure'
+            self.text = self.ax2.text(1.25, 65., gameResult, fontsize=500,
+                color='red', zorder=zorder, alpha=0.25,
+                bbox=dict(facecolor='none', edgecolor='none', pad=0.0))
+
+            self.textSpanAcrossAxis(self.text, 100., 80., fig=self.fig, ax=self.ax2)
+
+    def textSpanAcrossAxis(self, text, width, height, fig=None, ax=None):
+        """Auto-decrease and re-expand the fontsize of a text object to match the axis extent.
+        https://stackoverflow.com/questions/5320205/matplotlib-text-dimensions
+
+        Args:
+            text (matplotlib.text.Text)
+            width (float): allowed width in data coordinates
+            height (float): allowed height in data coordinates
+        """
+
+        size = fig.get_size_inches()
+        whratio = size[0]/size[1]
+
+        # get text bounding box in figure coordinates
+        # bbox_text = text.get_window_extent().inverse_transformed(self.fig.gca().transData)
+        bbox_text = text.get_window_extent().inverse_transformed(ax.transData)
+
+        # evaluate fit and recursively decrease fontsize until text fits
+        fits_width = bbox_text.width*whratio < width if width else True
+        fits_height = bbox_text.height/whratio < height if height else True
+        dFontDecrease = 5.
+        if not all((fits_width, fits_height)):
+            text.set_fontsize(text.get_fontsize()-dFontDecrease)
+            self.textSpanAcrossAxis(text, width, height, fig, ax)
+
+        # re-expanding (in finer increments)
+        expandFinished = False
+        while not expandFinished:
+            bbox_text = text.get_window_extent().inverse_transformed(ax.transData)
+            fits_width = bbox_text.width*whratio >= width if width else True
+            fits_height = bbox_text.height/whratio < height if height else True
+            if not all((fits_width, fits_height)):
+                dFontIncrease = 0.1
+                text.set_fontsize(text.get_fontsize()+dFontIncrease)
+            else:
+                expandFinished = True
 
     def renderTextOnCanvasTimeAndScore(self, zorder=10):
         """Plot final game outcome on figure."""
@@ -2712,8 +3197,8 @@ class FloPyEnv():
 
     def renderAddAxesTextLabels(self):
         """Add labeling text to axes."""
-        left, width = self.minX, self.minX + self.extentX
-        bottom, height = self.minY, self.minY + self.extentY
+        left, width = self.minX, numpyAbs(self.minX + self.extentX)
+        bottom, height = self.minY, numpyAbs(self.minY + self.extentY)
         top = bottom + height
         textRight = 'Destination:   ' + str('%.2f' % self.headSpecEast) + ' m'
         textLeft = 'Start:   ' + str('%.2f' % self.headSpecWest) + ' m'
@@ -2730,22 +3215,26 @@ class FloPyEnv():
           verticalalignment='center',
           rotation='vertical',
           zorder=10,
-          fontsize=12)
+          fontsize=12,
+          alpha=0.5)
         self.ax2.text((self.extentX - 2 * self.dCol), (0.5 * (bottom + top)), textRight, horizontalalignment='right',
           verticalalignment='center',
           rotation='vertical',
           zorder=10,
-          fontsize=12)
+          fontsize=12,
+          alpha=0.5)
         self.ax2.text((0.5 * (left + width)), (self.extentY - 2 * self.dRow), textTop, horizontalalignment='center',
           verticalalignment='top',
           rotation='horizontal',
           zorder=10,
-          fontsize=12)
+          fontsize=12,
+          alpha=0.5)
         self.ax2.text((0.5 * (left + width)), (self.minY + 2 * self.dRow), textBottom, horizontalalignment='center',
           verticalalignment='bottom',
           rotation='horizontal',
           zorder=10,
-          fontsize=12)
+          fontsize=12,
+          alpha=0.5)
 
     def renderUserInterAction(self):
         """Enable user control of the environment."""
@@ -2782,11 +3271,18 @@ class FloPyEnv():
         self.fig.gca().xaxis.set_major_locator(NullLocator())
         self.fig.gca().yaxis.set_major_locator(NullLocator())
         self.fig.tight_layout(pad=0.)
-
         self.fig.set_size_inches(7, 7)
-        self.fig.savefig(plotfile, dpi=120, bbox_inches = 'tight', pad_inches = 0)
+        imarray = self.figToArray(self.fig)
         self.fig.set_size_inches(s)
-        self.plotfilesSaved.append(plotfile)
+        self.plotArrays.append(imarray)
+
+    def figToArray(self, fig):
+        fig.canvas.draw()
+        data = fig.canvas.tostring_rgb()
+        rows, cols = fig.canvas.get_width_height()
+        imarray = frombuffer(data, dtype=uint8).reshape(cols, rows, 3)
+        
+        return imarray
 
     def renderClearAxes(self):
         """Clear all axis after timestep."""
@@ -2809,17 +3305,20 @@ class FloPyEnv():
             except:
                 pass
 
-    def renderAnimationFromFiles(self):
-        """Create animation of fulll game run.
-        Code taken from and credit to:
-        https://stackoverflow.com/questions/753190/programmatically-generate-video-or-animated-gif-in-python
-        """
-        with get_writer((join(self.wrkspc, 'runs', self.ANIMATIONFOLDER, self.MODELNAME + '.gif')),
-          mode='I') as (writer):
-            for filename in self.plotfilesSaved:
-                image = imread(filename)
+    def writeGIFtodisk(self, pathGIF, ims, fps=2, optimizeSize=False):
+        with get_writer(pathGIF, mode='I', fps=fps) as writer:
+            for image in ims:
                 writer.append_data(image)
-                remove(filename)
+
+        if optimizeSize:
+            try:
+                from pygifsicle import optimize as optimizeGIF
+                imported_pygifsicle = True
+            except:
+                imported_pygifsicle = False
+                print('Module pygifsicle not properly installed. Returning uncompressed animation.')
+            if imported_pygifsicle:
+                    optimizeGIF(pathGIF)
 
     def cellInfoFromCoordinates(self, coords):
         """Determine layer, row and column corresponding to model location."""
@@ -3102,14 +3601,14 @@ class FloPyEnv():
         keys = data.keys()
         if 'particleCoords' in keys:
             data['particleCoords'] = multiply(data['particleCoords'],
-                self.minX + self.extentX)
+                numpyAbs(self.minX + self.extentX))
         if 'heads' in keys:
             data['heads'] = multiply(data['heads'],
                 self.maxH)
         if 'wellQ' in keys:
             data['wellQ'] = multiply(data['wellQ'], self.minQ)
         if 'wellCoords' in keys:
-            data['wellCoords'] = multiply(data['wellCoords'], self.minX + self.extentX)
+            data['wellCoords'] = multiply(data['wellCoords'], numpyAbs(self.minX + self.extentX))
         if 'rewards' in keys:
             data['rewards'] = multiply(data['rewards'], self.rewardMax)
         return data
