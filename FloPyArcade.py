@@ -2470,7 +2470,7 @@ class FloPyEnv():
         # for speed-ups try different solvers
 
         from flopy.modflow import ModflowPcgn
-        self.mf_pcg = ModflowPcgn(self.mf, close_h=1e0, close_r=1e0)
+        self.mf_pcg = ModflowPcgn(self.mf, close_h=1e-1, close_r=1e-1)
 
         # this solver seems slightly quicker
         # from flopy.modflow import ModflowGmg
