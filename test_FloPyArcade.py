@@ -99,7 +99,8 @@ class TestFloPyAgentGenetic(unittest.TestCase):
         failed = []
         for KEEPMODELHISTORY in [True, False]:
             for NNTYPE in ['convolution', 'perceptron']:
-                for ENVTYPE in FloPyArcade().ENVTYPES:
+                # for ENVTYPE in FloPyArcade().ENVTYPES:
+                for ENVTYPE in ['1s-d', '2r-d', '3s-c', '4r-c', '5r-c', '6r-c']:
                     raised = False
                     try:
                         matplotlibBackend('Agg')
