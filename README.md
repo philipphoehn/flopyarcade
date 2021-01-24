@@ -2,7 +2,7 @@
 ![banner](http://www.groundwaterautopilot.com/static/images/banner.gif)
 
 <p align="center">
-  <img src="http://www.groundwaterautopilot.com/static/images/banner.gif">
+  <img src="http://www.groundwaterautopilot.com/static/images/banner.gif?raw=true">
 </p>
 
 
