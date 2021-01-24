@@ -206,7 +206,6 @@ class FloPyAgent():
             chunksTotal = self.yieldChunks(arange(self.hyParams['NAGENTS']),
                 self.envSettings['NAGENTSPARALLEL']*self.maxTasksPerWorkerMutate)
             for chunk in chunksTotal:
-                print(chunk)
                 _ = self.multiprocessChunks(self.saveRandomAgentGenetic, chunk)
         else:
             self.mutationHistory = {}
@@ -332,6 +331,7 @@ class FloPyAgent():
                             self.mutationHistory = self.pickleLoad(join(
                                 self.tempPrevModelPrefix + '_mutationHistory.p'))
                         self.noveltyItemCount = len(self.noveltyArchive.keys())
+
                 sortedParentIdxs, continueFlag, breakFlag = self.resumeGenetic()
                 if continueFlag: continue
                 if breakFlag: break
@@ -453,9 +453,6 @@ class FloPyAgent():
 
                 self.pickleDump(join(self.tempModelPrefix +
                     '_noveltyArchive.p'), self.noveltyArchive)
-                if not self.envSettings['KEEPMODELHISTORY']:
-                    self.pickleDump(join(self.tempModelPrefix +
-                        '_mutationHistory.p'), self.mutationHistory)
 
                 self.novelties, self.noveltyFilenames = [], []
                 for k in range(self.noveltyItemCount):
@@ -473,6 +470,10 @@ class FloPyAgent():
                 print('lowest novelty', min(self.novelties))
                 print('average novelty', mean(self.novelties))
                 print('highest novelty', max(self.novelties))
+
+            if not self.envSettings['KEEPMODELHISTORY']:
+                self.pickleDump(join(self.tempModelPrefix +
+                    '_mutationHistory.p'), self.mutationHistory)
 
             MODELNAME = self.envSettings['MODELNAME']
             MODELNAMEGENCOUNT = (MODELNAME + '_gen' +
@@ -2753,9 +2754,10 @@ class FloPyEnv():
         self.renderAddAxesTextLabels()
         for ax in [self.ax, self.ax2, self.ax3]:
             ax.axis('off')
-        if self.done:
-            pauseDuration = 4
-            waitforbuttonpress(timeout=pauseDuration)
+        if not returnFigure:
+            if self.done:
+                pauseDuration = 4
+                waitforbuttonpress(timeout=pauseDuration)
 
         if returnFigure:
             s = self.fig.get_size_inches()
@@ -3256,7 +3258,7 @@ class FloPyEnv():
         """Save plot of the currently rendered timestep."""
         if self.timeStep == 0:
             self.plotsfolderpth = join(self.wrkspc, 'runs')
-            print(self.wrkspc, 'runs', self.ANIMATIONFOLDER)
+            # print(self.wrkspc, 'runs', self.ANIMATIONFOLDER)
             self.plotspth = join(self.wrkspc, 'runs', self.ANIMATIONFOLDER)
             if not exists(self.plotsfolderpth):
                 makedirs(self.plotsfolderpth)
