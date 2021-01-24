@@ -1,4 +1,4 @@
-[//]:![banner](examples/banner.png)
+[//]: ![banner](examples/banner.png)
 ![banner](http://www.groundwaterautopilot.com/static/images/banner.gif)
 
 
