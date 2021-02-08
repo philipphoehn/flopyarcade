@@ -1772,12 +1772,6 @@ class FloPyEnv():
             self.renderFlag = flagRender
             if system() == 'Windows':
                 self.add_lib_dependencies([join(self.wrkspc, 'simulators', 'win-builds', 'bin')])
-            else:
-                # assuming unix-like system
-
-                if 'LD_LIBRARY_PATH' not in environ:
-                    # export LD_LIBRARY_PATH="/home/###user###/FloPyArcade/simulators/intel_compilers/compilers_and_libraries_2020.4.304/linux/compiler/lib/intel64_lin
-                    environ['LD_LIBRARY_PATH'] = join(self.wrkspc, 'simulators', 'intel_compilers', 'compilers_and_libraries_2020.4.304', 'linux', 'compiler', 'lib', 'intel64_lin') # 'intel64_lin'
 
             self.constructModel()
 
