@@ -1512,6 +1512,8 @@ class FloPyAgent():
                         # as keys mostly exists, try/except check should be performant here
                         novelty = agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)]
                     except:
+                        novelty = agentNovelties[str(iAgent2+1) + '_' + str(iAgent+1)]
+                    finally:
                         t0single = time()
                         novelty = self.calculateNoveltyPerPair([actions, actions2])
                         # novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
@@ -1551,6 +1553,8 @@ class FloPyAgent():
                         # as keys mostly exists, try/except check should be performant here
                         novelty = agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)]
                     except:
+                        novelty = agentNovelties[str(iAgent2+1) + '_' + str(iAgent+1)]
+                    finally:
                         novelty = self.calculateNoveltyPerPair([actions, actions2])
                         # novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
                         agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)] = novelty
