@@ -73,6 +73,7 @@ from tensorflow.keras.models import save_model
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 from random import sample as randomSample, seed as randomSeed
+from random import shuffle
 from tensorflow.compat.v1 import ConfigProto, set_random_seed
 from tensorflow.compat.v1 import Session as TFSession
 from tensorflow.compat.v1.keras import backend as K
@@ -191,6 +192,7 @@ class FloPyAgent():
             if not self.envSettings['RESUME']:
                 self.geneticGeneration = 0
                 self.initializeGeneticAgents()
+                print(join(self.tempModelpth, self.envSettings['MODELNAME'] + '_hyParams.p'))
                 self.pickleDump(join(self.tempModelpth,
                     self.envSettings['MODELNAME'] + '_hyParams.p'),
                     self.hyParams)
@@ -232,7 +234,7 @@ class FloPyAgent():
             chunksTotal = self.yieldChunks(arange(self.hyParams['NAGENTS']),
                 self.envSettings['NAGENTSPARALLEL']*self.maxTasksPerWorkerMutate)
             for chunk in chunksTotal:
-                _ = self.multiprocessChunks(self.saveRandomAgentGenetic, chunk)
+                _ = self.multiprocessChunks(self.randomAgentGenetic, chunk)
         else:
             self.mutationHistory = {}
             for iAgent in range(self.hyParams['NAGENTS']):
@@ -343,6 +345,9 @@ class FloPyAgent():
         cores = self.envSettings['NAGENTSPARALLEL']
         # generating unique process ID from system time
         self.pid = str(uuid4())
+        self.pidList = list(self.pid)
+        shuffle(self.pidList)
+        self.pid = ''.join(self.pidList)
 
         agentCounts = [iAgent for iAgent in range(self.hyParams['NAGENTS'])]
         self.rereturnChildrenGenetic = False
@@ -934,8 +939,13 @@ class FloPyAgent():
 
                 lenCount = len(str(agentCount + 1))
                 # print('lenCount', lenCount)
+
                 MODELNAMETEMP = self.pid[0:15-lenCount] + str(agentCount + 1)
-            
+
+                MODELNAMETEMP_ = list(MODELNAMETEMP)
+                shuffle(MODELNAMETEMP_)
+                MODELNAMETEMP = ''.join(MODELNAMETEMP_)
+
                 # print(self.envSettings['ENVTYPE'], self.envSettings['PATHMF2005'], self.envSettings['PATHMP6'],
                 #     MODELNAMETEMP, SEEDTEMP, self.envSettings['RENDER'], self.hyParams['NAGENTSTEPS'],
                 #     self.envSettings['NLAY'], self.envSettings['NROW'], self.envSettings['NCOL'],
@@ -1605,7 +1615,7 @@ class FloPyAgent():
         for i in range(0, len(lst), n):
             yield lst[i:i + n]
 
-    def multiprocessChunks(self, function, chunk, parallelProcesses=None, wait=False, async=True, sharedDict=None):
+    def multiprocessChunks(self, function, chunk, parallelProcesses=None, wait=False, async_=True, sharedDict=None):
         """Process function in parallel given a chunk of arguments."""
 
         # Pool object from pathos instead of multiprocessing library necessary
@@ -1616,7 +1626,7 @@ class FloPyAgent():
 
         if sharedDict == None:
             p = Pool(processes=parallelProcesses)
-            if async:
+            if async_:
                 pasync = p.map_async(function, chunk)
             else:
                 pasync = p.map(function, chunk)
@@ -1760,7 +1770,14 @@ class FloPyEnv():
             self.defineEnvironment(self._SEED)
             self.actionSpaceSize = self.getActionSpaceSize(self.actionsDict)
             self.renderFlag = flagRender
-            self.add_lib_dependencies([join(self.wrkspc, 'simulators', 'win-builds', 'bin')])
+            if system() == 'Windows':
+                self.add_lib_dependencies([join(self.wrkspc, 'simulators', 'win-builds', 'bin')])
+            else:
+                # assuming unix-like system
+
+                if 'LD_LIBRARY_PATH' not in environ:
+                    # export LD_LIBRARY_PATH="/home/###user###/FloPyArcade/simulators/intel_compilers/compilers_and_libraries_2020.4.304/linux/compiler/lib/intel64_lin
+                    environ['LD_LIBRARY_PATH'] = join(self.wrkspc, 'simulators', 'intel_compilers', 'compilers_and_libraries_2020.4.304', 'linux', 'compiler', 'lib', 'intel64_lin') # 'intel64_lin'
 
             self.constructModel()
 
@@ -1862,12 +1879,10 @@ class FloPyEnv():
 
             t0SteadyState = time()
             # steady state solution
-
             self.sim_steadyState.write_simulation(silent=True)
 
             mf6_config_file = join(self.model_ws, modelname + '.nam')
-            # print('mf6_config_file', mf6_config_file)
-            # print(exe, self.model_ws, modelname)
+            chdir(self.model_ws)
             try:
                 self.mf6 = XmiWrapper(exe)
             except Exception as e:
@@ -1875,9 +1890,11 @@ class FloPyEnv():
                 print("with message: " + str(e))
                 return self.bmi_return(self.success, self.model_ws, modelname)
 
+            # print('3', 'mf6_config_file', mf6_config_file)
             # initialize the model
             try:
-                self.mf6.initialize(mf6_config_file)
+                # self.mf6.initialize(mf6_config_file)
+                self.mf6.initialize(modelname + '.nam')
             except Exception as e:
                 return self.bmi_return(self.success, self.model_ws)
 
@@ -1915,6 +1932,7 @@ class FloPyEnv():
             self.tSteadyState = time()-t0SteadyState
 
 
+            chdir(self.model_ws)
             # transient simulation
             self.sim.write_simulation(silent=True)
             self.timeStep = int(0)
@@ -1929,7 +1947,8 @@ class FloPyEnv():
 
             # initialize the model
             try:
-                self.mf6.initialize(mf6_config_file)
+                # self.mf6.initialize(mf6_config_file)
+                self.mf6.initialize(modelname + '.nam')
             except:
                 return self.bmi_return(self.success, self.model_ws)
 
@@ -2151,9 +2170,6 @@ class FloPyEnv():
                 if self.timeStep == self.nstp:
                     self.done = True
 
-                # print(self.timeStep)
-                # t0Step = time()
-
                 # get dt and prepare for non-linear iterations
                 # self.dt = self.mf6.get_time_step()
                 self.mf6.prepare_time_step(self.dt)
@@ -2177,7 +2193,12 @@ class FloPyEnv():
                 # print('time 1', time()-t0Step)
                 wellCells = array(wellCells).astype(int32)
 
-                wel_xtag = self.mf6.get_var_address('NODELIST', self.nameUpper, "WEL_0")
+                # print(self.mf6.get_component_name())
+                # print(self.mf6.get_input_var_names())
+                # print(self.mf6.get_output_var_names())
+
+                # seems like on unix, theis is currently not available
+                wel_xtag = self.mf6.get_var_address('NODELIST', self.nameUpper, 'WEL_0')
                 wel_x = self.mf6.get_value(wel_xtag)
                 # print('NODELIST', wel_x, type(wel_x), type(wel_x[0]))
                 self.mf6.set_value(wel_xtag, add(multiply(wel_x, 0), wellCells))
@@ -2186,7 +2207,6 @@ class FloPyEnv():
                 # updating well rate
                 self.actionsDict = self.changeActionDict(self.actionsDict, action)
                 self.actionsDict = self.getActionValues(self.actionsDict)
-                # print('time 3', time()-t0Step)
 
                 Qs = []
                 for iHelper in range(self.nHelperWells):
@@ -2194,14 +2214,10 @@ class FloPyEnv():
                     y = self.actionsDict['well' + str(iHelper) + 'y'] + self.well_dyMax*self.actionsDict['well' + str(iHelper) + 'actiondyUp'] - self.well_dyMax*self.actionsDict['well' + str(iHelper) + 'actiondyDown']
                     Q = self.actionsDict['well' + str(iHelper) + 'Q']
                     Qs.append(Q)
-                # print('time 4', time()-t0Step)
-
                 # print(self.current_time, Qs)
-                # print('old Qs', self.well[:, 0])
+
                 self.well[:, 0] = Qs
-                # print('new Qs', self.well[:, 0])
                 self.mf6.set_value(self.well_tag, self.well)
-                # print('time 5', time()-t0Step)
 
                 # updating recharge randomly
                 new_recharge = self.rechTimeSeries[self.timeStep]
@@ -2218,9 +2234,6 @@ class FloPyEnv():
                     kiter += 1
 
                     if has_converged:
-                        # msg = "Component {}".format(1) + \
-                        #       " converged in {}".format(kiter) + " outer iterations"
-                        # print(msg)
                         break
                 if not has_converged:
                     print('failed converging')
@@ -2230,14 +2243,6 @@ class FloPyEnv():
 
                 reward = self.get_reward(self.head_steadyState_flat, head)
                 # print('time 8', time()-t0Step)
-
-                # print('self.current_time', self.current_time, 'mean head', mean(head), 'max head', max(head), self.end_time)
-                # print('tSteadyState', self.tSteadyState)
-                # print('step time', time()-t0Step, 'iterations', kiter)
-                # print('reward', reward)
-                # print('timeStep', self.timeStep, 'av rech', mean(new_recharge))
-                # print('self.stormStarts', self.stormStarts)
-                # print('self.stormIntensities', self.stormIntensities)
 
                 if self.renderFlag or self.SAVEPLOT:
                     self.render()
@@ -2817,7 +2822,7 @@ class FloPyEnv():
             elif PATHMP6 is not None:
                 self.exe_mp = PATHMP6
             if PATHMF6DLL is None:
-                self.PATHMF6DLL = join(self.wrkspc, 'simulators', 'libmf6.so') + '.dll'
+                self.PATHMF6DLL = join(self.wrkspc, 'simulators', 'libmf6') + '.so'
             elif PATHMF6DLL is not None:
                 self.PATHMF6DLL = PATHMF6DLL
 
@@ -3021,7 +3026,7 @@ class FloPyEnv():
         """
 
         if self.ENVTYPE in ['0s-c']:
-            # print('debug', ws, name)
+
             self.sim = MFSimulation(sim_name=self.name, version='mf6',
                 exe_name=self.mf6dll, sim_ws=self.model_ws, memory_print_option='all')
 
@@ -3092,6 +3097,7 @@ class FloPyEnv():
                 )
 
             self.sim_steadyState = deepcopy(self.sim)
+            # self.sim_steadyState = deepcopy(self.sim)
 
 
             # del(self.sim.tdis)
@@ -3336,16 +3342,28 @@ class FloPyEnv():
         # print('lib_dependencies DEBUG IN XMIPYWRAPPER', lib_dependencies)
         # print('lib_path DEBUG IN XMIPYWRAPPER', lib_path)
 
+        # bmi installation linux
+        # https://github.com/MODFLOW-USGS/executables/releases/download/5.0/linux.zip
+        # maybe replace locally:
+        # or force to install current xmipy
+        # https://github.com/Deltares/xmipy/blob/develop/xmipy/xmiwrapper.py
+        # sudo install libifport
+        # https://software.intel.com/content/www/us/en/develop/articles/redistributable-libraries-for-intel-c-and-fortran-2020-compilers-for-linux.html
+
+        # use nightly builds
+        # https://github.com/MODFLOW-USGS/modflow6-nightly-build/releases
+
         if lib_dependencies:
-            if system() == "Windows":
+            if system() == 'Windows':
                 for dep_path in lib_dependencies:
                     if dep_path not in environ['PATH']:
-                        environ["PATH"] = dep_path + pathsep + environ["PATH"]
+                        environ['PATH'] = dep_path + pathsep + environ['PATH']
             else:
                 # Assume a Unix-like system
                 for dep_path in lib_dependencies:
                     if dep_path not in environ['PATH']:
-                        environ["LD_LIBRARY_PATH"] = (dep_path + pathsep + environ["LD_LIBRARY_PATH"])
+                        # environ['LD_LIBRARY_PATH'] = (dep_path + pathsep + environ['LD_LIBRARY_PATH'])
+                        environ['PATH'] = (dep_path + pathsep + environ['PATH'])
 
     def runMODFLOW(self, check=False):
         """Execute forward groundwater flow simulation using MODFLOW."""
