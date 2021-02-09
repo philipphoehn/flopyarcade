@@ -192,7 +192,7 @@ class FloPyAgent():
             if not self.envSettings['RESUME']:
                 self.geneticGeneration = 0
                 self.initializeGeneticAgents()
-                print(join(self.tempModelpth, self.envSettings['MODELNAME'] + '_hyParams.p'))
+                # print(join(self.tempModelpth, self.envSettings['MODELNAME'] + '_hyParams.p'))
                 self.pickleDump(join(self.tempModelpth,
                     self.envSettings['MODELNAME'] + '_hyParams.p'),
                     self.hyParams)
@@ -520,6 +520,10 @@ class FloPyAgent():
                     self.noveltyFilenames.append(
                         self.noveltyArchive[agentStr]['modelFile'])
                 # print('len(self.noveltyFilenames)', len(self.noveltyFilenames))
+
+            print('lowest reward', min(self.rewards))
+            print('average reward', mean(self.rewards))
+            print('highest reward', max(self.rewards))
 
             # returning best-performing agents
             self.returnChildrenGenetic(sortedParentIdxs)
@@ -872,6 +876,7 @@ class FloPyAgent():
             nChunksRemaining = copy(nChunks)
             # batch processing to avoid memory explosion
             # https://stackoverflow.com/questions/18414020/memory-usage-keep-growing-with-pythons-multiprocessing-pool/20439272
+            print('------------------------------')
             for chunk in chunksTotal:
                 t0 = time()
                 if len(runtimes) == 0:
@@ -892,7 +897,6 @@ class FloPyAgent():
                       str(self.hyParams['NGENERATIONS']) + ' generations\n' +
                       runtimeGenEstimate + ' h for generation, ' +
                       runtimeGensEstimate + ' h for all generations')
-                print('----------')
 
                 if self.envSettings['ENVTYPE'] in ['0s-c']:
                     # necessary as some ctypes object related to the dll used with BMI is not pickleable
@@ -926,12 +930,16 @@ class FloPyAgent():
         if self.envSettings['KEEPMODELHISTORY']:
             agent = load_model(join(tempAgentPrefix + '.h5'), compile=False)
         else:
+            t0RecreateFromMutationHistory = time()
             agentOffset = self.hyParams['NAGENTS'] * (self.geneticGeneration)
             # print(self.mutationHistory)
             agentNumber = agentCount + 1 + agentOffset
             creationSeed = self.mutationHistory['agent' + str(agentNumber)]['creationSeed']
             mutationSeeds = self.mutationHistory['agent' + str(agentNumber)]['mutationSeeds']
             agent = self.loadModelFromMutationHistory(creationSeed, mutationSeeds)
+            tRecreateFromMutationHistory = (self.hyParams['NAGENTS']/self.envSettings['NAGENTSPARALLEL']) * (t0RecreateFromMutationHistory - time())
+            if agentCount == 1:
+                print('single model recreation took', tRecreateFromMutationHistory, 's')
         # print('debug duration load_model compiled', time() - t0load_model)
 
         MODELNAMETEMP = ('Temp' + self.pid +
@@ -942,7 +950,6 @@ class FloPyAgent():
             if self.envSettings['ENVTYPE'] in ['0s-c']:
 
                 lenCount = len(str(agentCount + 1))
-                # print('lenCount', lenCount)
 
                 MODELNAMETEMP = self.pid[0:15-lenCount] + str(agentCount + 1)
 
@@ -977,6 +984,7 @@ class FloPyAgent():
             # if env.ENVTYPE in ['0s-c']
             # resetting to unique temporary folder to enable parallelism
             # Note: This will resimulate the initial environment state
+
             env.reset(MODELNAME=MODELNAMETEMP, _seed=SEEDTEMP)
         elif self.envSettings['SURROGATESIMULATOR'] is not None:
             # this must be initialized here as surrogate TensorFlow models
@@ -1281,9 +1289,10 @@ class FloPyAgent():
         """
         # predict_on_batch robust in parallel operation?
 
-        t0 = time()
-        prediction = agentModel.predict_on_batch(array(state).reshape(-1, (*shape(state))))[0]
-        tPrediction = time()-t0
+        # t0 = time()
+        state = array(state).reshape(-1, (*shape(state)))
+        prediction = agentModel.predict_on_batch(state)[0]
+        # tPrediction = time()-t0
         # print('debug time prediction', tPrediction)
         return prediction
 
@@ -1609,6 +1618,9 @@ class FloPyAgent():
             flagRender=False,
             nLay=env.nLay, nRow=env.nRow, nCol=env.nCol,
             OBSPREP=self.hyParams['NNTYPE'])
+
+        # print('debug best animation seed', self.envSettings['SEEDENV'] + self.currentGame-1)
+
         game.play(
             ENVTYPE=self.envSettings['ENVTYPE'],
             seed=self.envSettings['SEEDENV'] + self.currentGame-1)
@@ -1781,8 +1793,8 @@ class FloPyEnv():
         self.actionType = self.getActionType(self.ENVTYPE)
 
         self._SEED = _seed
-        if self._SEED is not None:
-            numpySeed(self._SEED)
+        # if self._SEED is not None:
+        #     numpySeed(self._SEED)
         self.defineEnvironment()
         self.timeStep, self.keyPressed = 0, None
         self.reward, self.rewardCurrent = 0., 0.
@@ -1880,7 +1892,6 @@ class FloPyEnv():
         parse libmf6.so and libmf6.dll stdout file
         """
 
-        # print('debug bmi_return modelname', modelname)
         fpth = join(model_ws, modelname + '.stdout')
         fpth = join(model_ws, 'mfsim' + '.stdout')
         return success, open(fpth).readlines()
@@ -1898,8 +1909,6 @@ class FloPyEnv():
             self.success = False
             modelname = self.name
             exe = self.mf6dll
-
-            # print(self.model_ws, modelname)
 
             self.nameUpper = self.name.upper()
             if self.model_ws is not None:
@@ -2271,6 +2280,9 @@ class FloPyEnv():
                 # print('time 7', time()-t0Step)
 
                 reward = self.get_reward(self.head_steadyState_flat, head)
+                self.reward = copy(reward)
+                self.rewardCurrent += self.reward
+
                 # print('time 8', time()-t0Step)
 
                 if self.renderFlag or self.SAVEPLOT:
@@ -2285,6 +2297,11 @@ class FloPyEnv():
                 # finalize time step and update time
                 # self.mf6.finalize_time_step()
                 # print('finalize_time_step', time()-t0)
+
+
+            # if self.current_time > self.end_time:
+            #     print('debug ABOOVVEE')
+
 
             # t0Postprocess = time()
             # needs to observe more, potentially storm parameters?
@@ -2323,8 +2340,7 @@ class FloPyEnv():
             info = None
 
             observation = copy(observation)
-            reward = copy(reward)
-            self.done = copy(self.done)
+            # self.done = copy(self.done)
 
             if self.done:
                 # cleanup
@@ -2598,7 +2614,10 @@ class FloPyEnv():
     def defineEnvironment(self, seed=None):
         """Define environmental variables."""
 
+        numpySeed(self._SEED)
+
         if self.ENVTYPE in ['0s-c']:
+
             # temporal discretization
             self.perlen = 50
             # self.perlen = 200
@@ -2664,7 +2683,7 @@ class FloPyEnv():
             self.stormCentersX, self.stormCentersY = [], []
             self.stormStarts, self.stormDurations, self.stormIntensities, self.stormRadii = [], [], [], []
             for iStorm in range(self.nStorms):
-                stormStart = int(uniform(0, self.nstp-1))
+                stormStart = int(uniform(2, self.nstp-1))
                 stormDuration = int(uniform(self.minStormDuration, self.maxStormDuration))
                 stormIntensity = uniform(self.storm_rch_min, self.storm_rch_max)
                 self.stormCenterX = uniform(0, self.extentX)
@@ -3415,7 +3434,6 @@ class FloPyEnv():
             # self.mf.write_input()
         elif self.timeStep == 0:
             self.debugWritten = 'full'
-            # print('DEBUG WRITTEN')
             self.mf.write_input()
         self.tWrite = time() - t0
 
