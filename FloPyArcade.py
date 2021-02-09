@@ -34,7 +34,7 @@ from matplotlib.pyplot import margins, NullLocator
 from matplotlib.pyplot import waitforbuttonpress
 from numpy import add, arange, argmax, argsort, array, ceil, copy, concatenate, divide, expand_dims
 from numpy import extract, float32, frombuffer, int32, linspace, max, maximum, min, minimum
-from numpy import mean, multiply, ones, shape, sqrt, subtract, uint8, zeros
+from numpy import mean, multiply, ones, prod, shape, sqrt, subtract, uint8, zeros
 from numpy import sum as numpySum
 from numpy import abs as numpyAbs
 from numpy.random import randint, random, randn, uniform
@@ -111,7 +111,7 @@ class FloPyAgent():
 
     def __init__(self, observationsVector=None, actionSpace=['keep'],
                  hyParams=None, envSettings=None, mode='random',
-                 maxTasksPerWorker=100, maxTasksPerWorkerMutate=10,
+                 maxTasksPerWorker=1000, maxTasksPerWorkerMutate=100,
                  maxTasksPerWorkerNoveltySearch=100000, zFill=6):
         """Constructor"""
 
@@ -470,12 +470,15 @@ class FloPyAgent():
                 # this can be improved by loading only once and then saving to disk between generations
                 t0LoadActionsOnce = time()
                 sharedDictActions = {}
+                sharedListActions = []
                 for iAgent in self.agentsUnique:
                     agentStr = 'agent' + str(iAgent+1)
                     sharedDictActions[agentStr] = {}
                     pth = self.noveltyArchive[agentStr]['resultsFile']
                     actions = self.pickleLoad(pth)['actions']
-                    sharedDictActions[agentStr]['actions'] = actions
+                    sharedDictActions[agentStr]['actions'] = array(actions)
+                    sharedListActions.append(array(actions))
+                sharedArrayActions = array(sharedListActions)
                 tLoadActionsOnce = t0LoadActionsOnce - time()
                 print('Loading actions took', tLoadActionsOnce, 's')
 
@@ -485,8 +488,9 @@ class FloPyAgent():
                     cores*self.maxTasksPerWorkerNoveltySearch)
                 for chunk in chunksTotal:
                     # sharing dictionary containing actions to avoid loading
-                    noveltiesPerAgent = self.multiprocessChunks(
-                        self.calculateNoveltyPerAgent, chunk, sharedDict=sharedDictActions)
+                    noveltiesPerAgent = self.multiprocessChunks(self.calculateNoveltyPerAgent,
+                        chunk, sharedArr=sharedArrayActions)
+                        # self.calculateNoveltyPerAgent, chunk, sharedDict=sharedDictActions)
                     noveltiesUniqueAgents += noveltiesPerAgent
                 print('Finished novelty search, took', int(time()-t0NoveltySearch), 's')
 
@@ -1469,7 +1473,7 @@ class FloPyAgent():
 
         return novelty
 
-    def calculateNoveltyPerAgent(self, iAgent, actionsDict):
+    def calculateNoveltyPerAgent(self, iAgent, actionsDict=None):
         t0 = time()
         agentStr = 'agent' + str(iAgent+1)
         # loading noveties for specific agent from disk
@@ -1478,87 +1482,95 @@ class FloPyAgent():
             agentNovelties = self.pickleLoad(noveltyFile, compressed=None)
         else:
             agentNovelties = {}
-        # print('loading novelties took', time()-t0)
 
-        # determine which ones need update?
-        # pass necessary actionsDict?
-        # load only parts of the noveltyArchive
-        # actions = self.noveltyArchive[agentStr]['actions']
-        # gr-e0s-c-s2n2000e20g500av100st200mpr1e-0mpo3e-3ar300x4v0relubn1_res100_ns-ev1n1e3e50nn5e3_gen000001_agent000008_results.p -- herefrom actions
+        global arr, arr_lock
 
-        # load all actions in main process
-        # is this not the last batch missing?
-        # collect iAgent2 beforehand and pass corresponding actions in actionsDict
-        # load large noveltyArchive
-        # iActionsNeeded = []
-        # select actions from iActionsNeeded
-        # dump the rest of the novelty Archive
-        # or use these indices to request from main process?
+        with arr_lock:
+            # print('loading novelties took', time()-t0)
 
-        neighborLimitReached = (self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS'])#
+            # determine which ones need update?
+            # pass necessary actionsDict?
+            # load only parts of the noveltyArchive
+            # actions = self.noveltyArchive[agentStr]['actions']
+            # gr-e0s-c-s2n2000e20g500av100st200mpr1e-0mpo3e-3ar300x4v0relubn1_res100_ns-ev1n1e3e50nn5e3_gen000001_agent000008_results.p -- herefrom actions
 
-        agentStr = 'agent' + str(iAgent+1)
-        actions = actionsDict[agentStr]['actions']
+            # load all actions in main process
+            # is this not the last batch missing?
+            # collect iAgent2 beforehand and pass corresponding actions in actionsDict
+            # load large noveltyArchive
+            # iActionsNeeded = []
+            # select actions from iActionsNeeded
+            # dump the rest of the novelty Archive
+            # or use these indices to request from main process?
 
-        t0 = time()
-        novelties = []
-        if not neighborLimitReached:
-            for iAgent2 in range(self.noveltyItemCount):
-                if iAgent != iAgent2:
-                    agentStr2 = 'agent' + str(iAgent2+1)
-                    actions2 = actionsDict[agentStr2]['actions']
-                    try:
-                        # calculate novelties only if unavailable
-                        # as keys mostly exists, try/except check should be performant here
-                        novelty = agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)]
-                    except:
-                        novelty = agentNovelties[str(iAgent2+1) + '_' + str(iAgent+1)]
-                    finally:
-                        t0single = time()
-                        novelty = self.calculateNoveltyPerPair([actions, actions2])
-                        # novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
-                        # print('calculating single took', time()-t0single)
+            neighborLimitReached = (self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS'])#
 
-                        agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)] = novelty
-                    novelties.append(novelty)
-            # print('calculating novelties took', time()-t0)
+            agentStr = 'agent' + str(iAgent+1)
+            actions = arr[iAgent]
+            # actions = actionsDict[agentStr]['actions']
 
-        elif neighborLimitReached:
-            # checking if half of NNOVELTYNEIGHBORS are available surrounding the given index
-            # if not agents are selected until the index boundary and more from the other end
-            nLower = int(floor(self.hyParams['NNOVELTYNEIGHBORS']/2))
-            nHigher = int(ceil(self.hyParams['NNOVELTYNEIGHBORS']/2))
-            bottomReached = False
-            if iAgent - nLower >= 0:
-                rangeLower = iAgent - nLower
-                rangeHigher = iAgent + nHigher
-            else:
-                rangeLower, rangeHigher = 0, self.hyParams['NNOVELTYNEIGHBORS']
-                bottomReached = True
+            t0 = time()
+            novelties = []
+            if not neighborLimitReached:
+                for iAgent2 in range(self.noveltyItemCount):
+                    if iAgent != iAgent2:
+                        agentStr2 = 'agent' + str(iAgent2+1)
+                        t0GetActions = time()
+                        actions2 = arr[iAgent2]
+                        # actions2 = actionsDict[agentStr2]['actions']
+                        try:
+                            # calculate novelties only if unavailable
+                            # as keys mostly exists, try/except check should be performant here
+                            novelty = agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)]
+                        # except:
+                        #     novelty = agentNovelties[str(iAgent2+1) + '_' + str(iAgent+1)]
+                        except:
+                            t0single = time()
+                            novelty = self.calculateNoveltyPerPair([actions, actions2])
+                            # novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
+                            # print('calculating single took', time()-t0single)
 
-            if not bottomReached:
-                if iAgent + nHigher < self.noveltyItemCount:
+                            agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)] = novelty
+                        novelties.append(novelty)
+                # print('calculating novelties took', time()-t0)
+
+            elif neighborLimitReached:
+                # checking if half of NNOVELTYNEIGHBORS are available surrounding the given index
+                # if not agents are selected until the index boundary and more from the other end
+                nLower = int(floor(self.hyParams['NNOVELTYNEIGHBORS']/2))
+                nHigher = int(ceil(self.hyParams['NNOVELTYNEIGHBORS']/2))
+                bottomReached = False
+                if iAgent - nLower >= 0:
                     rangeLower = iAgent - nLower
                     rangeHigher = iAgent + nHigher
                 else:
-                    rangeLower = self.noveltyItemCount - self.hyParams['NNOVELTYNEIGHBORS']
-                    rangeHigher = self.noveltyItemCount
+                    rangeLower, rangeHigher = 0, self.hyParams['NNOVELTYNEIGHBORS']
+                    bottomReached = True
 
-            for iAgent2 in range(rangeLower, rangeHigher):
-                if iAgent != iAgent2:
-                    agentStr2 = 'agent' + str(iAgent2+1)
-                    actions2 = actionsDict[agentStr2]['actions']
-                    try:
-                        # calculate novelties only if unavailable
-                        # as keys mostly exists, try/except check should be performant here
-                        novelty = agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)]
-                    except:
-                        novelty = agentNovelties[str(iAgent2+1) + '_' + str(iAgent+1)]
-                    finally:
-                        novelty = self.calculateNoveltyPerPair([actions, actions2])
-                        # novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
-                        agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)] = novelty
-                    novelties.append(novelty)
+                if not bottomReached:
+                    if iAgent + nHigher < self.noveltyItemCount:
+                        rangeLower = iAgent - nLower
+                        rangeHigher = iAgent + nHigher
+                    else:
+                        rangeLower = self.noveltyItemCount - self.hyParams['NNOVELTYNEIGHBORS']
+                        rangeHigher = self.noveltyItemCount
+
+                for iAgent2 in range(rangeLower, rangeHigher):
+                    if iAgent != iAgent2:
+                        agentStr2 = 'agent' + str(iAgent2+1)
+                        actions2 = arr[iAgent2]
+                        # actions2 = actionsDict[agentStr2]['actions']
+                        try:
+                            # calculate novelties only if unavailable
+                            # as keys mostly exists, try/except check should be performant here
+                            novelty = agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)]
+                        # except:
+                        #     novelty = agentNovelties[str(iAgent2+1) + '_' + str(iAgent+1)]
+                        except:
+                            novelty = self.calculateNoveltyPerPair([actions, actions2])
+                            # novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
+                            agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)] = novelty
+                        novelties.append(novelty)
 
         t0 = time()
         dumpPath = join(self.tempNoveltypth, agentStr + '_novelties.p')
@@ -1619,7 +1631,12 @@ class FloPyAgent():
         for i in range(0, len(lst), n):
             yield lst[i:i + n]
 
-    def multiprocessChunks(self, function, chunk, parallelProcesses=None, wait=False, async_=True, sharedDict=None):
+    def init_arr(self, arr, arr_lock=None, shape=None):
+        arr = array(list(arr))
+        globals()['arr'] = frombuffer(arr, dtype='float64').reshape(shape)
+        globals()['arr_lock'] = arr_lock
+
+    def multiprocessChunks(self, function, chunk, parallelProcesses=None, wait=False, async_=True, sharedArr=None, sharedDict=None):
         """Process function in parallel given a chunk of arguments."""
 
         # Pool object from pathos instead of multiprocessing library necessary
@@ -1628,7 +1645,7 @@ class FloPyAgent():
         if parallelProcesses == None:
             parallelProcesses = self.envSettings['NAGENTSPARALLEL']
 
-        if sharedDict == None:
+        if sharedDict == None and sharedArr is None:
             p = Pool(processes=parallelProcesses)
             if async_:
                 pasync = p.map_async(function, chunk)
@@ -1644,7 +1661,7 @@ class FloPyAgent():
             p.join()
             p.terminate()
 
-        elif sharedDict != None:
+        if sharedDict != None:
             with pathosHelpers.mp.Manager() as manager:
                 sharedMgrDict = manager.dict()
                 # https://stackoverflow.com/questions/35353934/python-manager-dict-is-very-slow-compared-to-regular-dict
@@ -1652,6 +1669,20 @@ class FloPyAgent():
                 with manager.Pool(processes=parallelProcesses) as p:
                     input_ = zip(chunk, repeat(sharedDict, len(chunk)))
                     pasync = p.starmap(function, input_)
+
+        if sharedArr is not None:
+            # https://stackoverflow.com/questions/39322677/python-how-to-use-value-and-array-in-multiprocessing-pool
+            # https://stackoverflow.com/questions/64222805/how-to-pass-2d-array-as-multiprocessing-array-to-multiprocessing-pool
+            # https://stackoverflow.com/questions/1675766/combine-pool-map-with-shared-memory-array-in-python-multiprocessing/58208695#58208695
+            # https://stackoverflow.com/questions/11652288/slower-execution-with-python-multiprocessing
+            arr = pathosHelpers.mp.Array('d', sharedArr.flatten(), lock=False)
+            arr_lock = pathosHelpers.mp.Lock()
+            shape_ = shape(sharedArr)
+            # arr = manager.Array('d', sharedArr.flatten(), lock=False)
+            # arr_lock = manager.Lock()
+            with Pool(processes=parallelProcesses, initializer=self.init_arr, initargs=(arr, arr_lock, shape_)) as p:
+                input_ = zip(chunk, repeat(sharedDict, len(chunk)))
+                pasync = p.starmap(function, input_)
 
         return pasync
 
