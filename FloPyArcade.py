@@ -939,7 +939,7 @@ class FloPyAgent():
             agent = self.loadModelFromMutationHistory(creationSeed, mutationSeeds)
             tRecreateFromMutationHistory = (self.hyParams['NAGENTS']/self.envSettings['NAGENTSPARALLEL']) * (t0RecreateFromMutationHistory - time())
             if agentCount == 1:
-                print('single model recreation took', tRecreateFromMutationHistory, 's')
+                print('model recreation took about', tRecreateFromMutationHistory, 's')
         # print('debug duration load_model compiled', time() - t0load_model)
 
         MODELNAMETEMP = ('Temp' + self.pid +
