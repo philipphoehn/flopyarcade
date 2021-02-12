@@ -32,9 +32,9 @@ from matplotlib.pyplot import Circle, close, figure, pause, show
 from matplotlib.pyplot import get_current_fig_manager
 from matplotlib.pyplot import margins, NullLocator
 from matplotlib.pyplot import waitforbuttonpress
-from numpy import add, arange, argmax, argsort, array, ceil, copy, concatenate, divide, expand_dims
-from numpy import extract, float32, frombuffer, int32, linspace, max, maximum, min, minimum
-from numpy import mean, multiply, ones, prod, shape, sqrt, subtract, uint8, zeros
+from numpy import add, arange, argmax, argsort, array, ceil, chararray, copy, concatenate, divide
+from numpy import expand_dims, extract, float32, frombuffer, int32, linspace, max, maximum, min, minimum
+from numpy import mean, multiply, ones, prod, reshape, shape, sqrt, subtract, uint8, unique, zeros
 from numpy import sum as numpySum
 from numpy import abs as numpyAbs
 from numpy.random import randint, random, randn, uniform
@@ -65,7 +65,7 @@ from pathos import helpers as pathosHelpers
 from pathos.pools import _ProcessPool as Pool
 from pathos.pools import _ThreadPool as ThreadPool
 from pickle import dump, load
-from tensorflow.keras.initializers import glorot_uniform
+from tensorflow.keras.initializers import glorot_uniform, glorot_normal, random_uniform, random_normal
 from tensorflow.keras.layers import Activation, BatchNormalization, Conv2D, Dense
 from tensorflow.keras.layers import Dropout, Flatten, MaxPooling2D
 from tensorflow.keras.models import clone_model, load_model, model_from_json
@@ -310,7 +310,6 @@ class FloPyAgent():
         def prepareResume(self):
             pass
 
-
     def runGenetic(self, env, searchNovelty=False):
         """Run main pipeline for genetic agent optimisation.
         # Inspiration and larger parts of code modified after and inspired by:
@@ -339,7 +338,7 @@ class FloPyAgent():
             self.noveltyArchiver_ = self.noveltyArchiver()
             self.noveltyItemCount = 0
             self.agentsUnique, self.agentsUniqueIDs = [], []
-            self.agentsDuplicate = []
+            self.agentsDuplicate, self.agentsDuplicateID = [], []
             if env.actionType == 'discrete':
                 self.actionsUniqueIDMapping = defaultdict(count().__next__)
         cores = self.envSettings['NAGENTSPARALLEL']
@@ -387,6 +386,7 @@ class FloPyAgent():
                                 self.agentsUniqueIDs.append(actionsUniqueID)
                             else:
                                 self.agentsDuplicate.append(iAgent)
+                                # self.agentsDuplicateID.apppend()
 
             # simulating agents in environment, returning average of n runs
             self.rewards = self.runAgentsRepeatedlyGenetic(agentCounts, n, env)
@@ -463,44 +463,73 @@ class FloPyAgent():
                 # Note: This can become a massive bottleneck with increasing
                 # number of stored agent information and generations
                 # despite parallelization
-                noveltiesUniqueAgents = []
+                noveltiesUniqueAgents, sharedListActions = [], []
 
-                # load all actions
-
+                # loading all actions
                 # this can be improved by loading only once and then saving to disk between generations
                 t0LoadActionsOnce = time()
-                sharedListActions = []
 
                 # retrieving shape to allow padding with zeros
                 # else conversion to array fails with different length of action collections
                 # https://stackoverflow.com/questions/35751306/python-how-to-pad-numpy-array-with-zeros/35751834
-                maxShape = [0, 0, 0]
-                for iAgent in self.agentsUnique:
-                    agentStr = 'agent' + str(iAgent+1)
-                    pth = self.noveltyArchive[agentStr]['resultsFile']
-                    actions = self.pickleLoad(pth)['actions']
-                    actions = array(actions)
-                    # print(shape(actions), maxShape)
-                    if shape(actions)[0] > maxShape[0]:
-                        maxShape[0] = shape(actions)[0]
-                    if shape(actions)[1] > maxShape[1]:
-                        maxShape[1] = shape(actions)[1]
-                    if shape(actions)[2] > maxShape[2]:
-                        maxShape[2] = shape(actions)[2]
-                maxShape = tuple(maxShape)
-                # print('maxShape', maxShape)
 
+                pth = self.noveltyArchive['agent' + str(0+1)]['resultsFile']
+                if self.hyParams['NGAMESAVERAGED'] == 1:
+                    actions = array(self.pickleLoad(pth)['actions'])
+                    dimShape = len(shape(actions))
+                else:
+                    actions = array(self.pickleLoad(pth)['actions'])[0]
+                    dimShape = len(shape(actions))
+                maxShape = [0 for _ in range(dimShape)]
                 for iAgent in self.agentsUnique:
                     agentStr = 'agent' + str(iAgent+1)
                     pth = self.noveltyArchive[agentStr]['resultsFile']
-                    actions = self.pickleLoad(pth)['actions']
+                    if self.hyParams['NGAMESAVERAGED'] == 1:
+                        actions = self.pickleLoad(pth)['actions']
+                    else:
+                        actions = self.pickleLoad(pth)['actions'][0]
                     actions = array(actions)
-                    sharedListActions_ = zeros(maxShape)
-                    sharedListActions_[:actions.shape[0], :actions.shape[1]] = actions
-                    # sharedListActions.append(array(actions))
+
+                    for iDim in range(dimShape):
+                        if shape(actions)[iDim] > maxShape[iDim]:
+                            maxShape[iDim] = shape(actions)[iDim]
+                if self.hyParams['NGAMESAVERAGED'] != 1:
+                    maxShape = [self.hyParams['NGAMESAVERAGED']] + maxShape
+                maxShape = tuple(maxShape)
+
+                # for iAgent in range(self.noveltyItemCount):
+                for iAgent in range(len(self.agentsUnique)):
+                    agentStr = 'agent' + str(iAgent+1)
+                    pth = self.noveltyArchive[agentStr]['resultsFile']
+                    actions = self.pickleLoad(pth)['actions']
+                    if self.actionType == 'discrete':
+                        sharedListActions_ = chararray(shape=maxShape, itemsize=10)
+                        sharedListActions_[:] = 'keep'
+                        padValue ='keep'
+                        # padding action lists to same length
+                        maxLen = maxShape[1]
+                        for iActions in range(len(actions)):
+                            actions[iActions] = actions[iActions] + [padValue] * (maxLen - len(actions[iActions]))
+                        sharedListActions_[:len(actions)] = actions
+                    elif self.actionType == 'continuous':
+                        sharedListActions_ = zeros(maxShape)
+                        if self.hyParams['NGAMESAVERAGED'] != 1:
+                            for iActions in range(len(actions)):
+                                a = array(actions[iActions])
+                                sharedListActions_[iActions, :a.shape[0], :a.shape[1]] = array([a])
+                        else:
+                            a = array(actions)
+                            sharedListActions_[:a.shape[0], :a.shape[1]] = a
                     sharedListActions.append(sharedListActions_)
 
-                sharedArrayActions = array(sharedListActions)
+                if self.actionType == 'discrete':
+                    self.actionsUniqueScheme, sharedListActions = unique(sharedListActions, return_inverse=True)
+                    sharedListActions = reshape(sharedListActions, tuple([len(self.agentsUnique)] + list(maxShape)))
+                    # recreated = reshape(b[c], tuple([len(sharedListActions)] + list(maxShape)))
+
+                    sharedArrayActions = array(sharedListActions)
+                if self.actionType == 'continuous':
+                    sharedArrayActions = array(sharedListActions)
                 tLoadActionsOnce = t0LoadActionsOnce - time()
                 print('Loading actions took', tLoadActionsOnce, 's')
 
@@ -596,14 +625,24 @@ class FloPyAgent():
         if seed is None:
             seed = self.SEED
         model = Sequential()
-        initializer = glorot_uniform(seed=seed)
+        if actionType == 'discrete':
+            # initializer = glorot_normal(seed=seed)
+            # initializer = glorot_uniform(seed=seed)
+            initializer = random_uniform(minval=-2.2, maxval=2.2, seed=seed) # 37
+            # initializer = random_normal(seed=seed)
+        elif actionType == 'continuous':
+            initializer = random_uniform(minval=-2.5, maxval=2.5, seed=seed)
+            # initializer = random_normal(minval=-2.5, maxval=2.5, seed=seed)
+        else:
+            print('Chosen normal glorot initializer, as not specified.')
+            initializer = glorot_normal(seed=seed)
+
         nHiddenNodes = copy(self.hyParams['NHIDDENNODES'])
         # resetting numpy seeds to generate reproducible architecture
         numpySeed(seed)
 
         if self.hyParams['NNTYPE'] == 'perceptron':
             # fully-connected feed-forward multi-layer neural network
-
             # applying architecture (variable number of nodes per hidden layer)
             if self.agentMode == 'genetic' and self.hyParams['ARCHITECTUREVARY']:
                 for layerIdx in range(len(nHiddenNodes)):
@@ -612,7 +651,8 @@ class FloPyAgent():
                 inputShape = shape(self.observationsVector) if layerIdx == 0 else []
                 model.add(Dense(units=nHiddenNodes[layerIdx],
                     input_shape=inputShape,
-                    kernel_initializer=glorot_uniform(seed=seed),
+                    kernel_initializer=initializer,
+                    bias_initializer=initializer,
                     use_bias=True))
                 if self.hyParams['BATCHNORMALIZATION']:
                     model.add(BatchNormalization())
@@ -627,15 +667,24 @@ class FloPyAgent():
             inputShape = shape(self.observationsVector)
             model.add(Conv2D(32, kernel_size=(8, 8), strides=(4, 4),
                              activation='relu',
+                             kernel_initializer=initializer,
+                             bias_initializer=initializer,
                              input_shape=inputShape, padding='same'))
             # model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
             model.add(Conv2D(64, kernel_size=(4, 4), strides=(2, 2),
+                             kernel_initializer=initializer,
+                             bias_initializer=initializer,
                              activation='relu', padding='same'))
             # model.add(MaxPooling2D(pool_size=(2, 2)))
             model.add(Conv2D(64, kernel_size=(3, 3), strides=(1, 1),
+                             kernel_initializer=initializer,
+                             bias_initializer=initializer,
                              activation='relu', padding='same'))
             model.add(Flatten())
-            model.add(Dense(512, activation='relu'))
+            model.add(Dense(512,
+                      kernel_initializer=initializer,
+                      bias_initializer=initializer,
+                      activation='relu'))
             
         # adding output layer
         if actionType == 'discrete':
@@ -643,7 +692,9 @@ class FloPyAgent():
                 kernel_initializer=initializer))
         elif actionType == 'continuous':
             # sigmoid used here as actions are predicted as fraction of actionRange
-            model.add(Dense(self.actionSpaceSize, activation='sigmoid', # 'relu' ?
+            model.add(Dense(self.actionSpaceSize, activation='sigmoid',
+                kernel_initializer=initializer))
+            model.add(Dense(self.actionSpaceSize, activation='sigmoid',
                 kernel_initializer=initializer))
 
         # compiling to avoid warning while saving agents in genetic search
@@ -1314,8 +1365,8 @@ class FloPyAgent():
         # t0 = time()
         state = array(state).reshape(-1, (*shape(state)))
         prediction = agentModel.predict_on_batch(state)[0]
-        if max(prediction) >= 1.0 or min(prediction) < 0.0:
-            print('debug prediction', min(prediction), max(prediction))
+        # if max(prediction) >= 1.0 or min(prediction) < 0.0:
+        #     print('debug prediction', min(prediction), max(prediction))
         # tPrediction = time()-t0
         # print('debug time prediction', tPrediction)
         return prediction
@@ -1460,7 +1511,6 @@ class FloPyAgent():
             # diffs = numpySum(numpyAbs(subtract(actions1, actions2)))
             # novelty = diffs/diffsCount
 
-
             # alternative way
             ln = min([len(actions1[:,0]), len(actions2[:,0])])
             nActionLists = len(actions1)
@@ -1516,15 +1566,12 @@ class FloPyAgent():
             agentNovelties = {}
 
         global arr, arr_lock
-
         with arr_lock:
             # print('loading novelties took', time()-t0)
 
             # determine which ones need update?
             # pass necessary actionsDict?
             # load only parts of the noveltyArchive
-            # actions = self.noveltyArchive[agentStr]['actions']
-            # gr-e0s-c-s2n2000e20g500av100st200mpr1e-0mpo3e-3ar300x4v0relubn1_res100_ns-ev1n1e3e50nn5e3_gen000001_agent000008_results.p -- herefrom actions
 
             # load all actions in main process
             # is this not the last batch missing?
@@ -1535,19 +1582,25 @@ class FloPyAgent():
             # dump the rest of the novelty Archive
             # or use these indices to request from main process?
 
-            neighborLimitReached = (self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS'])#
+            # neighborLimitReached = (self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS'])#
+            neighborLimitReached = (len(self.agentsUnique) > self.hyParams['NNOVELTYNEIGHBORS'])#
 
             agentStr = 'agent' + str(iAgent+1)
-            actions = arr[iAgent]
+            i1 = self.agentsUnique.index(iAgent)
+            actions = arr[i1]
+            # actions = arr[iAgent]
             # actions = actionsDict[agentStr]['actions']
 
             t0 = time()
             novelties = []
             if not neighborLimitReached:
-                for iAgent2 in range(self.noveltyItemCount):
+                # for iAgent2 in range(self.noveltyItemCount):
+                # for iAgent2 in range(len(self.agentsUnique)):
+                for iAgent2 in range(len(arr)):
                     if iAgent != iAgent2:
                         agentStr2 = 'agent' + str(iAgent2+1)
                         t0GetActions = time()
+                        # i2 = self.agentsUnique.index(iAgent2)
                         actions2 = arr[iAgent2]
                         # actions2 = actionsDict[agentStr2]['actions']
                         try:
@@ -1590,7 +1643,8 @@ class FloPyAgent():
                 for iAgent2 in range(rangeLower, rangeHigher):
                     if iAgent != iAgent2:
                         agentStr2 = 'agent' + str(iAgent2+1)
-                        actions2 = arr[iAgent2]
+                        actionsUniqueID2 = self.noveltyArchive[agentStr2]['actionsUniqueID']
+                        actions2 = arr[actionsUniqueID2]
                         # actions2 = actionsDict[agentStr2]['actions']
                         try:
                             # calculate novelties only if unavailable
@@ -1641,8 +1695,6 @@ class FloPyAgent():
             flagRender=False,
             nLay=env.nLay, nRow=env.nRow, nCol=env.nCol,
             OBSPREP=self.hyParams['NNTYPE'])
-
-        # print('debug best animation seed', self.envSettings['SEEDENV'] + self.currentGame-1)
 
         game.play(
             ENVTYPE=self.envSettings['ENVTYPE'],
@@ -2333,10 +2385,6 @@ class FloPyEnv():
                 # finalize time step and update time
                 # self.mf6.finalize_time_step()
                 # print('finalize_time_step', time()-t0)
-
-
-            # if self.current_time > self.end_time:
-            #     print('debug ABOOVVEE')
 
             # t0Postprocess = time()
             # needs to observe more, potentially storm parameters?
