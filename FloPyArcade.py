@@ -469,15 +469,37 @@ class FloPyAgent():
 
                 # this can be improved by loading only once and then saving to disk between generations
                 t0LoadActionsOnce = time()
-                sharedDictActions = {}
                 sharedListActions = []
+
+                # retrieving shape to allow padding with zeros
+                # else conversion to array fails with different length of action collections
+                # https://stackoverflow.com/questions/35751306/python-how-to-pad-numpy-array-with-zeros/35751834
+                maxShape = [0, 0, 0]
                 for iAgent in self.agentsUnique:
                     agentStr = 'agent' + str(iAgent+1)
-                    sharedDictActions[agentStr] = {}
                     pth = self.noveltyArchive[agentStr]['resultsFile']
                     actions = self.pickleLoad(pth)['actions']
-                    sharedDictActions[agentStr]['actions'] = array(actions)
-                    sharedListActions.append(array(actions))
+                    actions = array(actions)
+                    # print(shape(actions), maxShape)
+                    if shape(actions)[0] > maxShape[0]:
+                        maxShape[0] = shape(actions)[0]
+                    if shape(actions)[1] > maxShape[1]:
+                        maxShape[1] = shape(actions)[1]
+                    if shape(actions)[2] > maxShape[2]:
+                        maxShape[2] = shape(actions)[2]
+                maxShape = tuple(maxShape)
+                # print('maxShape', maxShape)
+
+                for iAgent in self.agentsUnique:
+                    agentStr = 'agent' + str(iAgent+1)
+                    pth = self.noveltyArchive[agentStr]['resultsFile']
+                    actions = self.pickleLoad(pth)['actions']
+                    actions = array(actions)
+                    sharedListActions_ = zeros(maxShape)
+                    sharedListActions_[:actions.shape[0], :actions.shape[1]] = actions
+                    # sharedListActions.append(array(actions))
+                    sharedListActions.append(sharedListActions_)
+
                 sharedArrayActions = array(sharedListActions)
                 tLoadActionsOnce = t0LoadActionsOnce - time()
                 print('Loading actions took', tLoadActionsOnce, 's')
@@ -621,7 +643,7 @@ class FloPyAgent():
                 kernel_initializer=initializer))
         elif actionType == 'continuous':
             # sigmoid used here as actions are predicted as fraction of actionRange
-            model.add(Dense(self.actionSpaceSize, activation='sigmoid',
+            model.add(Dense(self.actionSpaceSize, activation='sigmoid', # 'relu' ?
                 kernel_initializer=initializer))
 
         # compiling to avoid warning while saving agents in genetic search
@@ -1292,6 +1314,8 @@ class FloPyAgent():
         # t0 = time()
         state = array(state).reshape(-1, (*shape(state)))
         prediction = agentModel.predict_on_batch(state)[0]
+        if max(prediction) >= 1.0 or min(prediction) < 0.0:
+            print('debug prediction', min(prediction), max(prediction))
         # tPrediction = time()-t0
         # print('debug time prediction', tPrediction)
         return prediction
@@ -1450,7 +1474,6 @@ class FloPyAgent():
         # print('novelty', novelty)
         return novelty
 
-    # def calculateNoveltyPerPair(self, args):
     def calculateNoveltyPerPair(self, args):
         # agentStr = 'agent' + str(args[0]+1)
         # agentStr2 = 'agent' + str(args[1]+1)
@@ -1772,6 +1795,7 @@ class FloPyEnv():
 
         self.ANIMATIONFOLDER = ANIMATIONFOLDER
         self.SAVEPLOT = flagSavePlot
+
         self.MANUALCONTROL = flagManualControl
         self.MANUALCONTROLTIME = manualControlTime
         self.RENDER = flagRender
@@ -2037,7 +2061,7 @@ class FloPyEnv():
                 y = self.actionsDict['well' + str(iHelper) + 'y']
                 y = self.normalize(y, 0, self.extentY)
                 observations_wells.append(y)
-                Q = self.well_dQMax*self.actionsDict['well' + str(iHelper) + 'Q']
+                Q = self.actionsDict['well' + str(iHelper) + 'Q']
                 Q = self.normalize(Q, self.minQ, self.diffQ)
                 observations_wells.append(Q)
 
@@ -2045,9 +2069,10 @@ class FloPyEnv():
             for iStorm in range(self.nStorms):
                 stormStart = self.stormStarts[iStorm]/self.nstp
                 observations_storms.append(stormStart)
-                stormDuration = self.normalize(self.stormDurations[iStorm], self.minStormDuration, self.maxStormDuration)
+                observations_storms.append(self.timeStep / self.nstp)
+                stormDuration = self.normalize(self.stormDurations[iStorm], 0, self.maxStormDuration)
                 observations_storms.append(stormDuration)
-                stormIntensity = self.normalize(self.stormIntensities[iStorm], self.storm_rch_min, self.storm_rch_max)
+                stormIntensity = self.normalize(self.stormIntensities[iStorm], self.storm_rch_min, numpyAbs(self.storm_rch_min-self.storm_rch_max))
                 observations_storms.append(stormIntensity)
                 stormCenterX = self.normalize(self.stormCentersX[iStorm], 0., self.extentX)
                 observations_storms.append(stormCenterX)
@@ -2060,7 +2085,6 @@ class FloPyEnv():
             # observation += list(self.normalize(new_recharge, self.avg_rch_min, self.rch_diff).flatten())
             observation += observations_wells
             observation += observations_storms
-            observation += [self.timeStep / self.nstp]
 
             self.observationsVectorNormalized = observation
             reward = 0.
@@ -2248,10 +2272,22 @@ class FloPyEnv():
 
                 Qs = []
                 for iHelper in range(self.nHelperWells):
-                    x = self.actionsDict['well' + str(iHelper) + 'x'] + self.well_dxMax*self.actionsDict['well' + str(iHelper) + 'actiondxRight'] - self.well_dxMax*self.actionsDict['well' + str(iHelper) + 'actiondxLeft']
-                    y = self.actionsDict['well' + str(iHelper) + 'y'] + self.well_dyMax*self.actionsDict['well' + str(iHelper) + 'actiondyUp'] - self.well_dyMax*self.actionsDict['well' + str(iHelper) + 'actiondyDown']
+                    dxLeft = self.well_dxMax*self.actionsDict['well' + str(iHelper) + 'actiondxLeft']
+                    dxRight = self.well_dxMax*self.actionsDict['well' + str(iHelper) + 'actiondxRight']
+                    x = self.actionsDict['well' + str(iHelper) + 'x'] # + dxRight - dxLeft # has moved in getActionValues already
+                    dyUp = self.well_dyMax*self.actionsDict['well' + str(iHelper) + 'actiondyUp']
+                    dyDown = self.well_dyMax*self.actionsDict['well' + str(iHelper) + 'actiondyDown']
+                    y = self.actionsDict['well' + str(iHelper) + 'y'] # + dyUp - dyDown # has moved in getActionValues already
+                    dQUp = self.well_dyMax*self.actionsDict['well' + str(iHelper) + 'actiondQUp']
+                    dQDown = self.well_dyMax*self.actionsDict['well' + str(iHelper) + 'actiondQDown']
                     Q = self.actionsDict['well' + str(iHelper) + 'Q']
                     Qs.append(Q)
+
+                    # print('debug',
+                    #       'left action', '%.2f' % (dxLeft-dxRight),
+                    #       'up action', '%.2f' % (dyUp-dyDown),
+                    #       'Q action', '%.2f' % (dQUp-dQDown))
+
                 # print(self.current_time, Qs)
 
                 self.well[:, 0] = Qs
@@ -2302,7 +2338,6 @@ class FloPyEnv():
             # if self.current_time > self.end_time:
             #     print('debug ABOOVVEE')
 
-
             # t0Postprocess = time()
             # needs to observe more, potentially storm parameters?
             observations_wells = []
@@ -2313,7 +2348,7 @@ class FloPyEnv():
                 y = self.actionsDict['well' + str(iHelper) + 'y']
                 y = self.normalize(y, 0, self.extentY)
                 observations_wells.append(y)
-                Q = self.well_dQMax*self.actionsDict['well' + str(iHelper) + 'Q']
+                Q = self.actionsDict['well' + str(iHelper) + 'Q']
                 Q = self.normalize(Q, self.minQ, self.diffQ)
                 observations_wells.append(Q)
 
@@ -2321,9 +2356,10 @@ class FloPyEnv():
             for iStorm in range(self.nStorms):
                 stormStart = self.stormStarts[iStorm]/self.nstp
                 observations_storms.append(stormStart)
-                stormDuration = self.normalize(self.stormDurations[iStorm], self.minStormDuration, self.maxStormDuration)
+                observations_storms.append(self.timeStep / self.nstp)
+                stormDuration = self.normalize(self.stormDurations[iStorm], 0, self.maxStormDuration)
                 observations_storms.append(stormDuration)
-                stormIntensity = self.normalize(self.stormIntensities[iStorm], self.storm_rch_min, self.storm_rch_max)
+                stormIntensity = self.normalize(self.stormIntensities[iStorm], self.storm_rch_min, numpyAbs(self.storm_rch_min-self.storm_rch_max))
                 observations_storms.append(stormIntensity)
                 stormCenterX = self.normalize(self.stormCentersX[iStorm], 0., self.extentX)
                 observations_storms.append(stormCenterX)
@@ -2335,7 +2371,6 @@ class FloPyEnv():
             # observation += list(self.normalize(new_recharge, self.avg_rch_min, self.rch_diff).flatten())
             observation += observations_wells
             observation += observations_storms
-            observation += [self.timeStep / self.nstp]
 
             info = None
 
@@ -2707,15 +2742,16 @@ class FloPyEnv():
                     iStorm = self.stormStarts.index(iStp+1)
                     activeStormsIdx.append(iStorm)
                 rech = copy(self.rech0)
+                stormDurationsTemp = copy(self.stormDurations)
                 for iStorm in activeStormsIdx:
-                    if self.stormDurations[iStorm] > 0:
+                    if stormDurationsTemp[iStorm] > 0:
                         ID = self.get_cellID(self.stormCentersX[iStorm], self.stormCentersY[iStorm])
                         iArray = ID-1
                         rech = rech.flatten()
                         rech[iArray] = self.stormIntensities[iStorm]
                         rech = rech.reshape(self.shapeLayer)
                         # modify storm region (just 5 cells around, if possible)?
-                    self.stormDurations[iStorm] -= 1
+                    stormDurationsTemp[iStorm] -= 1
                 self.rechTimeSeries.append(rech)
             # print('debug', self.stormStarts, self.stormDurations, self.stormIntensities, self.stormRadii)
 
@@ -3814,6 +3850,7 @@ class FloPyEnv():
                 rows, cols = self.fig.canvas.get_width_height()
                 imarray = copy(frombuffer(data, dtype=uint8).reshape(cols, rows, 3))
                 self.fig.set_size_inches(s)
+
             if not returnFigure:
                 if self.MANUALCONTROL:
                     self.renderUserInterAction()
@@ -3822,6 +3859,8 @@ class FloPyEnv():
                         if self.RENDER:
                             show(block=False)
                             pause(self.MANUALCONTROLTIME)
+            elif returnFigure:
+                self.plotArrays.append(imarray)
                 if self.SAVEPLOT:
                     if self.done or self.timeStep == self.NAGENTSTEPS:
                         pathGIF = join(self.wrkspc, 'runs', self.ANIMATIONFOLDER, self.MODELNAME + '.gif')
