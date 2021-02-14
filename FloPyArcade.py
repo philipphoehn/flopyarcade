@@ -1622,13 +1622,13 @@ class FloPyAgent():
     def calculateNoveltyPerAgent(self, iAgent, actionsDict=None):
 
         # args.append([iAgent, sharedArrayActions[rangeLower:rangeHigher], rangeLower, rangeHigher, iAgentInCroppedArray])
-        iAgent_, arr, rangeLower, rangeHigher, iAgentInCroppedArray = iAgent[0], iAgent[1], iAgent[2], iAgent[3], iAgent[4]
-        # iAgent = iAgent_
+        iAgentOriginal, arr, rangeLower, rangeHigher, iAgentInCroppedArray = iAgent[0], iAgent[1], iAgent[2], iAgent[3], iAgent[4]
+        agentStr = 'agent' + str(iAgentOriginal+1)
         iAgent = iAgentInCroppedArray
 
         t0 = time()
-        agentStr = 'agent' + str(iAgent+1)
         # loading noveties for specific agent from disk
+        print('loading', self.tempNoveltypth, agentStr)
         noveltyFile = join(self.tempNoveltypth, agentStr + '_novelties.p')
         if exists(noveltyFile):
             agentNovelties = self.pickleLoad(noveltyFile, compressed=None)
@@ -1653,7 +1653,6 @@ class FloPyAgent():
         # dump the rest of the novelty Archive
         # or use these indices to request from main process?
 
-        agentStr = 'agent' + str(iAgent+1)
         # i1 = self.agentsUnique.index(iAgent)
         actions = arr[iAgent]
 
@@ -1673,7 +1672,7 @@ class FloPyAgent():
                     try:
                         # calculate novelties only if unavailable
                         # as keys mostly exists, try/except check should be performant here
-                        novelty = agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)]
+                        novelty = agentNovelties[str(iAgentOriginal+1) + '_' + str(iAgent2+rangeLower+1)]
                     # except:
                     #     novelty = agentNovelties[str(iAgent2+1) + '_' + str(iAgent+1)]
                     except:
@@ -1682,14 +1681,14 @@ class FloPyAgent():
                         # novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
                         # print('calculating single took', time()-t0single)
 
-                        agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)] = novelty
+                        agentNovelties[str(iAgentOriginal+1) + '_' + str(iAgent2+rangeLower+1)] = novelty
                     novelties.append(novelty)
             # print('calculating novelties took', time()-t0)
 
         elif self.neighborLimitReached:
             iArr = 0
             for iAgent2 in range(rangeLower, rangeHigher):
-                if iAgent != iAgent2:
+                if iAgentOriginal != iAgent2:
                     agentStr2 = 'agent' + str(iAgent2+1)
                     # actionsUniqueID2 = self.noveltyArchive[agentStr2]['actionsUniqueID']
                     # actions2 = arr[actionsUniqueID2]
@@ -1698,13 +1697,13 @@ class FloPyAgent():
                     try:
                         # calculate novelties only if unavailable
                         # as keys mostly exists, try/except check should be performant here
-                        novelty = agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)]
+                        novelty = agentNovelties[str(iAgentOriginal+1) + '_' + str(iAgent2+1)]
                     # except:
                     #     novelty = agentNovelties[str(iAgent2+1) + '_' + str(iAgent+1)]
                     except:
                         novelty = self.calculateNoveltyPerPair([actions, actions2])
                         # novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
-                        agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)] = novelty
+                        agentNovelties[str(iAgentOriginal+1) + '_' + str(iAgent2+1)] = novelty
                     novelties.append(novelty)
                 iArr += 1
 
