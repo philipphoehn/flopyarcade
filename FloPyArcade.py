@@ -1628,7 +1628,6 @@ class FloPyAgent():
 
         t0 = time()
         # loading noveties for specific agent from disk
-        print('loading', self.tempNoveltypth, agentStr)
         noveltyFile = join(self.tempNoveltypth, agentStr + '_novelties.p')
         if exists(noveltyFile):
             agentNovelties = self.pickleLoad(noveltyFile, compressed=None)
