@@ -114,7 +114,7 @@ class FloPyAgent():
     def __init__(self, observationsVector=None, actionSpace=['keep'],
                  hyParams=None, envSettings=None, mode='random',
                  maxTasksPerWorker=1000, maxTasksPerWorkerMutate=100,
-                 maxTasksPerWorkerNoveltySearch=100000, zFill=6):
+                 maxTasksPerWorkerNoveltySearch=100, zFill=6):
         """Constructor"""
 
         self.wrkspc = dirname(abspath(__file__))
@@ -744,8 +744,6 @@ class FloPyAgent():
                 kernel_initializer=initializer))
         elif actionType == 'continuous':
             # sigmoid used here as actions are predicted as fraction of actionRange
-            model.add(Dense(self.actionSpaceSize, activation='sigmoid',
-                kernel_initializer=initializer))
             model.add(Dense(self.actionSpaceSize, activation='sigmoid',
                 kernel_initializer=initializer))
 
@@ -1826,9 +1824,7 @@ class FloPyAgent():
         """Load pickled object from file."""
         if compressed == None:
             with open(path, 'rb') as f:
-                # filehandler = open(path, 'rb')
                 objectLoaded = load(f)
-            # filehandler.close()
         elif compressed in ['lz4', 'lzma']:
             objectLoaded = joblibLoad(path)
         else:
@@ -1840,9 +1836,7 @@ class FloPyAgent():
         """Store object to file using pickle."""
         if compress == None:
             with open(path, 'wb') as f:
-                # filehandler = open(path, 'wb')
                 dump(objectToDump, f)
-            # filehandler.close()
         elif compress == 'lz4':
             with open(path, 'wb') as f:
                 joblibDump(objectToDump, f, compress=('lz4', compressLevel))
