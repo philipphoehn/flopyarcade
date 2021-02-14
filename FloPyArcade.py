@@ -32,6 +32,8 @@ from matplotlib.pyplot import Circle, close, figure, pause, show
 from matplotlib.pyplot import get_current_fig_manager
 from matplotlib.pyplot import margins, NullLocator
 from matplotlib.pyplot import waitforbuttonpress
+from matplotlib import text as mtext
+from matplotlib.transforms import Bbox
 from numpy import add, arange, argmax, argsort, array, ceil, chararray, copy, concatenate, divide
 from numpy import expand_dims, extract, float32, frombuffer, int32, linspace, max, maximum, min, minimum
 from numpy import mean, multiply, ones, prod, reshape, shape, sqrt, subtract, uint8, unique, zeros
@@ -536,17 +538,32 @@ class FloPyAgent():
                 print('Loading actions took', tLoadActionsOnce, 's')
 
                 t0NoveltySearch = time()
-                args = [iAgent for iAgent in self.agentsUnique]
+                # args = [iAgent for iAgent in self.agentsUnique]
+                self.neighborLimitReached = (len(self.agentsUnique) > self.hyParams['NNOVELTYNEIGHBORS'])
+
+                t0CalcNoveltyArgs = time()
+                args = []
+                for iAgent in self.agentsUnique:
+                    if self.neighborLimitReached:
+                        rangeLower, rangeHigher, iAgentInCroppedArray = self.calculateNovelyNeighborBounds(iAgent)
+                        arr = sharedArrayActions[rangeLower:rangeHigher]
+                    else:
+                        rangeLower, rangeHigher, iAgentInCroppedArray = 0, 0, iAgent
+                        arr = sharedArrayActions
+                    args.append([iAgent, arr, rangeLower, rangeHigher, iAgentInCroppedArray])
+                tCalcNoveltyArgs = t0CalcNoveltyArgs-time()
+                print('Calculated novelty search arguments, took', int(tCalcNoveltyArgs), 's')
+
                 chunksTotal = self.yieldChunks(args,
                     cores*self.maxTasksPerWorkerNoveltySearch)
                 for chunk in chunksTotal:
                     # sharing dictionary containing actions to avoid loading
-                    noveltiesPerAgent = self.multiprocessChunks(self.calculateNoveltyPerAgent,
-                        chunk, sharedArr=sharedArrayActions)
+                    noveltiesPerAgent = self.multiprocessChunks(
+                        # self.calculateNoveltyPerAgent, chunk, sharedArr=sharedArrayActions)
                         # self.calculateNoveltyPerAgent, chunk, sharedDict=sharedDictActions)
+                        self.calculateNoveltyPerAgent, chunk)
                     noveltiesUniqueAgents += noveltiesPerAgent
                 print('Finished novelty search, took', int(time()-t0NoveltySearch), 's')
-
 
                 # calculating novelty of unique agents
                 for iUniqueAgent in self.agentsUnique:
@@ -621,6 +638,39 @@ class FloPyAgent():
                     OBSPREP=self.hyParams['NNTYPE'],
                     initWithSolution=True,
                     PATHMF6DLL=None)
+
+    def calculateNovelyNeighborBounds(self, iAgent):
+        """Check if half of NNOVELTYNEIGHBORS are available surrounding the given index,
+        if not agents are selected until the index boundary and more from the other end."""
+        nLower = int(floor(self.hyParams['NNOVELTYNEIGHBORS']/2))
+        nHigher = int(ceil(self.hyParams['NNOVELTYNEIGHBORS']/2))
+        bottomReached, topReached = False, False
+        if iAgent - nLower >= 0:
+            rangeLower = iAgent - nLower
+            rangeHigher = iAgent + nHigher
+        else:
+            bottomReached = True
+            rangeLower, rangeHigher = 0, self.hyParams['NNOVELTYNEIGHBORS']
+
+        if not bottomReached:
+            if iAgent + nHigher < self.noveltyItemCount:
+                rangeLower = iAgent - nLower
+                rangeHigher = iAgent + nHigher
+            else:
+                topReached = True
+                rangeLower = self.noveltyItemCount - self.hyParams['NNOVELTYNEIGHBORS']
+                rangeHigher = self.noveltyItemCount
+
+        if not bottomReached and not topReached:
+            iAgentInCroppedArray = iAgent - rangeLower
+        elif bottomReached:
+            iAgentInCroppedArray = iAgent
+        elif topReached:
+            iAgentInCroppedArray = iAgent - self.noveltyItemCount
+        else:
+            print('Error iAgentInCroppedArray could not be defined. This is a bug, please report.')
+
+        return rangeLower, rangeHigher, iAgentInCroppedArray
 
     def createNNModel(self, actionType, seed=None):
         """Create neural network."""
@@ -1570,6 +1620,12 @@ class FloPyAgent():
         return novelty
 
     def calculateNoveltyPerAgent(self, iAgent, actionsDict=None):
+
+        # args.append([iAgent, sharedArrayActions[rangeLower:rangeHigher], rangeLower, rangeHigher, iAgentInCroppedArray])
+        iAgent_, arr, rangeLower, rangeHigher, iAgentInCroppedArray = iAgent[0], iAgent[1], iAgent[2], iAgent[3], iAgent[4]
+        # iAgent = iAgent_
+        iAgent = iAgentInCroppedArray
+
         t0 = time()
         agentStr = 'agent' + str(iAgent+1)
         # loading noveties for specific agent from disk
@@ -1579,98 +1635,78 @@ class FloPyAgent():
         else:
             agentNovelties = {}
 
-        global arr, arr_lock
-        with arr_lock:
-            # print('loading novelties took', time()-t0)
+        # global arr, arr_lock
+        # with arr_lock:
 
-            # determine which ones need update?
-            # pass necessary actionsDict?
-            # load only parts of the noveltyArchive
+        # print('loading novelties took', time()-t0)
 
-            # load all actions in main process
-            # is this not the last batch missing?
-            # collect iAgent2 beforehand and pass corresponding actions in actionsDict
-            # load large noveltyArchive
-            # iActionsNeeded = []
-            # select actions from iActionsNeeded
-            # dump the rest of the novelty Archive
-            # or use these indices to request from main process?
+        # determine which ones need update?
+        # pass necessary actionsDict?
+        # load only parts of the noveltyArchive
 
-            # neighborLimitReached = (self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS'])#
-            neighborLimitReached = (len(self.agentsUnique) > self.hyParams['NNOVELTYNEIGHBORS'])#
+        # load all actions in main process
+        # is this not the last batch missing?
+        # collect iAgent2 beforehand and pass corresponding actions in actionsDict
+        # load large noveltyArchive
+        # iActionsNeeded = []
+        # select actions from iActionsNeeded
+        # dump the rest of the novelty Archive
+        # or use these indices to request from main process?
 
-            agentStr = 'agent' + str(iAgent+1)
-            i1 = self.agentsUnique.index(iAgent)
-            actions = arr[i1]
-            # actions = arr[iAgent]
-            # actions = actionsDict[agentStr]['actions']
+        agentStr = 'agent' + str(iAgent+1)
+        # i1 = self.agentsUnique.index(iAgent)
+        actions = arr[iAgent]
 
-            t0 = time()
-            novelties = []
-            if not neighborLimitReached:
-                # for iAgent2 in range(self.noveltyItemCount):
-                # for iAgent2 in range(len(self.agentsUnique)):
-                for iAgent2 in range(len(arr)):
-                    if iAgent != iAgent2:
-                        agentStr2 = 'agent' + str(iAgent2+1)
-                        t0GetActions = time()
-                        # i2 = self.agentsUnique.index(iAgent2)
-                        actions2 = arr[iAgent2]
-                        # actions2 = actionsDict[agentStr2]['actions']
-                        try:
-                            # calculate novelties only if unavailable
-                            # as keys mostly exists, try/except check should be performant here
-                            novelty = agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)]
-                        # except:
-                        #     novelty = agentNovelties[str(iAgent2+1) + '_' + str(iAgent+1)]
-                        except:
-                            t0single = time()
-                            novelty = self.calculateNoveltyPerPair([actions, actions2])
-                            # novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
-                            # print('calculating single took', time()-t0single)
+        # actions = arr[iAgent]
+        # actions = actionsDict[agentStr]['actions']
 
-                            agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)] = novelty
-                        novelties.append(novelty)
-                # print('calculating novelties took', time()-t0)
+        t0 = time()
+        novelties = []
+        if not self.neighborLimitReached:
+            for iAgent2 in range(len(arr)):
+                if iAgent != iAgent2:
+                    agentStr2 = 'agent' + str(iAgent2+1)
+                    t0GetActions = time()
+                    # i2 = self.agentsUnique.index(iAgent2)
+                    actions2 = arr[iAgent2]
+                    # actions2 = actionsDict[agentStr2]['actions']
+                    try:
+                        # calculate novelties only if unavailable
+                        # as keys mostly exists, try/except check should be performant here
+                        novelty = agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)]
+                    # except:
+                    #     novelty = agentNovelties[str(iAgent2+1) + '_' + str(iAgent+1)]
+                    except:
+                        t0single = time()
+                        novelty = self.calculateNoveltyPerPair([actions, actions2])
+                        # novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
+                        # print('calculating single took', time()-t0single)
 
-            elif neighborLimitReached:
-                # checking if half of NNOVELTYNEIGHBORS are available surrounding the given index
-                # if not agents are selected until the index boundary and more from the other end
-                nLower = int(floor(self.hyParams['NNOVELTYNEIGHBORS']/2))
-                nHigher = int(ceil(self.hyParams['NNOVELTYNEIGHBORS']/2))
-                bottomReached = False
-                if iAgent - nLower >= 0:
-                    rangeLower = iAgent - nLower
-                    rangeHigher = iAgent + nHigher
-                else:
-                    rangeLower, rangeHigher = 0, self.hyParams['NNOVELTYNEIGHBORS']
-                    bottomReached = True
+                        agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)] = novelty
+                    novelties.append(novelty)
+            # print('calculating novelties took', time()-t0)
 
-                if not bottomReached:
-                    if iAgent + nHigher < self.noveltyItemCount:
-                        rangeLower = iAgent - nLower
-                        rangeHigher = iAgent + nHigher
-                    else:
-                        rangeLower = self.noveltyItemCount - self.hyParams['NNOVELTYNEIGHBORS']
-                        rangeHigher = self.noveltyItemCount
-
-                for iAgent2 in range(rangeLower, rangeHigher):
-                    if iAgent != iAgent2:
-                        agentStr2 = 'agent' + str(iAgent2+1)
-                        actionsUniqueID2 = self.noveltyArchive[agentStr2]['actionsUniqueID']
-                        actions2 = arr[actionsUniqueID2]
-                        # actions2 = actionsDict[agentStr2]['actions']
-                        try:
-                            # calculate novelties only if unavailable
-                            # as keys mostly exists, try/except check should be performant here
-                            novelty = agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)]
-                        # except:
-                        #     novelty = agentNovelties[str(iAgent2+1) + '_' + str(iAgent+1)]
-                        except:
-                            novelty = self.calculateNoveltyPerPair([actions, actions2])
-                            # novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
-                            agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)] = novelty
-                        novelties.append(novelty)
+        elif self.neighborLimitReached:
+            iArr = 0
+            for iAgent2 in range(rangeLower, rangeHigher):
+                if iAgent != iAgent2:
+                    agentStr2 = 'agent' + str(iAgent2+1)
+                    # actionsUniqueID2 = self.noveltyArchive[agentStr2]['actionsUniqueID']
+                    # actions2 = arr[actionsUniqueID2]
+                    actions2 = arr[iArr]
+                    # actions2 = actionsDict[agentStr2]['actions']
+                    try:
+                        # calculate novelties only if unavailable
+                        # as keys mostly exists, try/except check should be performant here
+                        novelty = agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)]
+                    # except:
+                    #     novelty = agentNovelties[str(iAgent2+1) + '_' + str(iAgent+1)]
+                    except:
+                        novelty = self.calculateNoveltyPerPair([actions, actions2])
+                        # novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
+                        agentNovelties[str(iAgent+1) + '_' + str(iAgent2+1)] = novelty
+                    novelties.append(novelty)
+                iArr += 1
 
         t0 = time()
         dumpPath = join(self.tempNoveltypth, agentStr + '_novelties.p')
@@ -1782,6 +1818,7 @@ class FloPyAgent():
             # arr = manager.Array('d', sharedArr.flatten(), lock=False)
             # arr_lock = manager.Lock()
             with Pool(processes=parallelProcesses, initializer=self.init_arr, initargs=(arr, arr_lock, shape_)) as p:
+            # with Pool(processes=parallelProcesses, initializer=self.init_arr, initargs=(arr, arr_lock, shape_)) as p:
                 input_ = zip(chunk, repeat(sharedDict, len(chunk)))
                 pasync = p.starmap(function, input_)
 
@@ -3986,53 +4023,291 @@ class FloPyEnv():
 
     def renderWellSafetyZone(self, zorder=3):
         """Plot well safety zone."""
+
+        color = self.renderGetWellColor(self.wellQ)
         wellBufferCircle = Circle((self.wellCoords[0], self.extentY - self.wellCoords[1]), (self.wellRadius),
-          edgecolor='r',
-          facecolor=None,
-          fill=False,
-          zorder=zorder,
-          alpha=1.0,
-          lw=2.0,
-          label='protection zone')
+          edgecolor=color, facecolor='none', fill=False, zorder=zorder, alpha=1.0, lw=1.0)
         self.ax2.add_artist(wellBufferCircle)
+        alpha = self.renderGetWellCircleAlpha(self.wellQ, self.minQ)
+        wellBufferCircleFilled = Circle((self.wellCoords[0], self.extentY - self.wellCoords[1]), (self.wellRadius),
+          edgecolor='none', facecolor=color, fill=True, zorder=zorder, alpha=alpha)
+        self.ax2.add_artist(wellBufferCircleFilled)
+
         if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             wellCoords = []
             for i in range(self.nHelperWells):
                 w = str(i+1)
                 wellCoords.append(self.helperWells['wellCoords'+w])
             for i, c in enumerate(wellCoords):
-                if self.helperWells['wellQ'+str(i+1)] >= 0.:
-                    wellSafetyZoneColor = 'blue'
-                else:
-                    wellSafetyZoneColor = 'red'
+                color = self.renderGetWellColor(self.helperWells['wellQ'+str(i+1)])
                 wellBufferCircle = Circle((c[0], self.extentY - c[1]), (self.helperWellRadius),
-                  edgecolor=wellSafetyZoneColor,
-                  facecolor=None,
-                  fill=False,
-                  zorder=zorder,
-                  alpha=0.5,
-                  lw=2.0,
-                  label='protection zone')
+                  edgecolor=color, facecolor='none', fill=False, zorder=zorder, alpha=1.0, lw=1.0)
                 self.ax2.add_artist(wellBufferCircle)
+                alpha = self.renderGetWellCircleAlpha(self.helperWells['wellQ'+str(i+1)], self.minQhelper)
+                wellBufferCircleFilled = Circle((c[0], self.extentY - c[1]), (self.helperWellRadius),
+                  edgecolor='none', facecolor=color, fill=True, zorder=zorder, alpha=alpha)
+                self.ax2.add_artist(wellBufferCircleFilled)
 
     def renderTextOnCanvasPumpingRate(self, zorder=10):
         """Plot pumping rate on figure."""
-        self.ax2.text((self.wellX + 3.0), (self.extentY - self.wellY), (str(int(self.wellQ)) + '\nm3/d'),
-          fontsize=12,
-          color='black',
-          zorder=zorder)
+        color = self.renderGetWellColor(self.wellQ)
+        label_nextToCircle = str(int(self.wellQ)) + '\n' + r'm$^\mathrm{\mathsf{3}}$ d$^\mathrm{\mathsf{-1}}$'
+        # self.ax2.text((self.wellX + 3.0), (self.extentY - self.wellY), label_nextToCircle,
+        #     fontsize=12, color=color, zorder=zorder, alpha=0.5)
+
+        class CurvedText(mtext.Text):
+            """
+            A text object that follows an arbitrary curve.
+            https://stackoverflow.com/questions/19353576/curved-text-rendering-in-matplotlib
+            """
+            def __init__(self, x, y, text, axes, delimiter, **kwargs):
+                super(CurvedText, self).__init__(x[0],y[0],' ', **kwargs)
+
+                axes.add_artist(self)
+
+                # saving the curve:
+                self.__x = x
+                self.__y = y
+                self.__zorder = self.get_zorder()
+                self.delimiter = delimiter
+
+                # creating the text objects
+                self.__Characters = []
+                texts = text.split(self.delimiter)
+                # print(text, self.delimiter)
+                # print(texts)
+                for c in texts:
+                    # print(c)
+                    if c == ' ':
+                        # making this an invisible 'a':
+                        t = mtext.Text(0,0,'a')
+                        t.set_alpha(0.0)
+                    else:
+                        t = mtext.Text(0,0,c, **kwargs)
+
+                    self.__Characters.append((c,t))
+                    axes.add_artist(t)
+
+
+            # overloading some member functions, to assure correct functionality on update
+            def set_zorder(self, zorder):
+                super(CurvedText, self).set_zorder(zorder)
+                self.__zorder = self.get_zorder()
+                for c,t in self.__Characters:
+                    t.set_zorder(self.__zorder+1)
+
+            def draw(self, renderer, *args, **kwargs):
+                """
+                Overload of the Text.draw() function. Do not do
+                do any drawing, but update the positions and rotation
+                angles of self.__Characters.
+                """
+                self.update_positions(renderer)
+
+            def update_positions(self,renderer):
+                """
+                Update positions and rotations of the individual text elements.
+                """
+
+                # determining the aspect ratio:
+                # from https://stackoverflow.com/a/42014041/2454357
+
+                # data limits
+                xlim = self.axes.get_xlim()
+                ylim = self.axes.get_ylim()
+                # axis size on figure
+                figW, figH = self.axes.get_figure().get_size_inches()
+                # ratio of display units
+                _, _, w, h = self.axes.get_position().bounds
+                # final aspect ratio
+                aspect = ((figW * w)/(figH * h))*(ylim[1]-ylim[0])/(xlim[1]-xlim[0])
+
+                # points of the curve in figure coordinates:
+                x_fig,y_fig = (
+                    np.array(l) for l in zip(*self.axes.transData.transform([
+                    (i,j) for i,j in zip(self.__x,self.__y)
+                    ]))
+                )
+
+                # point distances in figure coordinates
+                x_fig_dist = (x_fig[1:]-x_fig[:-1])
+                y_fig_dist = (y_fig[1:]-y_fig[:-1])
+                r_fig_dist = np.sqrt(x_fig_dist**2+y_fig_dist**2)
+
+                # arc length in figure coordinates
+                l_fig = np.insert(np.cumsum(r_fig_dist),0,0)
+
+                # angles in figure coordinates
+                rads = np.arctan2((y_fig[1:] - y_fig[:-1]),(x_fig[1:] - x_fig[:-1]))
+                degs = np.rad2deg(rads)
+
+                rel_pos = 10
+                for c,t in self.__Characters:
+                    # finding the width of c:
+                    t.set_rotation(0)
+                    t.set_va('center')
+                    bbox1  = t.get_window_extent(renderer=renderer)
+                    w = bbox1.width
+                    h = bbox1.height
+
+                    # ignoring all letters that don't fit:
+                    if rel_pos+w/2 > l_fig[-1]:
+                        t.set_alpha(0.0)
+                        rel_pos += w
+                        continue
+
+                    elif c != ' ':
+                        t.set_alpha(1.0)
+
+                    # finding the two data points between which the horizontal
+                    # center point of the character will be situated
+                    # left and right indices:
+                    il = np.where(rel_pos+w/2 >= l_fig)[0][-1]
+                    ir = np.where(rel_pos+w/2 <= l_fig)[0][0]
+
+                    # if we exactly hit a data point:
+                    if ir == il:
+                        ir += 1
+
+                    # how much of the letter width was needed to find il:
+                    used = l_fig[il]-rel_pos
+                    rel_pos = l_fig[il]
+
+                    # relative distance between il and ir where the center
+                    # of the character will be
+                    fraction = (w/2-used)/r_fig_dist[il]
+
+                    # setting the character position in data coordinates:
+                    # interpolating between the two points:
+                    x = self.__x[il]+fraction*(self.__x[ir]-self.__x[il])
+                    y = self.__y[il]+fraction*(self.__y[ir]-self.__y[il])
+
+                    # getting the offset when setting correct vertical alignment
+                    # in data coordinates
+                    t.set_va(self.get_va())
+                    bbox2  = t.get_window_extent(renderer=renderer)
+
+                    bbox1d = self.axes.transData.inverted().transform(bbox1)
+                    bbox2d = self.axes.transData.inverted().transform(bbox2)
+                    dr = np.array(bbox2d[0]-bbox1d[0])
+
+                    # the rotation/stretch matrix
+                    rad = rads[il]
+                    rot_mat = np.array([
+                        [math.cos(rad), math.sin(rad)*aspect],
+                        [-math.sin(rad)/aspect, math.cos(rad)]
+                    ])
+
+                    # computing the offset vector of the rotated character
+                    drp = np.dot(dr,rot_mat)
+
+                    # setting final position and rotation:
+                    t.set_position(np.array([x,y])+drp)
+                    t.set_rotation(degs[il])
+
+                    t.set_va('center')
+                    t.set_ha('center')
+
+                    # updating rel_pos to right edge of character
+                    rel_pos += w-used
+
+        import math
+        import numpy as np
+        N = 500
+        self.wellSafetyZone_outer = [-1.0*self.wellRadius*np.cos(np.linspace(0, 2*np.pi, N)),
+                                      1.0*self.wellRadius*np.sin(np.linspace(0, 2*np.pi, N))]
+
+        label_onCircle = str(int(abs(self.wellQ))).replace("", ";")[1: -1] + r'   ;m;$^\mathrm{\mathsf{3}}$;   ;d;$^\mathrm{\mathsf{-1}}$'
+        text = CurvedText(
+            x = self.wellSafetyZone_outer[0] + self.wellCoords[0],
+            y = self.wellSafetyZone_outer[1] + self.extentY - self.wellCoords[1],
+            text=label_onCircle, va = 'bottom', axes = self.ax2, delimiter = ';', fontsize=8, color=color)
+
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            wellCoords = []
+            for i in range(self.nHelperWells):
+                w = str(i+1)
+                wellCoords.append(self.helperWells['wellCoords'+w])
+            for i, c in enumerate(wellCoords):
+                Q = self.helperWells['wellQ'+str(i+1)]
+                color = self.renderGetWellColor(self.helperWells['wellQ'+str(i+1)])
+                helperWellSafetyZone_outer = [-1.0*self.helperWellRadius*np.cos(np.linspace(0, 2*np.pi, N)),
+                                              1.0*self.helperWellRadius*np.sin(np.linspace(0, 2*np.pi, N))]
+
+                label_onCircle = str(int(abs(Q))).replace("", ";")[1: -1] # + r' ;m;$^\mathrm{\mathsf{3}}$; ;d;$^\mathrm{\mathsf{-1}}$'
+                text = CurvedText(
+                    x = helperWellSafetyZone_outer[0] + c[0],
+                    y = helperWellSafetyZone_outer[1] + self.extentY - c[1],
+                    text=label_onCircle, va = 'bottom', axes = self.ax2, delimiter = ';', fontsize=5, color=color)
+
+    def renderGetWellColor(self, Q):
+        """Return color symbolizing pumping or injection well regime."""
+        if Q < 0.:
+            color = 'red'
+        else:
+            color = 'blue'
+
+        return color
+
+    def renderGetWellCircleAlpha(self, Q, maxQ):
+        """Return transparency level representing pumping or injection magnitude."""
+
+        alphaMax = 0.9
+        Q = abs(Q)
+        fraction = Q/abs(maxQ)
+        alpha = fraction*alphaMax
+
+        return alpha
 
     def renderTextOnCanvasGameOutcome(self, zorder=10):
         """Plot final game outcome on figure."""
         gameResult = ''
         if self.done:
             if self.success:
-                gameResult = 'Success.'
+                gameResult = 'Success'
             elif self.success == False:
-                gameResult = 'Failure.'
-        self.ax2.text(35, 80, gameResult, fontsize=30,
-          color='red',
-          zorder=zorder)
+                gameResult = 'Failure'
+            self.text = self.ax2.text(1.25, 65., gameResult, fontsize=500,
+                color='red', zorder=zorder, alpha=0.25,
+                bbox=dict(facecolor='none', edgecolor='none', pad=0.0))
+
+            self.textSpanAcrossAxis(self.text, 100., 80., fig=self.fig, ax=self.ax2)
+
+    def textSpanAcrossAxis(self, text, width, height, fig=None, ax=None):
+        """Auto-decrease and re-expand the fontsize of a text object to match the axis extent.
+        https://stackoverflow.com/questions/5320205/matplotlib-text-dimensions
+        Args:
+            text (matplotlib.text.Text)
+            width (float): allowed width in data coordinates
+            height (float): allowed height in data coordinates
+        """
+
+        size = fig.get_size_inches()
+        whratio = size[0]/size[1]
+
+        # get text bounding box in figure coordinates
+        # bbox_text = text.get_window_extent().inverse_transformed(self.fig.gca().transData)
+        bbox_text = text.get_window_extent().inverse_transformed(ax.transData)
+
+        # evaluate fit and recursively decrease fontsize until text fits
+        fits_width = bbox_text.width*whratio < width if width else True
+        fits_height = bbox_text.height/whratio < height if height else True
+        dFontDecrease = 5.
+        if not all((fits_width, fits_height)):
+            text.set_fontsize(text.get_fontsize()-dFontDecrease)
+            self.textSpanAcrossAxis(text, width, height, fig, ax)
+
+        # re-expanding (in finer increments)
+        expandFinished = False
+        while not expandFinished:
+            bbox_text = text.get_window_extent().inverse_transformed(ax.transData)
+            fits_width = bbox_text.width*whratio >= width if width else True
+            fits_height = bbox_text.height/whratio < height if height else True
+            if not all((fits_width, fits_height)):
+                dFontIncrease = 0.1
+                text.set_fontsize(text.get_fontsize()+dFontIncrease)
+            else:
+                expandFinished = True
 
     def renderTextOnCanvasTimeAndScore(self, zorder=10):
         """Plot final game outcome on figure."""
