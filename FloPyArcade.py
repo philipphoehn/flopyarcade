@@ -2321,6 +2321,7 @@ class FloPyEnv():
 
             # model time loop
             if self.current_time <= self.end_time:
+                t0Step = time()
                 self.timeStep += int(1)
 
                 # if self.timeStep == self.nstp-1:
@@ -2411,6 +2412,7 @@ class FloPyEnv():
                 # print('time 7', time()-t0Step)
 
                 reward = self.get_reward(self.head_steadyState_flat, head)
+                # print('zgoih', self.timeStep, mean(self.head_steadyState_flat), mean(head))
                 self.reward = copy(reward)
                 self.rewardCurrent += self.reward
 
@@ -2755,7 +2757,8 @@ class FloPyEnv():
             self.tdis_rc.append((self.perlen, self.nstp, 1))
 
             # model spatial dimensions
-            self.nlay, self.nrow, self.ncol = 1, 10, 50
+            self.nlay, self.nrow, self.ncol = 1, 25, 25
+            # self.nlay, self.nrow, self.ncol = 1, 20, 20
             # self.nlay, self.nrow, self.ncol = 1, 100, 100
 
             # cell spacing
@@ -2779,8 +2782,8 @@ class FloPyEnv():
             self.chd_west, self.chd_east = 58.5, 57.5
             self.chd_diff = numpyAbs(self.chd_west-self.chd_east)
 
-            self.nHelperWells = 1
-            self.nStorms = 1
+            self.nHelperWells = 5
+            self.nStorms = 2
 
             # allowed pumping rates
             self.actionsDict = {}
@@ -2801,7 +2804,9 @@ class FloPyEnv():
                 # self.actionsDict['well' + str(iHelper) + 'Q'] = uniform(self.minQ, self.maxQ)
                 self.actionsDict['well' + str(iHelper) + 'Q'] = 0.0
 
-            self.avg_rch_min, self.avg_rch_max = 1e-6, 1e-2
+            self.avg_rch_min, self.avg_rch_max = 0., 0.
+            # self.avg_rch_min, self.avg_rch_max = 1e-8, 1e-6
+            # self.avg_rch_min, self.avg_rch_max = 1e-6, 1e-2
             self.storm_rch_min, self.storm_rch_max = 1e-1, 2e1
             self.rch_diff = numpyAbs(self.avg_rch_min-self.storm_rch_max)
             self.minStormDuration, self.maxStormDuration = 3, 20
@@ -2826,6 +2831,7 @@ class FloPyEnv():
             self.shapeLayer = (1, self.nrow, self.ncol)
             self.shapeGrid = (self.nlay, self.nrow, self.ncol)
             self.rech0 = uniform(low=self.avg_rch_min, high=self.avg_rch_max, size=self.shapeLayer)
+            # self.rech0 = uniform(low=0.0, high=0.0, size=self.shapeLayer)
             self.rechTimeSeries, activeStormsIdx = [], []
             self.rechTimeSeries.append(self.rech0)
             for iStp in range(self.nstp):
@@ -2854,8 +2860,8 @@ class FloPyEnv():
             # solver data
             self.nouter, self.ninner = 100, 100
             # self.hclose, self.rclose, self.relax = 1e-6, 1e-3, 0.97
-            # self.hclose, self.rclose, self.relax = 1e-12, 1e-9, 0.97
-            self.hclose, self.rclose, self.relax = 1e-9, 1e-3, 0.97
+            # self.hclose, self.rclose, self.relax = 1e-12, 1e-9, 0.999
+            self.hclose, self.rclose, self.relax = 1e-8, 1e-8, 1.
 
         else:
             # general environment settings,
@@ -3255,6 +3261,10 @@ class FloPyEnv():
                 k=self.hk
                 )
 
+            rch = ModflowGwfrcha(self.gwf, recharge=self.rechTimeSeries[0],
+                                 # stress_period_data={0: rd}
+                                 )
+
             # output control, budget not needed without particle tracking
             oc = ModflowGwfoc(self.gwf,
                 head_filerecord='{}.hds'.format(self.name),
@@ -3273,7 +3283,6 @@ class FloPyEnv():
 
             self.sim_steadyState = deepcopy(self.sim)
             # self.sim_steadyState = deepcopy(self.sim)
-
 
             # del(self.sim.tdis)
             self.sim.remove_package(tdis)
@@ -3296,8 +3305,8 @@ class FloPyEnv():
                           stress_period_data={0: wd}, save_flows=True
                           )
 
+            self.gwf.remove_package(self.gwf.package_key_dict['rcha'])
             rch = ModflowGwfrcha(self.gwf, recharge=self.rechTimeSeries[0],
-                                 # stress_period_data={0: rd}
                                  )
 
         else:
