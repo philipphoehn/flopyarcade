@@ -114,7 +114,7 @@ class FloPyAgent():
     def __init__(self, observationsVector=None, actionSpace=['keep'],
                  hyParams=None, envSettings=None, mode='random',
                  maxTasksPerWorker=1000, maxTasksPerWorkerMutate=1000,
-                 maxTasksPerWorkerNoveltySearch=1000, zFill=6):
+                 maxTasksPerWorkerNoveltySearch=10000, zFill=6):
         """Constructor"""
 
         self.wrkspc = dirname(abspath(__file__))
@@ -394,6 +394,10 @@ class FloPyAgent():
 
             # simulating agents in environment, returning average of n runs
             self.rewards = self.runAgentsRepeatedlyGenetic(agentCounts, n, env)
+            print('lowest reward', min(self.rewards))
+            print('average reward', mean(self.rewards))
+            print('highest reward', max(self.rewards))
+
             # sorting by rewards in reverse, starting with indices of top reward
             # https://stackoverflow.com/questions/16486252/is-it-possible-to-use-argsort-in-descending-order
             sortedParentIdxs = argsort(
@@ -534,7 +538,7 @@ class FloPyAgent():
                     sharedArrayActions = array(sharedListActions)
                 if self.actionType == 'continuous':
                     sharedArrayActions = array(sharedListActions)
-                tLoadActionsOnce = t0LoadActionsOnce - time()
+                tLoadActionsOnce = time() - t0LoadActionsOnce
                 print('Loading actions took', tLoadActionsOnce, 's')
 
                 t0NoveltySearch = time()
@@ -543,25 +547,41 @@ class FloPyAgent():
 
                 t0CalcNoveltyArgs = time()
                 args = []
-                for iAgent in self.agentsUnique:
+                # print('DEBUG self.agentsUnique', self.agentsUnique)
+                # DEBUG self.agentsUnique [0, 1, 2, 4, 5, 6, 11, 12]
+
+                # for iAgent in self.agentsUnique:
+                for iAgent in range(len(self.agentsUnique)):
                     if self.neighborLimitReached:
-                        rangeLower, rangeHigher, iAgentInCroppedArray = self.calculateNovelyNeighborBounds(iAgent)
+                        # includes identification of iAgents needing novelty update
+                        rangeLower, rangeHigher, iAgentInCroppedArray, needsUpdate = self.calculateNoveltyNeighborBounds(iAgent)
+
+
+                        # map these to uniques indices to unique indices
                         arr = sharedArrayActions[rangeLower:rangeHigher]
                     else:
+                        needsUpdate = True
                         rangeLower, rangeHigher, iAgentInCroppedArray = 0, 0, iAgent
                         arr = sharedArrayActions
 
-
                     # replace arr with generator reference
-
-                    args.append([iAgent, arr, rangeLower, rangeHigher, iAgentInCroppedArray])
+                    if needsUpdate:
+                        # print(arr, 'iAgent', iAgent, 'rangeLower', rangeLower, 'rangeHigher', rangeHigher)
+                        # print('iAgent', iAgent, 'rangeLower', rangeLower, 'rangeHigher', rangeHigher)
+                        # print('---')
+                        args.append([iAgent, arr, rangeLower, rangeHigher, iAgentInCroppedArray])
                 tCalcNoveltyArgs = t0CalcNoveltyArgs-time()
                 print('Calculated novelty search arguments, took', int(tCalcNoveltyArgs), 's')
 
                 chunksTotal = self.yieldChunks(args,
                     cores*self.maxTasksPerWorkerNoveltySearch)
                 for chunk in chunksTotal:
+                    # print('DEBUG STARTED NOVELTY CHUNK')
                     # sharing dictionary containing actions to avoid loading
+
+
+
+                    # those are only the updated novelties
                     noveltiesPerAgent = self.multiprocessChunks(
                         # self.calculateNoveltyPerAgent, chunk, sharedArr=sharedArrayActions)
                         # self.calculateNoveltyPerAgent, chunk, sharedDict=sharedDictActions)
@@ -573,6 +593,9 @@ class FloPyAgent():
                 for iUniqueAgent in self.agentsUnique:
                     agentStr = 'agent' + str(iUniqueAgent+1)
                     actionsUniqueID = self.noveltyArchive[agentStr]['actionsUniqueID']
+
+
+
                     novelty = noveltiesUniqueAgents[actionsUniqueID]
                     self.noveltyArchive[agentStr]['novelty'] = novelty
                 # updating novelty of duplicate agents from existing value
@@ -595,16 +618,13 @@ class FloPyAgent():
                         self.noveltyArchive[agentStr]['modelFile'])
                 # print('len(self.noveltyFilenames)', len(self.noveltyFilenames))
 
-            print('lowest reward', min(self.rewards))
-            print('average reward', mean(self.rewards))
-            print('highest reward', max(self.rewards))
-
-            # returning best-performing agents
-            self.returnChildrenGenetic(sortedParentIdxs)
             if self.geneticGeneration+1 >= self.hyParams['ADDNOVELTYEVERY']:
                 print('lowest novelty', min(self.novelties))
                 print('average novelty', mean(self.novelties))
                 print('highest novelty', max(self.novelties))
+
+            # returning best-performing agents
+            self.returnChildrenGenetic(sortedParentIdxs)
 
             if not self.envSettings['KEEPMODELHISTORY']:
                 self.pickleDump(join(self.tempModelPrefix +
@@ -643,9 +663,16 @@ class FloPyAgent():
                     initWithSolution=True,
                     PATHMF6DLL=None)
 
-    def calculateNovelyNeighborBounds(self, iAgent):
+            print('')
+            print('########## finished generation ' + str(self.geneticGeneration+1).zfill(self.zFill) + ' ##########')
+            print('')
+
+    def calculateNoveltyNeighborBounds(self, iAgent):
         """Check if half of NNOVELTYNEIGHBORS are available surrounding the given index,
         if not agents are selected until the index boundary and more from the other end."""
+
+        # defining how many neighbors to consider below and above
+        # will be asymmetric in case of odd NNOVELTYNEIGHBORS
         nLower = int(floor(self.hyParams['NNOVELTYNEIGHBORS']/2))
         nHigher = int(ceil(self.hyParams['NNOVELTYNEIGHBORS']/2))
         bottomReached, topReached = False, False
@@ -656,25 +683,57 @@ class FloPyAgent():
             bottomReached = True
             rangeLower, rangeHigher = 0, self.hyParams['NNOVELTYNEIGHBORS']
 
+        nAgentsUnique = len(self.agentsUnique)
+
         if not bottomReached:
-            if iAgent + nHigher < self.noveltyItemCount:
+            # if iAgent + nHigher < self.noveltyItemCount:
+            # if iAgent + nHigher <= self.noveltyItemCount:
+            if iAgent + nHigher <= nAgentsUnique:
                 rangeLower = iAgent - nLower
                 rangeHigher = iAgent + nHigher
             else:
                 topReached = True
-                rangeLower = self.noveltyItemCount - self.hyParams['NNOVELTYNEIGHBORS']
-                rangeHigher = self.noveltyItemCount
+                rangeLower = nAgentsUnique - self.hyParams['NNOVELTYNEIGHBORS']
+                rangeHigher = nAgentsUnique
+                # rangeLower = self.noveltyItemCount - self.hyParams['NNOVELTYNEIGHBORS']
+                # rangeHigher = self.noveltyItemCount
+
+                # what if top reached
 
         if not bottomReached and not topReached:
             iAgentInCroppedArray = iAgent - rangeLower
         elif bottomReached:
             iAgentInCroppedArray = iAgent
         elif topReached:
-            iAgentInCroppedArray = iAgent - self.noveltyItemCount
+
+
+            # DO UNIT TESTING IF THIS YIELDS CORRECT NOVELTIES
+
+
+            # iAgentInCroppedArray = nAgentsUnique - nHigher
+            # iAgentInCroppedArray = self.noveltyItemCount - nHigher
+            # iAgentInCroppedArray = iAgent - self.noveltyItemCount
+            # iAgentInCroppedArray = nAgentsUnique - (nAgentsUnique - iAgent)
+            #                       8 - 7-1  (0 till here) + 3-1 = 2
+            iAgentInCroppedArray = iAgent+1-nAgentsUnique + nHigher-1
         else:
             print('Error iAgentInCroppedArray could not be defined. This is a bug, please report.')
 
-        return rangeLower, rangeHigher, iAgentInCroppedArray
+        # checking if agent needs updating given the setting of NNOVELTYNEIGHBORS to consider
+        # nAgents = (self.geneticGeneration + 1) * self.hyParams['NAGENTS']
+        # nAgents = self.agentsUnique
+        nMaxUpdates = max([self.hyParams['NAGENTS'], self.hyParams['NNOVELTYNEIGHBORS']])
+        # if (nAgents - iAgent+1) >= nMaxUpdates:
+        if (nAgentsUnique - iAgent+1) >= nMaxUpdates:
+            needsUpdate = False
+        else:
+            needsUpdate = True
+
+        # print('DEBUG iAgent, rangeLower, rangeHigher, nLower, nHigher', iAgent, rangeLower, rangeHigher, nLower, nHigher)
+        # print('DEBUG iAgentInCroppedArray, self.noveltyItemCount', iAgentInCroppedArray, self.noveltyItemCount, bottomReached, topReached)
+        # print('DEBUG needsUpdate', needsUpdate)
+
+        return rangeLower, rangeHigher, iAgentInCroppedArray, needsUpdate
 
     def createNNModel(self, actionType, seed=None):
         """Create neural network."""
@@ -1699,10 +1758,12 @@ class FloPyAgent():
                         # calculate novelties only if unavailable
                         # as keys mostly exists, try/except check should be performant here
                         novelty = agentNovelties[str(iAgentOriginal+1) + '_' + str(iAgent2+1)]
+                        print('debug loaded novelty', novelty)
                     # except:
                     #     novelty = agentNovelties[str(iAgent2+1) + '_' + str(iAgent+1)]
                     except:
                         novelty = self.calculateNoveltyPerPair([actions, actions2])
+                        print('debug calculated novelty', novelty)
                         # novelty = self.calculateNoveltyPerPair([iAgent, iAgent2])
                         agentNovelties[str(iAgentOriginal+1) + '_' + str(iAgent2+1)] = novelty
                     novelties.append(novelty)
@@ -1789,8 +1850,7 @@ class FloPyAgent():
                 # pasync = pasync.get()
 
                 # imap to use map with a generator and reduce memory impact
-                chunksize = int(len(chunk)/parallelProcesses)
-                print('debug chunksize', chunksize)
+                chunksize = max([int(len(chunk)/parallelProcesses), 1])
                 pasync = p.imap(function, chunk, chunksize=chunksize)
                 pasync = list(pasync)
                 # print('debug results', pasync)
