@@ -114,7 +114,7 @@ class FloPyAgent():
     def __init__(self, observationsVector=None, actionSpace=['keep'],
                  hyParams=None, envSettings=None, mode='random',
                  maxTasksPerWorker=1000, maxTasksPerWorkerMutate=100,
-                 maxTasksPerWorkerNoveltySearch=100, zFill=6):
+                 maxTasksPerWorkerNoveltySearch=10000, zFill=6):
         """Constructor"""
 
         self.wrkspc = dirname(abspath(__file__))
@@ -2176,8 +2176,8 @@ class FloPyEnv():
 
             # self.normalize(head, self.chd_east, self.chd_diff)
             observation = []
-            # observation += list(self.normalize(head, self.chd_east, self.chd_diff).flatten())
-            # observation += list(self.normalize(new_recharge, self.avg_rch_min, self.rch_diff).flatten())
+            observation += list(self.normalize(head, self.chd_east, self.chd_diff).flatten())
+            observation += list(self.normalize(new_recharge, self.avg_rch_min, self.rch_diff).flatten())
             observation += observations_wells
             observation += observations_storms
 
@@ -2460,8 +2460,8 @@ class FloPyEnv():
                 observations_storms.append(stormCenterY)
 
             observation = []
-            # observation += list(self.normalize(head, self.chd_east, self.chd_diff).flatten())
-            # observation += list(self.normalize(new_recharge, self.avg_rch_min, self.rch_diff).flatten())
+            observation += list(self.normalize(head, self.chd_east, self.chd_diff).flatten())
+            observation += list(self.normalize(new_recharge, self.avg_rch_min, self.rch_diff).flatten())
             observation += observations_wells
             observation += observations_storms
 
@@ -3906,7 +3906,6 @@ class FloPyEnv():
             if returnFigure:
                 return imarray
 
-
         else:
             if self.timeStep == 0:
                 self.renderInitializeCanvas()
@@ -3914,6 +3913,7 @@ class FloPyEnv():
                 self.plotArrays = []
                 self.extent = (self.dRow / 2.0, self.extentX - self.dRow / 2.0,
                  self.extentY - self.dCol / 2.0, self.dCol / 2.0)
+                self.fig.canvas.draw()
 
             self.modelmap = PlotMapView(model=(self.mf), layer=0)
             self.headsplot = self.modelmap.plot_array((self.heads), masked_values=[
@@ -3957,6 +3957,7 @@ class FloPyEnv():
                 else:
                     if not self.MANUALCONTROL:
                         if self.RENDER:
+                            self.fig.canvas.draw()
                             show(block=False)
                             pause(self.MANUALCONTROLTIME)
             elif returnFigure:
@@ -4288,6 +4289,8 @@ class FloPyEnv():
 
         # get text bounding box in figure coordinates
         # bbox_text = text.get_window_extent().inverse_transformed(self.fig.gca().transData)
+        renderer = fig.canvas.renderer
+        text.draw(renderer)
         bbox_text = text.get_window_extent().inverse_transformed(ax.transData)
 
         # evaluate fit and recursively decrease fontsize until text fits
@@ -4301,6 +4304,7 @@ class FloPyEnv():
         # re-expanding (in finer increments)
         expandFinished = False
         while not expandFinished:
+            text.draw(renderer)
             bbox_text = text.get_window_extent().inverse_transformed(ax.transData)
             fits_width = bbox_text.width*whratio >= width if width else True
             fits_height = bbox_text.height/whratio < height if height else True
