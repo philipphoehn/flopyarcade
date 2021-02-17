@@ -113,8 +113,8 @@ class FloPyAgent():
 
     def __init__(self, observationsVector=None, actionSpace=['keep'],
                  hyParams=None, envSettings=None, mode='random',
-                 maxTasksPerWorker=1000, maxTasksPerWorkerMutate=100,
-                 maxTasksPerWorkerNoveltySearch=10000, zFill=6):
+                 maxTasksPerWorker=1000, maxTasksPerWorkerMutate=1000,
+                 maxTasksPerWorkerNoveltySearch=1000, zFill=6):
         """Constructor"""
 
         self.wrkspc = dirname(abspath(__file__))
@@ -550,6 +550,10 @@ class FloPyAgent():
                     else:
                         rangeLower, rangeHigher, iAgentInCroppedArray = 0, 0, iAgent
                         arr = sharedArrayActions
+
+
+                    # replace arr with generator reference
+
                     args.append([iAgent, arr, rangeLower, rangeHigher, iAgentInCroppedArray])
                 tCalcNoveltyArgs = t0CalcNoveltyArgs-time()
                 print('Calculated novelty search arguments, took', int(tCalcNoveltyArgs), 's')
@@ -1781,13 +1785,21 @@ class FloPyAgent():
         if sharedDict == None and sharedArr is None:
             p = Pool(processes=parallelProcesses)
             if async_:
-                pasync = p.map_async(function, chunk)
+                # pasync = p.map_async(function, chunk)
+                # pasync = pasync.get()
+
+                # imap to use map with a generator and reduce memory impact
+                chunksize = int(len(chunk)/parallelProcesses)
+                print('debug chunksize', chunksize)
+                pasync = p.imap(function, chunk, chunksize=chunksize)
+                pasync = list(pasync)
+                # print('debug results', pasync)
             else:
                 pasync = p.map(function, chunk)
+                pasync = pasync.get()
             # waiting is important to order results correctly when running
             # -- really?
             # in asynchronous mode (correct reward order is validated)
-            pasync = pasync.get()
             if wait:
                 pasync.wait()
             p.close()
