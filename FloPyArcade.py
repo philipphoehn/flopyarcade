@@ -412,6 +412,7 @@ class FloPyAgent():
 
             if self.searchNovelty:
                 print('Performing novelty search')
+                t0PreparingNoveltySearch = time()
                 # iterating through agents and storing with novelty in archive
                 # calculating average nearest-neighbor novelty score
                 for iAgent in range(self.hyParams['NAGENTS']):
@@ -466,6 +467,8 @@ class FloPyAgent():
                                 self.agentsUnique.append(iNov)
                                 self.noveltyArchive['agent' + str(iNov+1)]['actionsUniqueID'] = iNov
                     self.noveltyItemCount += 1
+                tPreparingNoveltySearch = time() - t0PreparingNoveltySearch
+                print('Preparing novelty search took', tPreparingNoveltySearch, 's')
 
                 if not self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS']:
                     print('Novelty search:', len(self.agentsUnique), 'unique agents', len(self.agentsDuplicate), 'duplicate agents')
@@ -475,75 +478,16 @@ class FloPyAgent():
                 # Note: This can become a massive bottleneck with increasing
                 # number of stored agent information and generations
                 # despite parallelization
-                noveltiesUniqueAgents, updateFlagsUniqueAgents, sharedListActions = [], [], []
+                noveltiesUniqueAgents, updateFlagsUniqueAgents = [], []
 
-                # loading all actions
-                # this can be improved by loading only once and then saving to disk between generations
-                t0LoadActionsOnce = time()
+                # # loading all actions
+                # # this can be improved by loading only once and then saving to disk between generations
+                # t0LoadActionsOnce = time()
+                # sharedArrayActions = self.loadActions()
+                # tLoadActionsOnce = time() - t0LoadActionsOnce
+                # print('Loading actions took', tLoadActionsOnce, 's')
 
-                # retrieving shape to allow padding with zeros
-                # else conversion to array fails with different length of action collections
-                # https://stackoverflow.com/questions/35751306/python-how-to-pad-numpy-array-with-zeros/35751834
 
-                pth = self.noveltyArchive['agent' + str(0+1)]['resultsFile']
-                if self.hyParams['NGAMESAVERAGED'] == 1:
-                    actions = array(self.pickleLoad(pth)['actions'])
-                    dimShape = len(shape(actions))
-                else:
-                    actions = array(self.pickleLoad(pth)['actions'])[0]
-                    dimShape = len(shape(actions))
-                maxShape = [0 for _ in range(dimShape)]
-                for iAgent in self.agentsUnique:
-                    agentStr = 'agent' + str(iAgent+1)
-                    pth = self.noveltyArchive[agentStr]['resultsFile']
-                    if self.hyParams['NGAMESAVERAGED'] == 1:
-                        actions = self.pickleLoad(pth)['actions']
-                    else:
-                        actions = self.pickleLoad(pth)['actions'][0]
-                    actions = array(actions)
-
-                    for iDim in range(dimShape):
-                        if shape(actions)[iDim] > maxShape[iDim]:
-                            maxShape[iDim] = shape(actions)[iDim]
-                if self.hyParams['NGAMESAVERAGED'] != 1:
-                    maxShape = [self.hyParams['NGAMESAVERAGED']] + maxShape
-                maxShape = tuple(maxShape)
-
-                # for iAgent in range(self.noveltyItemCount):
-                for iAgent in range(len(self.agentsUnique)):
-                    agentStr = 'agent' + str(iAgent+1)
-                    pth = self.noveltyArchive[agentStr]['resultsFile']
-                    actions = self.pickleLoad(pth)['actions']
-                    if self.actionType == 'discrete':
-                        sharedListActions_ = chararray(shape=maxShape, itemsize=10)
-                        sharedListActions_[:] = 'keep'
-                        padValue ='keep'
-                        # padding action lists to same length
-                        maxLen = maxShape[1]
-                        for iActions in range(len(actions)):
-                            actions[iActions] = actions[iActions] + [padValue] * (maxLen - len(actions[iActions]))
-                        sharedListActions_[:len(actions)] = actions
-                    elif self.actionType == 'continuous':
-                        sharedListActions_ = zeros(maxShape)
-                        if self.hyParams['NGAMESAVERAGED'] != 1:
-                            for iActions in range(len(actions)):
-                                a = array(actions[iActions])
-                                sharedListActions_[iActions, :a.shape[0], :a.shape[1]] = array([a])
-                        else:
-                            a = array(actions)
-                            sharedListActions_[:a.shape[0], :a.shape[1]] = a
-                    sharedListActions.append(sharedListActions_)
-
-                if self.actionType == 'discrete':
-                    self.actionsUniqueScheme, sharedListActions = unique(sharedListActions, return_inverse=True)
-                    sharedListActions = reshape(sharedListActions, tuple([len(self.agentsUnique)] + list(maxShape)))
-                    # recreated = reshape(b[c], tuple([len(sharedListActions)] + list(maxShape)))
-
-                    sharedArrayActions = array(sharedListActions)
-                if self.actionType == 'continuous':
-                    sharedArrayActions = array(sharedListActions)
-                tLoadActionsOnce = time() - t0LoadActionsOnce
-                print('Loading actions took', tLoadActionsOnce, 's')
 
                 t0NoveltySearch = time()
                 # args = [iAgent for iAgent in self.agentsUnique]
@@ -556,27 +500,39 @@ class FloPyAgent():
                     if self.neighborLimitReached:
                         # includes identification of iAgents needing novelty update
                         rangeLower, rangeHigher, iAgentInCroppedArray, needsUpdate = self.calculateNoveltyNeighborBounds(iAgent)
+
+                        # load only actions needing update here?
+                        # so replace sharedArrayActions with a load function
+                        # other approaches will still blow up memory
+
+                        # arr = self.loadActions(agents=list(range(rangeLower, rangeHigher)))
+                        # print('DEBUG LOADED ACTIONS SEPARATELY', self.neighborLimitReached)
+
                         # ranges were mapped these to indices considering uniques
-                        arr = sharedArrayActions[rangeLower:rangeHigher]
+                        # arr = sharedArrayActions[rangeLower:rangeHigher]
                     else:
                         needsUpdate = True
-                        rangeLower, rangeHigher, iAgentInCroppedArray = 0, 0, iAgent
-                        arr = sharedArrayActions
+                        rangeLower, rangeHigher, iAgentInCroppedArray = 0, len(self.agentsUnique), iAgent
+                        # arr = self.loadActions(agents=list(range(rangeLower, rangeHigher))
+                        # print('DEBUG LOADED ACTIONS SEPARATELY', self.neighborLimitReached)
+                        # arr = sharedArrayActions
 
                     # replace arr with generator reference?
                     if needsUpdate:
                         # print(arr, 'iAgent', iAgent, 'rangeLower', rangeLower, 'rangeHigher', rangeHigher)
                         # print('iAgent', iAgent, 'rangeLower', rangeLower, 'rangeHigher', rangeHigher)
                         # print('---')
-                        args.append([iAgent, arr, rangeLower, rangeHigher, iAgentInCroppedArray])
+                        args.append([iAgent, None, rangeLower, rangeHigher, iAgentInCroppedArray])
+                        # args.append([iAgent, arr, rangeLower, rangeHigher, iAgentInCroppedArray])
                     updateFlagsUniqueAgents.append(needsUpdate)
-                tCalcNoveltyArgs = t0CalcNoveltyArgs-time()
+                tCalcNoveltyArgs = time()-t0CalcNoveltyArgs
                 print('Calculated novelty search arguments, took', int(tCalcNoveltyArgs), 's')
 
                 chunksTotal = self.yieldChunks(args,
                     cores*self.maxTasksPerWorkerNoveltySearch)
+
+                print('Started novelty search ...')
                 for chunk in chunksTotal:
-                    # print('DEBUG STARTED NOVELTY CHUNK')
                     # sharing dictionary containing actions to avoid loading
 
                     # those are only the updated novelties
@@ -675,6 +631,81 @@ class FloPyAgent():
             print('########## finished generation ' + str(self.geneticGeneration+1).zfill(self.zFill) + ' ##########')
             print('')
 
+    def loadActions(self, agents=None):
+
+        if agents == None:
+            agents = self.agentsUnique
+
+        sharedListActions = []
+
+        # retrieving shape to allow padding with zeros
+        # else conversion to array fails with different length of action collections
+        # https://stackoverflow.com/questions/35751306/python-how-to-pad-numpy-array-with-zeros/35751834
+
+        pth = self.noveltyArchive['agent' + str(0+1)]['resultsFile']
+        if self.hyParams['NGAMESAVERAGED'] == 1:
+            actions = array(self.pickleLoad(pth)['actions'])
+            dimShape = len(shape(actions))
+        else:
+            actions = array(self.pickleLoad(pth)['actions'])[0]
+            dimShape = len(shape(actions))
+        maxShape = [0 for _ in range(dimShape)]
+        for iAgent in agents:
+            agentStr = 'agent' + str(iAgent+1)
+            pth = self.noveltyArchive[agentStr]['resultsFile']
+            if self.hyParams['NGAMESAVERAGED'] == 1:
+                actions = self.pickleLoad(pth)['actions']
+            else:
+                actions = self.pickleLoad(pth)['actions'][0]
+            actions = array(actions)
+
+            for iDim in range(dimShape):
+                if shape(actions)[iDim] > maxShape[iDim]:
+                    maxShape[iDim] = shape(actions)[iDim]
+        if self.hyParams['NGAMESAVERAGED'] != 1:
+            maxShape = [self.hyParams['NGAMESAVERAGED']] + maxShape
+        maxShape = tuple(maxShape)
+
+
+
+
+        # replace this with specific agents?
+        for iAgent in agents:
+        # for iAgent in range(len(agents)):
+            agentStr = 'agent' + str(iAgent+1)
+            pth = self.noveltyArchive[agentStr]['resultsFile']
+            actions = self.pickleLoad(pth)['actions']
+            if self.actionType == 'discrete':
+                sharedListActions_ = chararray(shape=maxShape, itemsize=10)
+                sharedListActions_[:] = 'keep'
+                padValue ='keep'
+                # padding action lists to same length
+                maxLen = maxShape[1]
+                for iActions in range(len(actions)):
+                    actions[iActions] = actions[iActions] + [padValue] * (maxLen - len(actions[iActions]))
+                sharedListActions_[:len(actions)] = actions
+            elif self.actionType == 'continuous':
+                sharedListActions_ = zeros(maxShape)
+                if self.hyParams['NGAMESAVERAGED'] != 1:
+                    for iActions in range(len(actions)):
+                        a = array(actions[iActions])
+                        sharedListActions_[iActions, :a.shape[0], :a.shape[1]] = array([a])
+                else:
+                    a = array(actions)
+                    sharedListActions_[:a.shape[0], :a.shape[1]] = a
+            sharedListActions.append(sharedListActions_)
+
+        if self.actionType == 'discrete':
+            self.actionsUniqueScheme, sharedListActions = unique(sharedListActions, return_inverse=True)
+            sharedListActions = reshape(sharedListActions, tuple([len(agentStr)] + list(maxShape)))
+            # recreated = reshape(b[c], tuple([len(sharedListActions)] + list(maxShape)))
+
+            sharedArrayActions = array(sharedListActions)
+        if self.actionType == 'continuous':
+            sharedArrayActions = array(sharedListActions)
+
+        return sharedArrayActions
+
     def calculateNoveltyNeighborBounds(self, iAgent):
         """Check if half of NNOVELTYNEIGHBORS are available surrounding the given index,
         if not agents are selected until the index boundary and more from the other end."""
@@ -717,7 +748,9 @@ class FloPyAgent():
 
         # checking if agent needs updating given the setting of NNOVELTYNEIGHBORS to consider
         # considering NAGENTS as an edge case avoids to look up existing novelty when not yet existing
-        nMaxUpdates = max([self.hyParams['NAGENTS'], self.hyParams['NNOVELTYNEIGHBORS']])
+        # nMaxUpdates = max([self.hyParams['NAGENTS'], self.hyParams['NNOVELTYNEIGHBORS']])
+        nMaxUpdates = self.hyParams['NAGENTS'] + self.hyParams['NNOVELTYNEIGHBORS']
+        # nMaxUpdates = max([self.hyParams['NAGENTS'], self.hyParams['NNOVELTYNEIGHBORS']])
         if (nAgentsUnique - (iAgent+1)) >= nMaxUpdates:
             needsUpdate = False
         else:
@@ -1408,7 +1441,9 @@ class FloPyAgent():
                 print(e)
                 sleep(1)
 
+        # activating later part makes mutationSeed different every run (not reproducible)
         mutationSeed = selected_agent_index+1 + randint(0, 1000000000)
+        # print('childIdx', childIdx, 'mutationSeed', mutationSeed)
         # altering parent agent to create child agent
         childrenAgent = self.mutateGenetic(agent, mutationSeed)
 
@@ -1676,6 +1711,10 @@ class FloPyAgent():
 
         # args.append([iAgent, sharedArrayActions[rangeLower:rangeHigher], rangeLower, rangeHigher, iAgentInCroppedArray])
         iAgentOriginal, arr, rangeLower, rangeHigher, iAgentInCroppedArray = iAgent[0], iAgent[1], iAgent[2], iAgent[3], iAgent[4]
+
+        arr = self.loadActions(agents=list(range(rangeLower, rangeHigher)))
+        # print(arr, 'self.neighborLimitReached', self.neighborLimitReached)
+
         agentStr = 'agent' + str(iAgentOriginal+1)
         iAgent = iAgentInCroppedArray
 
