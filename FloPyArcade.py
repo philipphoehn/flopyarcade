@@ -4289,6 +4289,7 @@ class FloPyEnv():
 
         # get text bounding box in figure coordinates
         # bbox_text = text.get_window_extent().inverse_transformed(self.fig.gca().transData)
+        # https://stackoverflow.com/questions/23032847/matplotlib-image-get-window-extentrenderer-produces-all-zeros
         renderer = fig.canvas.renderer
         text.draw(renderer)
         bbox_text = text.get_window_extent().inverse_transformed(ax.transData)
