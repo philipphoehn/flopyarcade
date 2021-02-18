@@ -546,29 +546,26 @@ class FloPyAgent():
                 print('Finished novelty search, took', int(time()-t0NoveltySearch), 's')
 
                 # calculating novelty of unique agents
-                count = 0
+                count_ = 0
                 for i, iUniqueAgent in enumerate(self.agentsUnique):
                     agentStr = 'agent' + str(iUniqueAgent+1)
-                    actionsUniqueID = self.noveltyArchive[agentStr]['actionsUniqueID']
-                    if updateFlagsUniqueAgents[iUniqueAgent]:
+                    # actionsUniqueID = self.noveltyArchive[agentStr]['actionsUniqueID']
+                    if updateFlagsUniqueAgents[i]:
                         # novelty = noveltiesUniqueAgents[actionsUniqueID]
-                        novelty = noveltiesUniqueAgents[count]
+                        novelty = noveltiesUniqueAgents[count_]
                         self.noveltyArchive[agentStr]['novelty'] = novelty
-                        count += 1
+                        count_ += 1
 
                 # updating novelty of duplicate agents from existing value
-                count = 0
+                count_ = 0
                 for iDuplicateAgent in self.agentsDuplicate:
                     # finding ID of agent representing duplicate agent's actions
                     agentStr = 'agent' + str(iDuplicateAgent+1)
                     actionsUniqueID = self.noveltyArchive[agentStr]['actionsUniqueID']
-                    if updateFlagsUniqueAgents[actionsUniqueID]:
-                        # novelty = noveltiesUniqueAgents[actionsUniqueID]
-                        idx = self.agentsUnique.index(actionsUniqueID)
-                        if updateFlagsUniqueAgents[idx]:
-                            novelty = noveltiesUniqueAgents[count]
-                            count += 1
-                        self.noveltyArchive[agentStr]['novelty'] = novelty
+                    itemID = self.noveltyArchive[agentStr]['itemID']
+                    # print(self.agentsUnique, actionsUniqueID)
+                    novelty = noveltiesUniqueAgents[actionsUniqueID]
+                    self.noveltyArchive[agentStr]['novelty'] = novelty
 
                 self.pickleDump(join(self.tempModelPrefix +
                     '_noveltyArchive.p'), self.noveltyArchive)
@@ -647,27 +644,25 @@ class FloPyAgent():
             actions = array(self.pickleLoad(pth)['actions'])
             dimShape = len(shape(actions))
         else:
-            actions = array(self.pickleLoad(pth)['actions'])[0]
+            actions = array(self.pickleLoad(pth)['actions'], dtype=object)[0]
             dimShape = len(shape(actions))
         maxShape = [0 for _ in range(dimShape)]
+
         for iAgent in agents:
             agentStr = 'agent' + str(iAgent+1)
             pth = self.noveltyArchive[agentStr]['resultsFile']
             if self.hyParams['NGAMESAVERAGED'] == 1:
                 actions = self.pickleLoad(pth)['actions']
             else:
-                actions = self.pickleLoad(pth)['actions'][0]
-            actions = array(actions)
-
-            for iDim in range(dimShape):
-                if shape(actions)[iDim] > maxShape[iDim]:
-                    maxShape[iDim] = shape(actions)[iDim]
+                actions = self.pickleLoad(pth)['actions']
+            for iActions in range(len(actions)):
+                for iDim in range(dimShape):
+                    a = array(actions[iActions])
+                    if a.shape[iDim] > maxShape[iDim]:
+                        maxShape[iDim] = a.shape[iDim]
         if self.hyParams['NGAMESAVERAGED'] != 1:
             maxShape = [self.hyParams['NGAMESAVERAGED']] + maxShape
         maxShape = tuple(maxShape)
-
-
-
 
         # replace this with specific agents?
         for iAgent in agents:
@@ -675,6 +670,10 @@ class FloPyAgent():
             agentStr = 'agent' + str(iAgent+1)
             pth = self.noveltyArchive[agentStr]['resultsFile']
             actions = self.pickleLoad(pth)['actions']
+            # if self.hyParams['NGAMESAVERAGED'] == 1:
+            #     actions = self.pickleLoad(pth)['actions']
+            # else:
+            #     actions = self.pickleLoad(pth)['actions'][0]
             if self.actionType == 'discrete':
                 sharedListActions_ = chararray(shape=maxShape, itemsize=10)
                 sharedListActions_[:] = 'keep'
@@ -697,7 +696,8 @@ class FloPyAgent():
 
         if self.actionType == 'discrete':
             self.actionsUniqueScheme, sharedListActions = unique(sharedListActions, return_inverse=True)
-            sharedListActions = reshape(sharedListActions, tuple([len(agentStr)] + list(maxShape)))
+            # sharedListActions = reshape(sharedListActions, tuple([len(agentStr)] + list(maxShape)))
+            sharedListActions = reshape(sharedListActions, tuple([len(agents)] + list(maxShape)))
             # recreated = reshape(b[c], tuple([len(sharedListActions)] + list(maxShape)))
 
             sharedArrayActions = array(sharedListActions)
@@ -1881,10 +1881,14 @@ class FloPyAgent():
                 # pasync = pasync.get()
 
                 # imap to use map with a generator and reduce memory impact
-                chunksize = max([int(len(chunk)/parallelProcesses), 1])
+                chunksize = int(max([int(len(chunk)/parallelProcesses), 1]))
                 pasync = p.imap(function, chunk, chunksize=chunksize)
-                pasync = list(pasync)
-                # print('debug results', pasync)
+                # print(pasync)
+                # pasync = list(pasync)
+                try:
+                    pasync = list(pasync)
+                except:
+                    pass
             else:
                 pasync = p.map(function, chunk)
                 pasync = pasync.get()
