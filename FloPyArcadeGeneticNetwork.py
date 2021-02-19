@@ -19,6 +19,7 @@ envSettings = {
     'SURROGATESIMULATOR': None,                 # currently unavailable
     'SEEDAGENT': 1,                             # integer enabling reproducibility of the agents
     'SEEDENV': 1,                               # integer enabling reproducibility of the environments
+    'SEEDSRANDOM': True,                        # boolean defining whether training occurs on random seeds per generation
     'NAGENTSPARALLEL': 16,                      # integer defining parallelized agent runs
     'REWARDMINTOSAVE': 0.0,                     # float defining minimal reward to save a model
     'RENDER': False,                            # boolean defining if displaying runs
