@@ -190,6 +190,24 @@ class FloPyAgent():
                                     for f in listdir(self.tempNoveltypth):
                                         remove(join(self.tempNoveltypth, f))
 
+            # initializing seeds for mutation
+            self.mutationSeeds = []
+            for iGen in range(self.hyParams['NGENERATIONS']):
+                seedsInnerGeneration = list(randint(
+                    low=1, high=10000000, size=self.hyParams['NAGENTS']))
+                self.mutationSeeds.append(seedsInnerGeneration)
+                self.setSeeds()
+
+            # initializing seeds for games
+            if self.envSettings['SEEDSRANDOM']:
+                self.gamesSeeds = []
+                self.bestRewards = []
+                for iGen in range(self.hyParams['NGENERATIONS']):
+                    seedsInnerGeneration = list(randint(
+                        low=1, high=10000000, size=self.hyParams['NGAMESAVERAGED']))
+                    self.gamesSeeds.append(seedsInnerGeneration)
+                self.setSeeds()
+
             # initializing genetic agents and saving hyperparameters and
             # environment settings or loading them if resuming
             if not self.envSettings['RESUME']:
@@ -401,6 +419,9 @@ class FloPyAgent():
             print('lowest reward', min(self.rewards))
             print('average reward', mean(self.rewards))
             print('highest reward', max(self.rewards))
+            if self.envSettings['SEEDSRANDOM']:
+                self.bestRewards.append(max(self.rewards))
+                print('highest sliding reward (n=50)', mean(self.bestRewards[-50:]))
 
             # sorting by rewards in reverse, starting with indices of top reward
             # https://stackoverflow.com/questions/16486252/is-it-possible-to-use-argsort-in-descending-order
@@ -426,14 +447,13 @@ class FloPyAgent():
                         + str(iAgent + 1).zfill(self.zFill))
                     modelFile = tempAgentPrefix + '.h5'
                     resultsFile = tempAgentPrefix + '_results.p'
-                    pth = join(tempAgentPrefix + '_results.p')
-                    actions = self.pickleLoad(pth)['actions']
-                    actionsAll = [action for actions_ in actions for action in actions_]
-
-                    # https://stackoverflow.com/questions/38291372/assign-unique-id-to-list-of-lists-in-python-where-duplicates-get-the-same-id
 
                     if env.actionType == 'discrete':
+                        pth = join(tempAgentPrefix + '_results.p')
+                        actions = self.pickleLoad(pth)['actions']
+                        actionsAll = [action for actions_ in actions for action in actions_]
                         actionsUniqueID = self.actionsUniqueIDMapping[tuple(actionsAll)]
+                        # https://stackoverflow.com/questions/38291372/assign-unique-id-to-list-of-lists-in-python-where-duplicates-get-the-same-id
                         self.noveltyArchive[agentStr]['actionsUniqueID'] = actionsUniqueID
                     self.noveltyArchive[agentStr]['itemID'] = itemID
                     self.noveltyArchive[agentStr]['modelFile'] = modelFile
@@ -644,22 +664,21 @@ class FloPyAgent():
             actions = array(self.pickleLoad(pth)['actions'])
             dimShape = len(shape(actions))
         else:
-            actions = array(self.pickleLoad(pth)['actions'], dtype=object)[0]
+            actions = array(self.pickleLoad(pth)['actions'])[0]
             dimShape = len(shape(actions))
         maxShape = [0 for _ in range(dimShape)]
-
         for iAgent in agents:
             agentStr = 'agent' + str(iAgent+1)
             pth = self.noveltyArchive[agentStr]['resultsFile']
             if self.hyParams['NGAMESAVERAGED'] == 1:
                 actions = self.pickleLoad(pth)['actions']
             else:
-                actions = self.pickleLoad(pth)['actions']
-            for iActions in range(len(actions)):
-                for iDim in range(dimShape):
-                    a = array(actions[iActions])
-                    if a.shape[iDim] > maxShape[iDim]:
-                        maxShape[iDim] = a.shape[iDim]
+                actions = self.pickleLoad(pth)['actions'][0]
+            actions = array(actions)
+
+            for iDim in range(dimShape):
+                if shape(actions)[iDim] > maxShape[iDim]:
+                    maxShape[iDim] = shape(actions)[iDim]
         if self.hyParams['NGAMESAVERAGED'] != 1:
             maxShape = [self.hyParams['NGAMESAVERAGED']] + maxShape
         maxShape = tuple(maxShape)
@@ -1156,7 +1175,11 @@ class FloPyAgent():
         MODELNAMETEMP = ('Temp' + self.pid +
             '_' + str(agentCount + 1))
 
-        SEEDTEMP = self.envSettings['SEEDENV'] + self.currentGame-1
+        iGame = self.currentGame-1
+        if self.envSettings['SEEDSRANDOM']:
+            SEEDTEMP = self.gamesSeeds[self.geneticGeneration][iGame]
+        else:
+            SEEDTEMP = self.envSettings['SEEDENV'] + iGame
         if self.envSettings['SURROGATESIMULATOR'] is None:
             if self.envSettings['ENVTYPE'] in ['0s-c']:
 
@@ -1442,10 +1465,11 @@ class FloPyAgent():
                 sleep(1)
 
         # activating later part makes mutationSeed different every run (not reproducible)
-        mutationSeed = selected_agent_index+1 + randint(0, 1000000000)
+        mutationSeed = self.mutationSeeds[self.geneticGeneration][childIdx]
+        # mutationSeed = selected_agent_index+1 + randint(0, 1000000000)
         # print('childIdx', childIdx, 'mutationSeed', mutationSeed)
         # altering parent agent to create child agent
-        childrenAgent = self.mutateGenetic(agent, mutationSeed)
+        childrenAgent = self.mutateGenetic(agent, childIdx)
 
         if self.envSettings['KEEPMODELHISTORY']:
             childrenAgent.save(join(self.tempNextModelPrefix +
