@@ -89,6 +89,11 @@ from uuid import uuid4
 # https://stackoverflow.com/questions/40615795/pathos-enforce-spawning-on-linux
 pathosHelpers.mp.context._force_start_method('spawn')
 
+# currently ignoring nested array error
+import warnings
+from numpy import VisibleDeprecationWarning
+warnings.filterwarnings("ignore", category=VisibleDeprecationWarning)
+
 # to avoid thread erros
 # https://stackoverflow.com/questions/52839758/matplotlib-and-runtimeerror-main-thread-is-not-in-main-loop
 # matplotlibBackend('Agg')
@@ -659,29 +664,48 @@ class FloPyAgent():
         # else conversion to array fails with different length of action collections
         # https://stackoverflow.com/questions/35751306/python-how-to-pad-numpy-array-with-zeros/35751834
 
+        # pre-loop to determine the largest shape of actions
         pth = self.noveltyArchive['agent' + str(0+1)]['resultsFile']
         if self.hyParams['NGAMESAVERAGED'] == 1:
-            actions = array(self.pickleLoad(pth)['actions'])
+            actions = array(self.pickleLoad(pth)['actions'], dtype=object)
             dimShape = len(shape(actions))
         else:
-            actions = array(self.pickleLoad(pth)['actions'])[0]
-            dimShape = len(shape(actions))
+            dimShape = 0
+            actions = array(self.pickleLoad(pth)['actions'], dtype=object)
+            for iActions in range(len(actions)):
+                actions_ = actions[iActions]
+                dimShape_ = len(shape(actions_))
+                if dimShape_ >= dimShape:
+                    dimShape = dimShape_
+
         maxShape = [0 for _ in range(dimShape)]
         for iAgent in agents:
             agentStr = 'agent' + str(iAgent+1)
             pth = self.noveltyArchive[agentStr]['resultsFile']
             if self.hyParams['NGAMESAVERAGED'] == 1:
                 actions = self.pickleLoad(pth)['actions']
-            else:
-                actions = self.pickleLoad(pth)['actions'][0]
-            actions = array(actions)
+            # else:
+            #     actions = self.pickleLoad(pth)['actions'][0]
+            if self.hyParams['NGAMESAVERAGED'] == 1:
+                actions = array(actions, dtype=object)
+                for iDim in range(dimShape):
+                    if shape(actions)[iDim] > maxShape[iDim]:
+                        maxShape[iDim] = shape(actions)[iDim]
+            elif self.hyParams['NGAMESAVERAGED'] != 1:
+                actions = self.pickleLoad(pth)['actions']
+                for iActions in range(shape(actions)[0]):
+                    actions_ = array(actions[iActions], dtype=object)
+                    # print(iActions, 'shape actions_', shape(actions_)[0])
+                    dimShape = len(shape(actions_))
+                    for iDim in range(dimShape):
+                        if shape(actions_)[iDim] > maxShape[iDim]:
+                            maxShape[iDim] = shape(actions_)[iDim]
 
-            for iDim in range(dimShape):
-                if shape(actions)[iDim] > maxShape[iDim]:
-                    maxShape[iDim] = shape(actions)[iDim]
         if self.hyParams['NGAMESAVERAGED'] != 1:
             maxShape = [self.hyParams['NGAMESAVERAGED']] + maxShape
         maxShape = tuple(maxShape)
+
+        # print('MAXSHAPE', maxShape)
 
         # replace this with specific agents?
         for iAgent in agents:
@@ -689,10 +713,6 @@ class FloPyAgent():
             agentStr = 'agent' + str(iAgent+1)
             pth = self.noveltyArchive[agentStr]['resultsFile']
             actions = self.pickleLoad(pth)['actions']
-            # if self.hyParams['NGAMESAVERAGED'] == 1:
-            #     actions = self.pickleLoad(pth)['actions']
-            # else:
-            #     actions = self.pickleLoad(pth)['actions'][0]
             if self.actionType == 'discrete':
                 sharedListActions_ = chararray(shape=maxShape, itemsize=10)
                 sharedListActions_[:] = 'keep'
@@ -706,10 +726,11 @@ class FloPyAgent():
                 sharedListActions_ = zeros(maxShape)
                 if self.hyParams['NGAMESAVERAGED'] != 1:
                     for iActions in range(len(actions)):
-                        a = array(actions[iActions])
-                        sharedListActions_[iActions, :a.shape[0], :a.shape[1]] = array([a])
+                        a = array(actions[iActions], dtype=object)
+                        sharedListActions_[iActions, :a.shape[0], :a.shape[1]] = array(a, dtype=object)
+                        # sharedListActions_[iActions, :a.shape[0], :a.shape[1]] = array([a])
                 else:
-                    a = array(actions)
+                    a = array(actions, dtype=object)
                     sharedListActions_[:a.shape[0], :a.shape[1]] = a
             sharedListActions.append(sharedListActions_)
 
@@ -719,9 +740,9 @@ class FloPyAgent():
             sharedListActions = reshape(sharedListActions, tuple([len(agents)] + list(maxShape)))
             # recreated = reshape(b[c], tuple([len(sharedListActions)] + list(maxShape)))
 
-            sharedArrayActions = array(sharedListActions)
+            sharedArrayActions = array(sharedListActions, dtype=object)
         if self.actionType == 'continuous':
-            sharedArrayActions = array(sharedListActions)
+            sharedArrayActions = array(sharedListActions, dtype=object)
 
         return sharedArrayActions
 
@@ -1911,8 +1932,8 @@ class FloPyAgent():
                 # pasync = list(pasync)
                 try:
                     pasync = list(pasync)
-                except:
-                    pass
+                except Exception as e:
+                    print('errorski', e)
             else:
                 pasync = p.map(function, chunk)
                 pasync = pasync.get()
