@@ -307,7 +307,7 @@ class FloPyAgent():
             elif env.success == False:
                 # overwriting simulation memory to zero if no success
                 # to test: is it better to give reward an not reset to 0?
-                self.gameReward = 0.0
+                # self.gameReward = 0.0
                 self.updateReplayMemoryZeroReward(self.gameStep) # is this better on or off?
             gameRewards.append(self.gameReward)
 
@@ -1092,8 +1092,8 @@ class FloPyAgent():
                         env.teardown()
                     break
 
-            if not env.success:
-                self.gameReward = 0.0
+            # if not env.success:
+            #     self.gameReward = 0.0
             self.gameRewardsCV.append(self.gameReward)
 
         self.average_rewardCV = mean(self.gameRewardsCV)
@@ -1286,8 +1286,8 @@ class FloPyAgent():
 
             if done or (step == self.hyParams['NAGENTSTEPS']-1): # or if reached end
                 # print('debug duration game', time() - t0game)
-                if env.success == False:
-                    r = 0
+                # if env.success == False:
+                #     r = 0
                 # saving specific simulation results pertaining to agent
                 if not env.ENVTYPE in ['0s-c']:
                     trajectories[self.currentGame-1].append(env.trajectories)
@@ -1933,7 +1933,7 @@ class FloPyAgent():
                 try:
                     pasync = list(pasync)
                 except Exception as e:
-                    print('errorski', e)
+                    print('Error in multiprocessing:', e)
             else:
                 pasync = p.map(function, chunk)
                 pasync = pasync.get()
@@ -2102,13 +2102,13 @@ class FloPyEnv():
             # this needs to be transformed, yet not understood why
             self.particleCoords[0] = self.extentX - self.particleCoords[0]
 
-            if self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            if self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 self.headSpecNorth = uniform(self.minH, self.maxH)
                 self.headSpecSouth = uniform(self.minH, self.maxH)
             self.initializeModel()
 
             self.wellX, self.wellY, self.wellZ, self.wellCoords, self.wellQ = self.initializeWellRate(self.minQ, self.maxQ)
-            if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 helperWells = {}
                 for i in range(self.nHelperWells):
                     w = str(i+1)
@@ -2116,7 +2116,7 @@ class FloPyEnv():
                 self.helperWells = helperWells
 
             self.initializeWell()
-            if self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            if self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 self.initializeAction()
             # initializing trajectories container for potential plotting
             self.trajectories = {}
@@ -2359,7 +2359,7 @@ class FloPyEnv():
                     w = str(i+1)
                     self.state['actionValueX'+w] = self.helperWells['actionValueX'+w]
                     self.state['actionValueY'+w] = self.helperWells['actionValueX'+w]
-            elif self.ENVTYPE in ['5s-d', '5s-c', '5r-d', '5r-c']:
+            elif self.ENVTYPE in ['5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c']:
                 for i in range(self.nHelperWells):
                     w = str(i+1)
                     self.state['actionValueQ'+w] = self.helperWells['actionValueQ'+w]
@@ -2391,7 +2391,7 @@ class FloPyEnv():
                 elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
                     # this can cause issues with unit testing, as model expects different input 
                     self.observations['heads'] = [self.actionValue]
-                elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+                elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                     self.observations['heads'] = [self.headSpecNorth,
                                                   self.headSpecSouth]
                 # note: it sees the surrounding heads of the particle and the well
@@ -2407,7 +2407,7 @@ class FloPyEnv():
 
             self.observations['wellQ'] = self.wellQ
             self.observations['wellCoords'] = self.wellCoords
-            if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 for i in range(self.nHelperWells):
                     w = str(i+1)
                     self.observations['wellQ'+w] = self.helperWells['wellQ'+w]
@@ -2419,7 +2419,7 @@ class FloPyEnv():
             self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
             self.observationsNormalized['wellCoords'] = divide(
                 self.wellCoords, numpyAbs(self.minX + self.extentX))
-            if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 for i in range(self.nHelperWells):
                     w = str(i+1)
                     self.observationsNormalized['wellQ'+w] = self.helperWells['wellQ'+w] / self.minQhelper
@@ -2456,7 +2456,7 @@ class FloPyEnv():
                                                  (self.headSpecNorth - self.minH)/(self.maxH - self.minH),
                                                  self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
                                                  self.wellY/(self.minY+self.extentY), self.wellZ/(self.zBot+self.zTop)]
-            elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 self.stressesVectorNormalized = [(self.headSpecSouth - self.minH)/(self.maxH - self.minH),
                                                  (self.headSpecNorth - self.minH)/(self.maxH - self.minH)]
                 for i in range(self.nHelperWells):
@@ -2563,7 +2563,7 @@ class FloPyEnv():
                 # print('time solve', time()-t0Solve)
                 # print('time 7', time()-t0Step)
 
-                reward = self.get_reward(self.head_steadyState_flat, head)
+                reward = self.calculateGameRewardHeadChange(self.head_steadyState_flat, head)
                 # print('zgoih', self.timeStep, mean(self.head_steadyState_flat), mean(head))
                 self.reward = copy(reward)
                 self.rewardCurrent += self.reward
@@ -2691,7 +2691,10 @@ class FloPyEnv():
             self.debugTime8 = time()-t0
 
             # calculating game reward
-            self.reward = self.calculateGameReward(self.trajectories) 
+            if self.ENVTYPE in ['5s-c-cost']:
+                self.reward = self.calculateGameRewardOperationCost(self.nHelperWells, self.helperWells)
+            else:
+                self.reward = self.calculateGameRewardTrajectory(self.trajectories)
 
             self.state = {}
             self.state['heads'] = self.heads
@@ -2708,7 +2711,7 @@ class FloPyEnv():
                     w = str(i+1)
                     self.state['actionValueX'+w] = self.helperWells['actionValueX'+w]
                     self.state['actionValueY'+w] = self.helperWells['actionValueY'+w]
-            elif self.ENVTYPE in ['5s-d', '5s-c', '5r-d', '5r-c']:
+            elif self.ENVTYPE in ['5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c']:
                 for i in range(self.nHelperWells):
                     w = str(i+1)
                     self.state['actionValueQ'+w] = self.helperWells['actionValueQ'+w]
@@ -2740,7 +2743,7 @@ class FloPyEnv():
                 elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
                     # this can cause issues with unit testing, as model expects different input 
                     self.observations['heads'] = [self.actionValue]
-                elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+                elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                     self.observations['heads'] = [self.headSpecNorth,
                                                   self.headSpecSouth]
                 # note: it sees the surrounding heads of the particle and the well
@@ -2756,7 +2759,7 @@ class FloPyEnv():
 
             self.observations['wellQ'] = self.wellQ
             self.observations['wellCoords'] = self.wellCoords
-            if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 for i in range(self.nHelperWells):
                     w = str(i+1)
                     self.observations['wellQ'+w] = self.helperWells['wellQ'+w]
@@ -2770,7 +2773,7 @@ class FloPyEnv():
             self.observationsNormalized['wellQ'] = self.wellQ / self.minQ
             self.observationsNormalized['wellCoords'] = divide(
                 self.wellCoords, numpyAbs(self.minX + self.extentX))
-            if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 for i in range(self.nHelperWells):
                     w = str(i+1)
                     self.observationsNormalized['wellQ'+w] = self.helperWells['wellQ'+w] / self.minQhelper
@@ -2811,7 +2814,7 @@ class FloPyEnv():
                                                  (self.headSpecNorth - self.minH)/(self.maxH - self.minH),
                                                  self.wellQ/self.minQ, self.wellX/(self.minX+self.extentX),
                                                  self.wellY/(self.minY+self.extentY), self.wellZ/(self.zBot+self.zTop)]
-            elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 self.stressesVectorNormalized = [(self.headSpecSouth - self.minH)/(self.maxH - self.minH),
                                                  (self.headSpecNorth - self.minH)/(self.maxH - self.minH)]
                 for i in range(self.nHelperWells):
@@ -2826,8 +2829,11 @@ class FloPyEnv():
             self.distanceWellParticle = sqrt(dx**2 + dy**2)
             if self.distanceWellParticle <= self.wellRadius:
                 self.done = True
-                self.reward = (self.rewardCurrent) * (-1.0)
-            if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+                if self.ENVTYPE in ['5s-c-cost']:
+                    self.reward = self.costQFail + self.rewardCurrent
+                else:
+                    self.reward = (self.rewardCurrent) * (-1.0)
+            if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 coords = []
                 for i in range(self.nHelperWells):
                     w = str(i+1)
@@ -2839,7 +2845,10 @@ class FloPyEnv():
                     self.distanceWellParticle = sqrt(dx**2 + dy**2)
                     if self.distanceWellParticle <= self.helperWellRadius:
                         self.done = True
-                        self.reward = (self.rewardCurrent) * (-1.0)
+                        if self.ENVTYPE in ['5s-c-cost']:
+                            self.reward = self.costQFail + self.rewardCurrent
+                        else:
+                            self.reward = (self.rewardCurrent) * (-1.0)
 
             # checking if particle has reached eastern boundary
             if self.particleCoordsAfter[0] >= self.minX + self.extentX - self.dCol:
@@ -2848,26 +2857,38 @@ class FloPyEnv():
             # checking if particle has returned to western boundary
             if self.particleCoordsAfter[0] <= self.minX + self.dCol:
                 self.done = True
-                self.reward = (self.rewardCurrent) * (-1.0)
+                if self.ENVTYPE in ['5s-c-cost']:
+                    self.reward = self.costQFail + self.rewardCurrent
+                else:
+                    self.reward = (self.rewardCurrent) * (-1.0)
 
-            if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c', '3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c', '3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 # checking if particle has reached northern boundary
                 if self.particleCoordsAfter[1] >= self.minY + self.extentY - self.dRow:
                 # if self.particleCoordsAfter[1] >= self.minY + \
                 #         self.extentY - self.dRow:
                     self.done = True
-                    self.reward = (self.rewardCurrent) * (-1.0)
+                    if self.ENVTYPE in ['5s-c-cost']:
+                        self.reward = self.costQFail + self.rewardCurrent
+                    else:
+                        self.reward = (self.rewardCurrent) * (-1.0)
 
             # checking if particle has reached southern boundary
             if self.particleCoordsAfter[1] <= self.minY + self.dRow:
                 self.done = True
-                self.reward = (self.rewardCurrent) * (-1.0)
+                if self.ENVTYPE in ['5s-c-cost']:
+                    self.reward = self.costQFail + self.rewardCurrent
+                else:
+                    self.reward = (self.rewardCurrent) * (-1.0)
 
             # aborting game if a threshold of steps have been taken
             if self.timeStep == self.maxSteps:
                 if self.done != True:
                     self.done = True
-                    self.reward = (self.rewardCurrent) * (-1.0)
+                    if self.ENVTYPE in ['5s-c-cost']:
+                        self.reward = self.costQFail + self.rewardCurrent
+                    else:
+                        self.reward = (self.rewardCurrent) * (-1.0)
 
             self.rewardCurrent += self.reward
             # self.timeStepDuration.append(time() - t0total)
@@ -2876,6 +2897,9 @@ class FloPyEnv():
                 self.render()
 
             if self.done:
+                # if not self.ENVTYPE in ['5s-c-cost']:
+                #     if not self.success:
+                #         if 
                 # print('debug average timeStepDuration', mean(self.timeStepDuration))
 
                 # necessary to remove these file handles to release file locks
@@ -3062,7 +3086,7 @@ class FloPyEnv():
                 self.nHelperWells = 0
                 self.deviationPenaltyFactor = 10.0
                 self.actionRange = 10.0
-            elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 self.helperWellRadius = self.wellRadius/4
                 self.minH = 56.0
                 self.maxH = 60.0
@@ -3070,6 +3094,9 @@ class FloPyEnv():
                 self.minQhelper = -600.0
                 self.maxQhelper = 600.0
                 self.deviationPenaltyFactor = 10.0
+                self.costQm3dPump = 0.48 # Euro / m3/d
+                self.costQm3dRecharge = 0.70 # Euro / m3/d
+                self.costQFail = -1.*2.*self.maxSteps*self.nHelperWells*self.maxQhelper*self.costQm3dRecharge
 
             if self.ENVTYPE in ['1r-d', '1r-c', '2r-d', '2r-c', '3r-d', '3r-c', '4r-d', '4r-c', '5r-d', '5r-c', '6r-d', '6r-c']:
                 self.maxHChange = 0.2
@@ -3099,11 +3126,11 @@ class FloPyEnv():
                     self.actionRangeQ = 100.0
                 self.actionSpace = list(''.join(map(str, comb)) for comb in product(self.actionSpaceIndividual, repeat=self.nHelperWells))
 
-            elif self.ENVTYPE in ['4s-c', '4r-c', '5s-c', '5r-c', '6s-c', '6r-c']:
+            elif self.ENVTYPE in ['4s-c', '4r-c', '5s-c', '5s-c-cost', '5r-c', '6s-c', '6r-c']:
                 if self.ENVTYPE in ['4s-c', '4r-c']:
                     self.actionSpaceIndividual = ['up', 'down', 'left', 'right']
                     self.actionRange = 2.5
-                elif self.ENVTYPE in ['5s-c', '5r-c']:
+                elif self.ENVTYPE in ['5s-c', '5s-c-cost', '5r-c']:
                     self.actionSpaceIndividual = ['moreQ', 'lessQ']
                     self.actionRangeQ = 100.0
                 elif self.ENVTYPE in ['6s-c', '6r-c']:
@@ -3180,7 +3207,7 @@ class FloPyEnv():
                 w = str(i+1)
                 self.helperWells['actionValueX'+w] = self.helperWells['wellX'+w]
                 self.helperWells['actionValueY'+w] = self.helperWells['wellY'+w]
-        elif self.ENVTYPE in ['5s-d', '5s-c', '5r-d', '5r-c']:
+        elif self.ENVTYPE in ['5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c']:
             for i in range(self.nHelperWells):
                 w = str(i+1)
                 self.helperWells['actionValueQ'+w] = self.helperWells['wellQ'+w]
@@ -3232,7 +3259,7 @@ class FloPyEnv():
                                                 self.wellZ]
                                                )
         self.wellCellLayer, self.wellCellColumn, self.wellCellRow = l, c, r
-        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             for i in range(self.nHelperWells):
                 w = str(i+1)
                 self.helperWells['l'+w], self.helperWells['c'+w], self.helperWells['r'+w] = self.cellInfoFromCoordinates(
@@ -3241,7 +3268,7 @@ class FloPyEnv():
         # print('debug well cells', self.wellCellLayer, self.wellCellColumn, self.wellCellRow)
         # adding WEL package to the MODFLOW model
         lrcq = {0: [[l-1, r-1, c-1, self.wellQ]]}
-        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             lrcq_ = [[l-1, r-1, c-1, self.wellQ]]
             for i in range(self.nHelperWells):
                 w = str(i+1)
@@ -3321,7 +3348,7 @@ class FloPyEnv():
                 self.helperWells['wellZ'+w] = self.helperWells['wellZ'+w]
                 self.helperWells['wellCoords'+w] = [self.helperWells['wellX'+w], self.helperWells['wellY'+w], self.helperWells['wellZ'+w]]
 
-        if self.ENVTYPE in ['5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+        if self.ENVTYPE in ['5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             for i in range(self.nHelperWells):
                 w = str(i+1)
                 # updating well location from action taken
@@ -3333,14 +3360,14 @@ class FloPyEnv():
         self.wellCellLayer = l
         self.wellCellColumn = c
         self.wellCellRow = r
-        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             for i in range(self.nHelperWells):
                 w = str(i+1)
                 self.helperWells['l'+w], self.helperWells['c'+w], self.helperWells['r'+w] = self.cellInfoFromCoordinates(
                     [self.helperWells['wellX'+w], self.helperWells['wellY'+w], self.helperWells['wellZ'+w]])
 
         lrcq = {0: [[l-1, r-1, c-1, self.wellQ]]}
-        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             lrcq_ = [[l-1, r-1, c-1, self.wellQ]]
             for i in range(self.nHelperWells):
                 w = str(i+1)
@@ -3500,7 +3527,7 @@ class FloPyEnv():
                                       )
 
             self.ibound = ones((self.nLay, self.nRow, self.nCol), dtype=int32)
-            if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c', '3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c', '3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 self.ibound[:, 1:-1, 0] = -1
                 self.ibound[:, 1:-1, -1] = -1
                 self.ibound[:, 0, :] = -1
@@ -3549,7 +3576,7 @@ class FloPyEnv():
                 self.strt[:, :-1, 0] = self.headSpecWest
                 self.strt[:, :-1, -1] = self.headSpecEast
                 self.strt[:, -1, :] = self.actionValue
-            elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+            elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 self.strt[:, 1:-1, 0] = self.headSpecWest
                 self.strt[:, 1:-1, -1] = self.headSpecEast
                 self.strt[:, 0, :] = self.headSpecSouth
@@ -3587,7 +3614,9 @@ class FloPyEnv():
             # for speed-ups try different solvers
 
             from flopy.modflow import ModflowPcgn
-            self.mf_pcg = ModflowPcgn(self.mf, close_h=1e0, close_r=1e0)
+            # too large termination criterion might cause unrealistic near-well particle trajectories
+            # self.mf_pcg = ModflowPcgn(self.mf, close_h=1e-1, close_r=1e-1)
+            self.mf_pcg = ModflowPcgn(self.mf, close_h=1e-1, close_r=1e-1)
 
             # this solver seems slightly quicker
             # from flopy.modflow import ModflowGmg
@@ -3735,6 +3764,7 @@ class FloPyEnv():
         self.tSimulate = time() - t0
         if not self.successMODFLOW:
             raise Exception('MODFLOW did not terminate normally.')
+        # print('debug tSimulate', self.tSimulate)
 
         # loading simulation heads and times
         self.fnameHeads = join(self.modelpth, self.MODELNAME + '.hds')
@@ -3891,7 +3921,7 @@ class FloPyEnv():
         # changing current particle coordinate to new
         self.particleCoords = copy(self.particleCoordsAfter)
 
-    def calculateGameReward(self, trajectories):
+    def calculateGameRewardTrajectory(self, trajectories):
         """Calculate game reward.
         Reward is a function of deviation from the straightmost path to the
         eastern boundary. The penalty for deviation is measured by the ratio
@@ -3923,11 +3953,32 @@ class FloPyEnv():
 
         return self.gameReward
 
-    def get_reward(self, targetField, realizedField):
+    def calculateGameRewardHeadChange(self, targetField, realizedField):
         # reward function
 
         # t0 = time()
         reward = -1.*numpySum(numpyAbs(subtract(targetField, realizedField)))
+        # tCalculateReward = time()-t0
+        # print('time get reward', tCalculateReward)
+
+        return reward
+
+    def calculateGameRewardOperationCost(self, nWells, wellDict):
+        # look at Qs
+
+        # t0 = time()
+        QsumPump = 0.
+        QsumRecharge = 0.
+        for i in range(nWells):
+            w = str(i+1)
+            Q = wellDict['wellQ'+w]
+            if Q <= 0.:
+                QsumPump += -1.*wellDict['wellQ'+w]
+            else:
+                QsumRecharge += wellDict['wellQ'+w]
+
+        reward = -1.*QsumPump*self.costQm3dPump
+        reward = -1.*QsumRecharge*self.costQm3dRecharge
         # tCalculateReward = time()-t0
         # print('time get reward', tCalculateReward)
 
@@ -4187,7 +4238,7 @@ class FloPyEnv():
           edgecolor='none', facecolor=color, fill=True, zorder=zorder, alpha=alpha)
         self.ax2.add_artist(wellBufferCircleFilled)
 
-        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             wellCoords = []
             for i in range(self.nHelperWells):
                 w = str(i+1)
@@ -4377,7 +4428,7 @@ class FloPyEnv():
             y = self.wellSafetyZone_outer[1] + self.extentY - self.wellCoords[1],
             text=label_onCircle, va = 'bottom', axes = self.ax2, delimiter = ';', fontsize=8, color=color)
 
-        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+        if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             wellCoords = []
             for i in range(self.nHelperWells):
                 w = str(i+1)
@@ -4470,9 +4521,14 @@ class FloPyEnv():
     def renderTextOnCanvasTimeAndScore(self, zorder=10):
         """Plot final game outcome on figure."""
         timeString = '%.0f' % (float(self.timeStep) * self.periodLength)
-        self.ax2.text(5, 92, ('score: ' + str(int(self.rewardCurrent)) + '\ntime: ' + timeString + ' d'),
-          fontsize=12,
-          zorder=zorder)
+        if self.ENVTYPE in ['5s-c-cost']:
+            self.ax2.text(5, 92, ('score: ' + str('%.2f' % self.rewardCurrent) + ' €' + '\ntime: ' + timeString + ' d'),
+              fontsize=12,
+              zorder=zorder)
+        else:
+            self.ax2.text(5, 92, ('score: ' + str(int(self.rewardCurrent)) + '\ntime: ' + timeString + ' d'),
+              fontsize=12,
+              zorder=zorder)
 
     def renderParticle(self, zorder=6):
         """Plot particle at current current state."""
@@ -4511,7 +4567,7 @@ class FloPyEnv():
         """Remove axes ticks from figure."""
         (self.ax.set_xticks([]), self.ax.set_yticks([]))
         (self.ax2.set_xticks([]), self.ax2.set_yticks([]))
-        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c', '3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c', '3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             (
              self.ax3.set_xticks([]), self.ax3.set_yticks([]))
 
@@ -4537,7 +4593,7 @@ class FloPyEnv():
         elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
             textTop = ''
             textBottom = str('%.2f' % self.actionValue) + ' m'
-        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             textTop = str('%.2f' % self.headSpecNorth) + ' m'
             textBottom = str('%.2f' % self.headSpecSouth) + ' m'
         self.ax2.text((self.minX + 2 * self.dCol), (0.5 * (bottom + top)), textLeft, horizontalalignment='left',
@@ -4623,7 +4679,7 @@ class FloPyEnv():
         except:
             pass
 
-        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c', '3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
+        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c', '3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
             try:
                 self.ax3.cla()
                 self.ax3.clear()
@@ -4799,7 +4855,7 @@ class FloPyEnv():
                 elif actionList[i] == 'lessQ':
                     if self.helperWells['wellQ'+w] + self.actionRangeQ < self.maxQhelper:
                         self.helperWells['actionValueQ'+w] = self.helperWells['wellQ'+w] + self.actionRangeQ
-        elif self.ENVTYPE in ['4s-c', '4r-c', '5s-c', '5r-c', '6s-c', '6r-c']:
+        elif self.ENVTYPE in ['4s-c', '4r-c', '5s-c', '5s-c-cost', '5r-c', '6s-c', '6r-c']:
             for i in range(self.nHelperWells):
                 w = str(i+1)
                 offset = int(i*len(self.actionSpaceIndividual))
@@ -4816,8 +4872,8 @@ class FloPyEnv():
                     if self.helperWells['wellX'+w] + dx > self.dCol:
                         if self.helperWells['wellX'+w] + dx < self.extentX - self.dCol:
                             self.helperWells['actionValueX'+w] = self.helperWells['wellX'+w] + dx
-                if self.ENVTYPE in ['5s-c', '5r-c', '6s-c', '6r-c']:
-                    if self.ENVTYPE in ['5s-c', '5r-c']:
+                if self.ENVTYPE in ['5s-c', '5s-c-cost', '5r-c', '6s-c', '6r-c']:
+                    if self.ENVTYPE in ['5s-c', '5s-c-cost', '5r-c']:
                         dQMore = action[offset+0]*self.actionRangeQ
                         dQLess = action[offset+1]*self.actionRangeQ
                     elif self.ENVTYPE in ['6s-c', '6r-c']:
@@ -4978,7 +5034,7 @@ class FloPyArcade():
                          '2s-d', '2s-c', '2r-d', '2r-c',
                          '3s-d', '3s-c', '3r-d', '3r-c',
                          '4s-c', '4r-c', # '4s-d', '4r-d'
-                         '5s-c', '5r-c', # '5s-d', '5r-d'
+                         '5s-c', '5s-c-cost', '5r-c', # '5s-d', '5r-d'
                          '6s-c', '6r-c'  # '6s-d', '6r-d'
                          ]
         self.wrkspc = FloPyEnv(initWithSolution=False).wrkspc
@@ -5109,7 +5165,7 @@ class FloPyArcade():
                 elif self.env.success == False:
                     successString = 'lost'
                     # total loss of reward if entering well protection zone
-                    self.rewardTotal = 0.0
+                    # self.rewardTotal = 0.0
 
                 if self.SURROGATESIMULATOR is not None:
                     stringSurrogate = 'surrogate '
