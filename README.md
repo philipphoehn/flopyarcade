@@ -62,7 +62,7 @@ docker build -t flopyarcade --no-cache -f Dockerfile .
 
 ## Environments
 
-Four environments are currently included, three of which can be user-controlled in a game. However, groundwater environments of arbitrary complexity can be implemented, if the desired opimization target(s) can be obtained from the simulation. Feel free to modify. Currently, they can be changed with the ENVTYPE variable, ranging from '1' to '4' - with '4' not allowing for user control.
+Seven environments are currently included, three of which can be user-controlled in a game. However, groundwater environments of arbitrary complexity can be implemented, if the desired opimization target(s) can be obtained from the simulation. Feel free to modify. Currently, they can be changed with the ENVTYPE variable, ranging from '0' to '6' - with '1', '2' and '3' allowing for user control. Add 's' for non-moving or 'r' for moving boundaries and '-d' for discrete (only for '1' to '3') or '-c' for continuous actions to be taken. An example ENVTYPE variable would then be '2r-d' or '6s-c'.
 
 Examples of human actions taken on a keyboard: Environment 1 (left) allows to adjust the northern and southern specified heads synchronously. Environment 2 (center) allows to adjust the southern specified heads. Environment 3 (right) allows to move the pumping well.
 
