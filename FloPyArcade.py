@@ -963,22 +963,28 @@ class FloPyAgent():
         future_qs_list = self.targetModel.predict(new_current_states)
 
         X, y = [], []
+
         # enumerating batches
         for index, (current_state, action, reward, new_current_state,
                     done) in enumerate(minibatch):
-
-            # If not a terminal state, get new q from future states,
-            # otherwise set it to 0
-            # almost like with Q Learning, but we use just part of equation
-            if not done:
-                max_future_q = max(future_qs_list[index])
-                new_q = reward + self.hyParams['DISCOUNT'] * max_future_q
-            else:
-                new_q = reward
-
-            # updating Q value for given state
             current_qs = current_qs_list[index]
-            current_qs[action] = new_q
+            if self.actionType == 'discrete':
+                actionIdx = self.actionSpace.index(action)
+                action = [actionIdx]
+
+            for iAction, action_ in enumerate(action):
+                # If not a terminal state, get new q from future states,
+                # otherwise set it to 0
+                # almost like with Q Learning, but we use just part of equation
+                if not done:
+                    max_future_q = max(future_qs_list[index])
+                    new_q = reward + self.hyParams['DISCOUNT'] * max_future_q
+                else:
+                    new_q = reward
+
+                # updating Q value for given state
+                current_qs[iAction] = new_q
+
             # appending states to training data
             X.append(current_state)
             y.append(current_qs)
