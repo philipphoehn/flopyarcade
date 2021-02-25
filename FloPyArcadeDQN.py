@@ -88,7 +88,6 @@ parser.add_argument('--crossvalidateevery', default=50, type=int,
 parser.add_argument('--ngamescrossvalidated', default=10, type=int,
     help='integer defining the number of games during cross-validation')
 args = parser.parse_args()
-print('ewr', args.modelname)
 
 
 # environment settings
