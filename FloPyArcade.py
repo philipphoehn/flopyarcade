@@ -4177,6 +4177,13 @@ class FloPyEnv():
                             pause(self.MANUALCONTROLTIME)
             elif returnFigure:
                 self.plotArrays.append(imarray)
+                
+                # # print('self.ANIMATIONFOLDER', self.MODELNAME)
+                # if not exists(join(self.wrkspc, 'runs', self.MODELNAME)):
+                #     makedirs(join(self.wrkspc, 'runs', self.MODELNAME))
+                # self.fig.set_size_inches(7, 7)
+                # self.fig.savefig(join(self.wrkspc, 'runs', self.MODELNAME, str(self.timeStep).zfill(6) + '.png'), pad_inches=0, bbox_inches='tight')
+
                 if self.SAVEPLOT:
                     if self.done or self.timeStep == self.NAGENTSTEPS:
                         pathGIF = join(self.wrkspc, 'runs', self.ANIMATIONFOLDER, self.MODELNAME + '.gif')
@@ -4534,12 +4541,12 @@ class FloPyEnv():
         """Plot final game outcome on figure."""
         timeString = '%.0f' % (float(self.timeStep) * self.periodLength)
         if self.ENVTYPE in ['5s-c-cost']:
-            self.ax2.text(5, 92, ('score: ' + str('%.2f' % self.rewardCurrent) + ' €' + '\ntime: ' + timeString + ' d'),
-              fontsize=12,
+            self.ax2.text(5, 90, ('score: ' + str('%.2f' % self.rewardCurrent) + ' €' + '\ntime: ' + timeString + ' d'),
+              fontsize=20,
               zorder=zorder)
         else:
-            self.ax2.text(5, 92, ('score: ' + str(int(self.rewardCurrent)) + '\ntime: ' + timeString + ' d'),
-              fontsize=12,
+            self.ax2.text(5, 90, ('score: ' + str(int(self.rewardCurrent)) + '\ntime: ' + timeString + ' d'),
+              fontsize=20,
               zorder=zorder)
 
     def renderParticle(self, zorder=6):
@@ -4612,22 +4619,22 @@ class FloPyEnv():
           verticalalignment='center',
           rotation='vertical',
           zorder=10,
-          fontsize=12)
+          fontsize=20, alpha=0.25, color='blue')
         self.ax2.text((self.extentX - 2 * self.dCol), (0.5 * (bottom + top)), textRight, horizontalalignment='right',
           verticalalignment='center',
           rotation='vertical',
           zorder=10,
-          fontsize=12)
+          fontsize=20, alpha=0.25, color='blue')
         self.ax2.text((0.5 * (left + width)), (self.extentY - 2 * self.dRow), textTop, horizontalalignment='center',
           verticalalignment='top',
           rotation='horizontal',
           zorder=10,
-          fontsize=12)
+          fontsize=20, alpha=0.25, color='blue')
         self.ax2.text((0.5 * (left + width)), (self.minY + 2 * self.dRow), textBottom, horizontalalignment='center',
           verticalalignment='bottom',
           rotation='horizontal',
           zorder=10,
-          fontsize=12)
+          fontsize=20, alpha=0.25, color='blue')
 
     def renderUserInterAction(self):
         """Enable user control of the environment."""
@@ -5123,6 +5130,9 @@ class FloPyArcade():
                             state=self.env.observationsVectorNormalized,
                             actionType=self.env.actionType
                             )
+
+                # game.env.observationsVectorNormalized
+                print('debug action', self.env.timeStep, mean(action), mean(self.env.observationsVectorNormalized))
 
                 verbose = True
 
