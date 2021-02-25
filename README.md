@@ -1,5 +1,5 @@
 [//]: ![banner](examples/banner.png)
-<p align="center"><img src="http://www.groundwaterautopilot.com/static/images/banner.gif?raw=true"></p>
+<p align="center"><img src="http://groundwaterautopilot.com/static/images/banner.gif?raw=true"></p>
 
 
 FloPyArcade provides simple [MODFLOW](https://www.usgs.gov/mission-areas/water-resources/science/modflow-and-related-programs?qt-science_center_objects=0#qt-science_center_objects)-powered groundwater arcade-type simulation environments. It builds on the functionality of [FloPy](https://github.com/modflowpy/flopy/), empowering pre- and postprocessing of MODFLOW and its related software. The idea is to provide benchmarking environments and examples to the groundwater community that allow experimenting with algorithms in search of optimal control.
@@ -17,8 +17,8 @@ Too late, with the peak of arcade games a few decades ago, you would think? Obvi
 
 Examples of machine-controlled actions taken in the same environment by the highest-scoring agent of genetic optimization after various generations:
 
-<p align="center"><img src="http://www.groundwaterautopilot.com/static/images/geneticoptimization_3d.gif?raw=true"></p>
-<p align="center"><img src="http://www.groundwaterautopilot.com/static/images/geneticoptimization.gif?raw=true"></p>
+<p align="center"><img src="http://groundwaterautopilot.com/static/images/geneticoptimization_3d.gif?raw=true"></p>
+<p align="center"><img src="http://groundwaterautopilot.com/static/images/geneticoptimization.gif?raw=true"></p>
 [//]: ![genetic optimization 3d](examples/geneticoptimization_3d.gif)
 [//]: ![genetic optimization](examples/geneticoptimization.gif)
 Try yourself:
