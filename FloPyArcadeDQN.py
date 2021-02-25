@@ -150,7 +150,7 @@ def main(envSettings, hyParams):
 
     # initializing agent
     agent = FloPyAgent(
-        env.observationsVector,
+        env.observationsVectorNormalized,
         env.actionSpace,
         hyParams,
         envSettings,
