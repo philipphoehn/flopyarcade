@@ -17,7 +17,7 @@ Too late, with the peak of arcade games a few decades ago, you would think? Obvi
 
 Examples of machine-controlled actions taken in the same environment by the highest-scoring agent of genetic optimization after various generations:
 
-<p align="center"><img src="http://groundwaterautopilot.com/static/images/geneticoptimization_3d.gif?raw=true"></p>
+<p align="center"><img src="http://groundwaterautopilot.com/static/images/geneticoptimization_3d.gif"></p>
 <p align="center"><img src="http://groundwaterautopilot.com/static/images/geneticoptimization.gif?raw=true"></p>
 [//]: ![genetic optimization 3d](examples/geneticoptimization_3d.gif)
 [//]: ![genetic optimization](examples/geneticoptimization.gif)
