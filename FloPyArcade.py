@@ -157,6 +157,11 @@ class FloPyAgent():
             self.initializeDQNAgent()
 
         if self.agentMode == 'genetic':
+            if self.envSettings is not None:
+                # setting number of parallel agents to available cores if undefined
+                if self.envSettings['NAGENTSPARALLEL'] == None:
+                    self.envSettings['NAGENTSPARALLEL'] = pathosHelpers.cpu_count()
+
             # creating required folders if inexistent
             self.tempModelpth = join(self.wrkspc, 'temp', 
                 self.envSettings['MODELNAME'])
@@ -1032,7 +1037,8 @@ class FloPyAgent():
 
             # updating replay memory
             self.updateReplayMemory(
-                [current_state, actionIdx, reward, new_state, done])
+                # [current_state, actionIdx, reward, new_state, done])
+                [current_state, action, reward, new_state, done])
             # training main network on every step
             self.train(done, self.gameStep)
 
