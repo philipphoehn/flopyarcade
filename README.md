@@ -1,5 +1,5 @@
 ![banner](examples/banner.png)
-[//]: <p align="center"><img src="http://groundwaterautopilot.com/static/images/banner.gif?raw=true"></p>
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/banner.gif?raw=true"></p>]
 
 
 FloPyArcade provides simple [MODFLOW](https://www.usgs.gov/mission-areas/water-resources/science/modflow-and-related-programs?qt-science_center_objects=0#qt-science_center_objects)-powered groundwater arcade-type simulation environments. It builds on the functionality of [FloPy](https://github.com/modflowpy/flopy/), empowering pre- and postprocessing of MODFLOW and its related software. The idea is to provide benchmarking environments and examples to the groundwater community that allow experimenting with algorithms in search of optimal control.
