@@ -64,7 +64,7 @@ Seven environments are currently included, three of which can be user-controlled
 
 Examples of human actions taken on a keyboard: Environment 1 (left) allows to adjust the northern and southern specified heads synchronously. Environment 2 (center) allows to adjust the southern specified heads. Environment 3 (right) allows to move the pumping well.
 
-[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/1s-d.gif?raw=true"></p>]
+<p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/1s-d.gif?raw=true"></p>
 
 [//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/1s-c.gif?raw=true"></p>]
 
