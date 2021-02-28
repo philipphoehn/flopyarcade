@@ -18,50 +18,28 @@ Why this matters, in a nutshell: What is encapsulated in a game here, can be env
 
 Too late, with the peak of arcade games a few decades ago, you would think? Obviously. But they received renewed interest with the advent of [OpenAI Gym](https://gym.openai.com/) enabling to score past human performance with reinforcement learning. FloPyArcade offers a set of simple simulated groundwater flow environments, following their [style of environments](https://gym.openai.com/envs/#atari). They allow to experiment with existing or new reinforcement learning algorithms to find e.g. neural networks that yield optimal control policies. Two common learning algorithms are readily provided. Many more are and become available throughout the reinforcement learning community. Try and train for yourself. Adding your own simulation environment of arbitrary complexity with your own controls or your own using optimization algorithm is possible.
 
-Try yourself:
+## Get started
 
-The objective is to safely transport a virtual particle as it follows advection while travelling from a random location at the western boundary to the eastern boundary. You have to protect a well from capturing this particle. The well is randomly located with a random pumping rate. Furthermore, the particle must not flow into cells of specified head in the north and south. The controls you have depend on the environment, but are in total the up/down/left/right key. They allow you to either adjust specified head(s) or the well location. The highest score is achieved if the particle stays on the indicated shortest route, or as close as possible to it.
-
-## Game (compiled for Windows)
-
-Easily test yourself: Steer the existing environments on Windows. Skip installation by downloading these versions:
-
-[![TestOnwinENV3](examples/downloadENV1.png)](http://www.groundwaterautopilot.com/static/download/FloPyArcadeENV1.zip)
-[![TestOnwinENV2](examples/downloadENV2.png)](http://www.groundwaterautopilot.com/static/download/FloPyArcadeENV2.zip)
-[![TestOnwinENV3](examples/downloadENV3.png)](http://www.groundwaterautopilot.com/static/download/FloPyArcadeENV3.zip)
-
-## Installation
-
-Given [TensorFlow](https://www.tensorflow.org/)'s current compatibility, this project works with [Python 3](https://www.python.org/), tested up to version 3.7. 
-The installation is a 2-step procedure:
-
-1) To install all dependencies, create a directory and clone the master branch into it. The package manager [pip](https://pip.pypa.io/en/stable/) can then install them:
+After installation (see below), easily run an environment:
 
 ```bash
-git clone -b master https://github.com/philipphoehn/FloPyArcade.git .
-pip install -r requirements.txt
-```
+from FloPyArcade import FloPyEnv
+from numpy.random import uniform
+from matplotlib.pyplot import switch_backend
+switch_backend('TkAgg')
 
-2) For the environment-driving simulations to function, [MODFLOW2005](https://www.usgs.gov/software/modflow-2005-usgs-three-dimensional-finite-difference-ground-water-model) and [MODPATH]() need to be compiled on your system - either in a subdirectory named simulators or with the installation paths specified as variables when using FloPyArcade. This can easily be achieved across operating systems using [pymake](https://github.com/modflowpy/pymake). While still in the main project directory, create a subdirectory "simulators" and navigate to it. Then, follow pymake's instructions (possibly you have to point to the full path of make_mf2005.py and make_modpath6.py):
-
-```bash
-pip install https://github.com/modflowpy/pymake/zipball/master
-git clone https://github.com/modflowpy/pymake.git .
-python examples/make_mf2005.py
-python examples/make_modpath6.py
-```
-
-Alternatively: With dependencies on compiled simulators, deployment is recommended and easier in a Docker container. Create a directory first, navigate to it and build the container:
-
-```bash
-docker build -t flopyarcade --no-cache -f Dockerfile .
+env = FloPyEnv(ENVTYPE='6s-c', flagRender=True)
+done = env.done
+reward_total = 0.
+while not done:
+    action = [uniform(low=0.0, high=1.0) for _ in range(env.actionSpaceSize)]
+    observations, reward, done, info = env.step(env.observationsVectorNormalized, action, reward_total)
+    reward_total += reward
 ```
 
 ## Environments
 
-Seven environments are currently included, three of which can be user-controlled in a game. However, groundwater environments of arbitrary complexity can be implemented, if the desired opimization target(s) can be obtained from the simulation. Feel free to modify. Currently, they can be changed with the ENVTYPE variable, ranging from '0' to '6' - with '1', '2' and '3' allowing for user control. Add 's' for non-moving or 'r' for moving boundaries and '-d' for discrete (only for '1' to '3') or '-c' for continuous actions to be taken. An example ENVTYPE variable would then be '2r-d' or '6s-c'.
-
-Examples of human actions taken on a keyboard: Environment 1 (left) allows to adjust the northern and southern specified heads synchronously. Environment 2 (center) allows to adjust the southern specified heads. Environment 3 (right) allows to move the pumping well.
+Seven environment variants are currently included, three of which can be user-controlled in a game. However, groundwater environments of arbitrary complexity can be implemented, if the desired opimization target(s) can be obtained from the simulation. Feel free to modify. Change the ENVTYPE variable. Examples below list the available environments. Note: '0s-d' is an experimental environment based on MODFLOW's BMI and not yet displayed.
 
 ![1s-d](examples/environments/1s-d.gif)
 ![1r-d](examples/environments/1r-d.gif)
@@ -117,6 +95,45 @@ docker run -p 81:81 flopyarcade python FloPyArcadePlay.py
 ```
 
 Modify settings for the environment and hyperparameters for the provided optimization algorithms at the top of the files. The underlying policy model can easily be exchanged with arbitrary [Keras](https://keras.io/)-based models by replacing the createNNModel function within the FloPyAgent class in FloPyArcade.py. A complete description of current variables and more documentation is planned.
+
+## Installation
+
+Given [TensorFlow](https://www.tensorflow.org/)'s current compatibility, this project works with [Python 3](https://www.python.org/), tested up to version 3.7. 
+The installation is a 2-step procedure:
+
+1) To install all dependencies, create a directory and clone the master branch into it. The package manager [pip](https://pip.pypa.io/en/stable/) can then install them:
+
+```bash
+git clone -b master https://github.com/philipphoehn/FloPyArcade.git .
+pip install -r requirements.txt
+```
+
+2) For the environment-driving simulations to function, [MODFLOW2005](https://www.usgs.gov/software/modflow-2005-usgs-three-dimensional-finite-difference-ground-water-model) and [MODPATH]() need to be compiled on your system - either in a subdirectory named simulators or with the installation paths specified as variables when using FloPyArcade. This can easily be achieved across operating systems using [pymake](https://github.com/modflowpy/pymake). While still in the main project directory, create a subdirectory "simulators" and navigate to it. Then, follow pymake's instructions (possibly you have to point to the full path of make_mf2005.py and make_modpath6.py):
+
+```bash
+pip install https://github.com/modflowpy/pymake/zipball/master
+git clone https://github.com/modflowpy/pymake.git .
+python examples/make_mf2005.py
+python examples/make_modpath6.py
+```
+
+Alternatively: With dependencies on compiled simulators, deployment is recommended and easier in a Docker container. Create a directory first, navigate to it and build the container:
+
+```bash
+docker build -t flopyarcade --no-cache -f Dockerfile .
+```
+
+## Game (compiled for Windows)
+
+Try yourself:
+
+The objective is to safely transport a virtual particle as it follows advection while travelling from a random location at the western boundary to the eastern boundary. You have to protect a well from capturing this particle. The well is randomly located with a random pumping rate. Furthermore, the particle must not flow into cells of specified head in the north and south. The controls you have depend on the environment, but are in total the up/down/left/right key. They allow you to either adjust specified head(s) or the well location. The highest score is achieved if the particle stays on the indicated shortest route, or as close as possible to it.
+
+Easily test yourself: Steer the existing environments on Windows. Skip installation by downloading these versions:
+
+[![TestOnwinENV3](examples/downloadENV1.png)](http://www.groundwaterautopilot.com/static/download/FloPyArcadeENV1.zip)
+[![TestOnwinENV2](examples/downloadENV2.png)](http://www.groundwaterautopilot.com/static/download/FloPyArcadeENV2.zip)
+[![TestOnwinENV3](examples/downloadENV3.png)](http://www.groundwaterautopilot.com/static/download/FloPyArcadeENV3.zip)
 
 ## Notes
 
