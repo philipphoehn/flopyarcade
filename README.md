@@ -1,14 +1,14 @@
 ![banner](examples/banner.png)
 <!-- [//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/banner.gif?raw=true"></p>] -->
 
-<p align="center">
+<div align="center">
 [![build status](https://api.travis-ci.org/philipphoehn/FloPyArcade.svg?branch=master)](https://travis-ci.org/philipphoehn/FloPyArcade)
 [![binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/philipphoehn/FloPyArcade/master)
 [![gitter](https://img.shields.io/gitter/room/thunder-project/thunder.svg?style=flat-flat)](https://gitter.im/FloPyArcade/community)
 [![made with python](https://img.shields.io/badge/made%20with-python-blue.svg?style=flat)](https://www.python.org/)
 [![code coverage](https://codecov.io/gh/philipphoehn/FloPyArcade/branch/master/graph/badge.svg)](https://codecov.io/gh/philipphoehn/FloPyArcade)
 [![github version](https://badge.fury.io/gh/philipphoehn%2Fflopyarcade.svg)](https://badge.fury.io/gh/philipphoehn%2Fflopyarcade)
-</p>
+</div>
 
 FloPyArcade provides simple [MODFLOW](https://www.usgs.gov/mission-areas/water-resources/science/modflow-and-related-programs?qt-science_center_objects=0#qt-science_center_objects)-powered groundwater arcade-type simulation environments. It builds on the functionality of [FloPy](https://github.com/modflowpy/flopy/), empowering pre- and postprocessing of MODFLOW and its related software. The idea is to provide benchmarking environments and examples to the groundwater community that allow experimenting with algorithms in search of optimal control.
 
