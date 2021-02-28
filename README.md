@@ -22,7 +22,7 @@ Too late, with the peak of arcade games a few decades ago, you would think? Obvi
 
 After installation (see below), easily run an environment:
 
-```bash
+```python
 from FloPyArcade import FloPyEnv
 from numpy.random import uniform
 from matplotlib.pyplot import switch_backend
