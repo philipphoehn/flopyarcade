@@ -64,6 +64,27 @@ Seven environments are currently included, three of which can be user-controlled
 
 Examples of human actions taken on a keyboard: Environment 1 (left) allows to adjust the northern and southern specified heads synchronously. Environment 2 (center) allows to adjust the southern specified heads. Environment 3 (right) allows to move the pumping well.
 
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/1s-d.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/1s-c.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/1r-d.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/1r-c.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/2s-d.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/2s-c.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/2r-d.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/2r-c.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/3s-d.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/3s-c.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/3r-d.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/3r-c.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/4s-c.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/4r-c.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/5s-c.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/5r-c.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/5s-c-cost.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/5r-c-cost.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/6s-c.gif?raw=true"></p>]
+[//: <p align="center"><img src="http://groundwaterautopilot.com/static/images/environments/6r-c.gif?raw=true"></p>]
+
 ![environment types 3d](examples/envtypes_3d.gif)
 ![environment types](examples/envtypes.gif)
 ## Optimization
