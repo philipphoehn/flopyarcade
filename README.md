@@ -11,14 +11,14 @@ FloPyArcade provides simple [MODFLOW](https://www.usgs.gov/mission-areas/water-r
 [![code coverage](https://codecov.io/gh/philipphoehn/FloPyArcade/branch/master/graph/badge.svg)](https://codecov.io/gh/philipphoehn/FloPyArcade)
 [![github version](https://badge.fury.io/gh/philipphoehn%2Fflopyarcade.svg)](https://badge.fury.io/gh/philipphoehn%2Fflopyarcade)
 
+![genetic optimization 3d](examples/geneticoptimization_3d.gif)
+![genetic optimization](examples/geneticoptimization.gif)
+Examples of machine-controlled actions taken in the same environment by the highest-scoring agent of genetic optimization after various generations.
+
 Why this matters, in a nutshell: What is encapsulated in a game here, can be envisioned to be a real-world operation of an arbitrary groundwater system given a model (ensemble). You can similarly optimize and test policy models, e.g. for real-time operation of your sites.
 
 Too late, with the peak of arcade games a few decades ago, you would think? Obviously. But they received renewed interest with the advent of [OpenAI Gym](https://gym.openai.com/) enabling to score past human performance with reinforcement learning. FloPyArcade offers a set of simple simulated groundwater flow environments, following their [style of environments](https://gym.openai.com/envs/#atari). They allow to experiment with existing or new reinforcement learning algorithms to find e.g. neural networks that yield optimal control policies. Two common learning algorithms are readily provided. Many more are and become available throughout the reinforcement learning community. Try and train for yourself. Adding your own simulation environment of arbitrary complexity with your own controls or your own using optimization algorithm is possible.
 
-Examples of machine-controlled actions taken in the same environment by the highest-scoring agent of genetic optimization after various generations:
-
-![genetic optimization 3d](examples/geneticoptimization_3d.gif)
-![genetic optimization](examples/geneticoptimization.gif)
 Try yourself:
 
 The objective is to safely transport a virtual particle as it follows advection while travelling from a random location at the western boundary to the eastern boundary. You have to protect a well from capturing this particle. The well is randomly located with a random pumping rate. Furthermore, the particle must not flow into cells of specified head in the north and south. The controls you have depend on the environment, but are in total the up/down/left/right key. They allow you to either adjust specified head(s) or the well location. The highest score is achieved if the particle stays on the indicated shortest route, or as close as possible to it.
