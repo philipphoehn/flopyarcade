@@ -20,7 +20,7 @@ Too late, with the peak of arcade games a few decades ago, you would think? Obvi
 
 ## Getting started
 
-After installation (see below), easily run an environment:
+After installation (see below), easily run an environment in Python:
 
 ```python
 from FloPyArcade import FloPyEnv
