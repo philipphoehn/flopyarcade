@@ -39,9 +39,9 @@ while not done:
 
 ## Environments
 
-Seven environment variants are currently included, three of which can be user-controlled in a game. The objective is to safely transport a virtual particle as it follows advection while travelling from a random location at the western boundary to the eastern boundary. You have to protect a well or multiple wells from capturing this particle. Furthermore, the particle must not flow into cells of specified head in the north and south. The controls you have depend on the environment. The highest score is achieved if the particle stays on the indicated shortest route, or as close as possible to it.
+Multiple environment variants are currently included, three of which can be user-controlled in a game. The objective is to safely transport a virtual particle as it follows advection while travelling from a random location at the western boundary to the eastern boundary. Wells have to be protected from capturing the particle. Furthermore, the particle must not flow into cells of specified head in the north and south. The controls you have depend on the environment. The highest score is achieved if the particle stays on the indicated shortest route, or as close as possible to it.
 
-However, groundwater environments of arbitrary complexity can be implemented, if the desired opimization target(s) can be obtained from the simulation. Feel free to modify. Change the ENVTYPE variable. Examples below list the available environments. Note: '0s-d' is an experimental environment based on MODFLOW's BMI and not yet displayed.
+However, groundwater environments of arbitrary complexity can be implemented similarly, if the desired opimization target(s) can be obtained from the simulation. Feel free to modify. Change the ENVTYPE variable to switch between environments. Examples below list the available environments. Note: '0s-d' is an experimental environment based on MODFLOW's BMI and not yet displayed.
 
 ![1s-d](examples/environments/1s-d.gif)
 ![1r-d](examples/environments/1r-d.gif)
