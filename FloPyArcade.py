@@ -64,8 +64,13 @@ from collections import deque, defaultdict
 from datetime import datetime
 from gc import collect as garbageCollect
 from itertools import count, repeat
+from pathos.multiprocessing import cpu_count
 from pathos import helpers as pathosHelpers
-from pathos.pools import _ProcessPool as Pool
+# from multiprocessing import Pool as Pool
+# from pathos.pools import _ProcessPool as Pool
+# from pathos.pools import ProcessPool as Pool
+# from pathos.pools import ParallelPool as Pool
+from pathos.multiprocessing import Pool as Pool
 from pathos.pools import _ThreadPool as ThreadPool
 from pickle import dump, load
 from tensorflow.keras.initializers import glorot_uniform, glorot_normal, random_uniform, random_normal
@@ -83,6 +88,8 @@ from tensorflow.compat.v1.keras import backend as K
 from tensorflow.keras.models import load_model as TFload_model
 from tqdm import tqdm
 from uuid import uuid4
+
+from tempfile import TemporaryDirectory
 
 # avoiding freeze issues on Linux when loading Tensorflow model
 # https://github.com/keras-team/keras/issues/9964
@@ -157,10 +164,8 @@ class FloPyAgent():
             self.initializeDQNAgent()
 
         if self.agentMode == 'genetic':
-            if self.envSettings is not None:
-                # setting number of parallel agents to available cores if undefined
-                if self.envSettings['NAGENTSPARALLEL'] == None:
-                    self.envSettings['NAGENTSPARALLEL'] = pathosHelpers.cpu_count()
+            if self.envSettings['NAGENTSPARALLEL'] == None:
+                self.envSettings['NAGENTSPARALLEL'] = cpu_count()
 
             # creating required folders if inexistent
             self.tempModelpth = join(self.wrkspc, 'temp', 
@@ -222,6 +227,7 @@ class FloPyAgent():
             # environment settings or loading them if resuming
             if not self.envSettings['RESUME']:
                 self.geneticGeneration = 0
+                print('Initializing genetic agents.')
                 self.initializeGeneticAgents()
                 # print(join(self.tempModelpth, self.envSettings['MODELNAME'] + '_hyParams.p'))
                 self.pickleDump(join(self.tempModelpth,
@@ -963,28 +969,22 @@ class FloPyAgent():
         future_qs_list = self.targetModel.predict(new_current_states)
 
         X, y = [], []
-
         # enumerating batches
         for index, (current_state, action, reward, new_current_state,
                     done) in enumerate(minibatch):
+
+            # If not a terminal state, get new q from future states,
+            # otherwise set it to 0
+            # almost like with Q Learning, but we use just part of equation
+            if not done:
+                max_future_q = max(future_qs_list[index])
+                new_q = reward + self.hyParams['DISCOUNT'] * max_future_q
+            else:
+                new_q = reward
+
+            # updating Q value for given state
             current_qs = current_qs_list[index]
-            if self.actionType == 'discrete':
-                actionIdx = self.actionSpace.index(action)
-                action = [actionIdx]
-
-            for iAction, action_ in enumerate(action):
-                # If not a terminal state, get new q from future states,
-                # otherwise set it to 0
-                # almost like with Q Learning, but we use just part of equation
-                if not done:
-                    max_future_q = max(future_qs_list[index])
-                    new_q = reward + self.hyParams['DISCOUNT'] * max_future_q
-                else:
-                    new_q = reward
-
-                # updating Q value for given state
-                current_qs[iAction] = new_q
-
+            current_qs[action] = new_q
             # appending states to training data
             X.append(current_state)
             y.append(current_qs)
@@ -1043,8 +1043,7 @@ class FloPyAgent():
 
             # updating replay memory
             self.updateReplayMemory(
-                # [current_state, actionIdx, reward, new_state, done])
-                [current_state, action, reward, new_state, done])
+                [current_state, actionIdx, reward, new_state, done])
             # training main network on every step
             self.train(done, self.gameStep)
 
@@ -1185,24 +1184,32 @@ class FloPyAgent():
     def runAgentsGeneticSingleRun(self, agentCount):
         """Run single game within genetic agent optimisation."""
 
+        print('debug running agentCount', agentCount)
+        # import os
+        # os.system("taskset -p 0xfffff %d" % os.getpid())
+
         tempAgentPrefix = join(self.tempModelPrefix + '_agent'
             + str(agentCount + 1).zfill(self.zFill))
 
         # loading specific agent and weights with given ID
         t0load_model = time()
-        if self.envSettings['KEEPMODELHISTORY']:
-            agent = load_model(join(tempAgentPrefix + '.h5'), compile=False)
-        else:
-            t0RecreateFromMutationHistory = time()
-            agentOffset = self.hyParams['NAGENTS'] * (self.geneticGeneration)
-            # print(self.mutationHistory)
-            agentNumber = agentCount + 1 + agentOffset
-            creationSeed = self.mutationHistory['agent' + str(agentNumber)]['creationSeed']
-            mutationSeeds = self.mutationHistory['agent' + str(agentNumber)]['mutationSeeds']
-            agent = self.loadModelFromMutationHistory(creationSeed, mutationSeeds)
-            tRecreateFromMutationHistory = (self.hyParams['NAGENTS']/self.envSettings['NAGENTSPARALLEL']) * (t0RecreateFromMutationHistory - time())
-            if agentCount == 1:
-                print('model recreation took about', tRecreateFromMutationHistory, 's')
+
+
+        # if self.envSettings['KEEPMODELHISTORY']:
+        #     agent = load_model(join(tempAgentPrefix + '.h5'), compile=False)
+
+        
+        # else:
+        t0RecreateFromMutationHistory = time()
+        agentOffset = self.hyParams['NAGENTS'] * (self.geneticGeneration)
+        # print(self.mutationHistory)
+        agentNumber = agentCount + 1 + agentOffset
+        creationSeed = self.mutationHistory['agent' + str(agentNumber)]['creationSeed']
+        mutationSeeds = self.mutationHistory['agent' + str(agentNumber)]['mutationSeeds']
+        agent = self.loadModelFromMutationHistory(creationSeed, mutationSeeds)
+        tRecreateFromMutationHistory = (self.hyParams['NAGENTS']/self.envSettings['NAGENTSPARALLEL']) * (t0RecreateFromMutationHistory - time())
+        if agentCount == 1:
+            print('model recreation took about', tRecreateFromMutationHistory, 's')
         # print('debug duration load_model compiled', time() - t0load_model)
 
         MODELNAMETEMP = ('Temp' + self.pid +
@@ -1315,6 +1322,8 @@ class FloPyAgent():
                 break
         # print('time game', time()-t0game, 'time step', (time()-t0game)/step, 'reward', r, 'steps', step)
 
+        # print('debug reward agentCount', r, step, actions, rewards)
+
         return r
 
     def runAgentsRepeatedlyGenetic(self, agentCounts, n, env):
@@ -1331,6 +1340,7 @@ class FloPyAgent():
                   str(self.geneticGeneration + 1) + '/' +
                   str(self.hyParams['NGENERATIONS']) + ' generations')
             rewardsAgentsCurrent = self.runAgentsGenetic(agentCounts, env)
+            print(rewardsAgentsCurrent)
             reward_agentsMin = minimum(reward_agentsMin, rewardsAgentsCurrent)
             reward_agentsMax = maximum(reward_agentsMax, rewardsAgentsCurrent)
             reward_agentsMean = add(reward_agentsMean, rewardsAgentsCurrent)
@@ -1348,11 +1358,13 @@ class FloPyAgent():
         it to disk individually.
         """
 
+        # t0 = time()
         actionType = FloPyEnv(initWithSolution=False).getActionType(self.envSettings['ENVTYPE'])
         agent = self.createNNModel(actionType, seed=self.envSettings['SEEDAGENT']+agentIdx)
         agent.save(join(self.tempModelpth, self.envSettings['MODELNAME'] +
             '_gen' + str(generation).zfill(self.zFill) + '_agent' +
             str(agentIdx + 1).zfill(self.zFill) + '.h5'))
+        # print(agentIdx, 'save', time()-t0)
 
     def returnChildrenGenetic(self, sortedParentIdxs):
         """Mutate best parents, keep elite child and save them to disk
@@ -1922,7 +1934,101 @@ class FloPyAgent():
         globals()['arr'] = frombuffer(arr, dtype='float64').reshape(shape)
         globals()['arr_lock'] = arr_lock
 
+    # def multiprocessChunks(self, function, chunk, parallelProcesses=None, wait=False):
+    #     """Process function in parallel given a chunk of arguments."""
+
+    #     # Pool object from pathos instead of multiprocessing library necessary
+    #     # as tensor.keras models are currently not pickleable
+    #     # https://github.com/tensorflow/tensorflow/issues/32159
+    #     if parallelProcesses == None:
+    #         parallelProcesses = self.envSettings['NAGENTSPARALLEL']
+    #     p = Pool(processes=parallelProcesses)
+    #     pasync = p.map_async(function, chunk)
+    #     # waiting is important to order results correctly when running
+    #     # -- really?
+    #     # in asynchronous mode (correct reward order is validated)
+    #     pasync = pasync.get()
+    #     if wait:
+    #         pasync.wait()
+    #     p.close()
+    #     p.join()
+    #     p.terminate()
+
+    #     return pasync
+
     def multiprocessChunks(self, function, chunk, parallelProcesses=None, wait=False, async_=True, sharedArr=None, sharedDict=None):
+        """Process function in parallel given a chunk of arguments."""
+
+        # Pool object from pathos instead of multiprocessing library necessary
+        # as tensor.keras models are currently not pickleable
+        # https://github.com/tensorflow/tensorflow/issues/32159
+        if parallelProcesses == None:
+            parallelProcesses = self.envSettings['NAGENTSPARALLEL']
+        print('debug parallelProcesses', parallelProcesses)
+
+        # manual setting
+        # async_ = False
+
+
+        if sharedDict == None and sharedArr is None:
+            p = Pool(processes=parallelProcesses)
+            if async_:
+                # pasync = p.map_async(function, chunk)
+                # pasync = pasync.get()
+
+                # imap to use map with a generator and reduce memory impact
+                # chunksize = int(max([int(len(chunk)/parallelProcesses), 1]))
+                # pasync = p.imap(function, chunk, chunksize=chunksize)
+                # pasync = p.imap(function, chunk)
+                pasync = p.map_async(function, chunk)
+                pasync = pasync.get()
+                # pasync = p.map(function, chunk)
+                # print(pasync)
+                # pasync = list(pasync)
+                try:
+                    pasync = list(pasync)
+                except Exception as e:
+                    print('Error in multiprocessing:', e)
+            else:
+                pasync = p.map(function, chunk)
+                # pasync = pasync.get()
+            # waiting is important to order results correctly when running
+            # -- really?
+            # in asynchronous mode (correct reward order is validated)
+            if wait:
+                pasync.wait()
+            p.close()
+            p.join()
+            p.terminate()
+
+        if sharedDict != None:
+            with pathosHelpers.mp.Manager() as manager:
+                sharedMgrDict = manager.dict()
+                # https://stackoverflow.com/questions/35353934/python-manager-dict-is-very-slow-compared-to-regular-dict
+                sharedMgrDict.update(sharedDict)
+                with manager.Pool(processes=parallelProcesses) as p:
+                    input_ = zip(chunk, repeat(sharedDict, len(chunk)))
+                    pasync = p.starmap(function, input_)
+
+        if sharedArr is not None:
+            # https://stackoverflow.com/questions/39322677/python-how-to-use-value-and-array-in-multiprocessing-pool
+            # https://stackoverflow.com/questions/64222805/how-to-pass-2d-array-as-multiprocessing-array-to-multiprocessing-pool
+            # https://stackoverflow.com/questions/1675766/combine-pool-map-with-shared-memory-array-in-python-multiprocessing/58208695#58208695
+            # https://stackoverflow.com/questions/11652288/slower-execution-with-python-multiprocessing
+            arr = pathosHelpers.mp.Array('d', sharedArr.flatten(), lock=False)
+            arr_lock = pathosHelpers.mp.Lock()
+            shape_ = shape(sharedArr)
+            # arr = manager.Array('d', sharedArr.flatten(), lock=False)
+            # arr_lock = manager.Lock()
+            with Pool(processes=parallelProcesses, initializer=self.init_arr, initargs=(arr, arr_lock, shape_)) as p:
+            # with Pool(processes=parallelProcesses, initializer=self.init_arr, initargs=(arr, arr_lock, shape_)) as p:
+                input_ = zip(chunk, repeat(sharedDict, len(chunk)))
+                pasync = p.starmap(function, input_)
+
+        return pasync
+
+    def multiprocessChunks_OLD(self, function, chunk, parallelProcesses=None,
+        wait=False, async_=True, sharedArr=None, sharedDict=None, threadPool=False):
         """Process function in parallel given a chunk of arguments."""
 
         # Pool object from pathos instead of multiprocessing library necessary
@@ -1932,23 +2038,41 @@ class FloPyAgent():
             parallelProcesses = self.envSettings['NAGENTSPARALLEL']
 
         if sharedDict == None and sharedArr is None:
-            p = Pool(processes=parallelProcesses)
+            if threadPool == False:
+                # p = Pool(ncpus=parallelProcesses)
+                # p = Pool(nodes=parallelProcesses, processes=len(chunk))
+                # manager = pathosHelpers.mp.Manager()
+                # p = manager.Pool(processes=parallelProcesses)
+                p = Pool(processes=parallelProcesses)
+                # p = Pool(parallelProcesses)
+                # p = Pool(16)
+                # p = Pool(processes=parallelProcesses, nodes=16)
+            else:
+                p = ThreadPool(processes=parallelProcesses)
             if async_:
-                # pasync = p.map_async(function, chunk)
-                # pasync = pasync.get()
+
+                # import os
+                # os.system("taskset -p -c %d %d" % (process_idx % cpu_count(), os.getpid()))
 
                 # imap to use map with a generator and reduce memory impact
-                chunksize = int(max([int(len(chunk)/parallelProcesses), 1]))
-                pasync = p.imap(function, chunk, chunksize=chunksize)
-                # print(pasync)
-                # pasync = list(pasync)
-                try:
-                    pasync = list(pasync)
-                except Exception as e:
-                    print('Error in multiprocessing:', e)
+                # chunksize = int(max([int(len(chunk)/parallelProcesses), 1]))
+                # pasync = p.imap(function, chunk, chunksize=chunksize)
+                # pasync = p.imap(function, chunk, chunksize=1000000000)
+                # try:
+                #     pasync = list(pasync)
+                #     print('debug past list')
+                # except Exception as e:
+                #     print('Error in multiprocessing:', e)
+
+                # NOW USING MULTIPROCESSING NOT PATHOS
+
+                pasync = p.map_async(function, chunk) # , chunksize=10)
+                pasync = pasync.get()
+                # pasync = p.imap(function, chunk)
             else:
                 pasync = p.map(function, chunk)
-                pasync = pasync.get()
+                # print(pasync)
+                # pasync = pasync.get()
             # waiting is important to order results correctly when running
             # -- really?
             # in asynchronous mode (correct reward order is validated)
@@ -2070,9 +2194,13 @@ class FloPyEnv():
             # changing workspace in case of call from executable
             self.wrkspc = dirname(dirname(self.wrkspc))
         # setting up the model path and ensuring it exists
-        self.modelpth = join(self.wrkspc, 'models', self.MODELNAME)
-        if not exists(self.modelpth):
-            makedirs(self.modelpth)
+        # self.modelpth = join(self.wrkspc, 'models', self.MODELNAME)
+        # print(self.modelpth)
+        # if not exists(self.modelpth):
+            # makedirs(self.modelpth)
+        self.tempDir = TemporaryDirectory(suffix=str(uuid4())[0:5])
+        self.modelpth = self.tempDir.name
+        # print('self.modelpth', self.modelpth)
         self.actionType = self.getActionType(self.ENVTYPE)
 
         self._SEED = _seed
@@ -2908,7 +3036,7 @@ class FloPyEnv():
             if self.RENDER or self.MANUALCONTROL or self.SAVEPLOT:
                 self.render()
 
-            if self.done:
+            # if self.done:
                 # if not self.ENVTYPE in ['5s-c-cost']:
                 #     if not self.success:
                 #         if 
@@ -2918,12 +3046,12 @@ class FloPyEnv():
                 # del self.mf
                 # self.cbb, self.hdobj
 
-                for f in listdir(self.modelpth):
-                    # removing files in folder
-                    remove(join(self.modelpth, f))
-                if exists(self.modelpth):
-                    # removing folder with model files after run
-                    rmdir(self.modelpth)
+                # for f in listdir(self.modelpth):
+                #     # removing files in folder
+                #     remove(join(self.modelpth, f))
+                # if exists(self.modelpth):
+                #     # removing folder with model files after run
+                #     rmdir(self.modelpth)
 
             return self.observations, self.reward, self.done, self.info
 
@@ -3045,12 +3173,6 @@ class FloPyEnv():
             for i in range(self.nHelperWells):
                 self.actionSpace += [j+str(i+1) for j in self.actionSpaceIndividual]
 
-            # solver data
-            self.nouter, self.ninner = 100, 100
-            # self.hclose, self.rclose, self.relax = 1e-6, 1e-3, 0.97
-            # self.hclose, self.rclose, self.relax = 1e-12, 1e-9, 0.999
-            self.hclose, self.rclose, self.relax = 1e-8, 1e-8, 1.
-
         else:
             # general environment settings,
             # like model domain and grid definition
@@ -3157,6 +3279,12 @@ class FloPyEnv():
 
             self.rewardMax = 1000
             self.distanceMax = 97.9
+
+        # solver data
+        self.nouter, self.ninner = 100, 100
+        # self.hclose, self.rclose, self.relax = 1e-6, 1e-3, 0.97
+        # self.hclose, self.rclose, self.relax = 1e-12, 1e-9, 0.999
+        self.hclose, self.rclose, self.relax = 1e-8, 1e-8, 1.
 
     def initializeSimulators(self, PATHMF2005=None, PATHMP6=None, PATHMF6DLL=None):
         """Initialize simulators depending on operating system.
@@ -3596,8 +3724,13 @@ class FloPyEnv():
 
             self.mf_bas = ModflowBas(self.mf, ibound=self.ibound, strt=self.strt)
 
+            import numpy as np
             # adding LPF package to the MODFLOW model
-            self.mf_lpf = ModflowLpf(self.mf, hk=10., vka=10., ss=1e-05, sy=0.15, ipakcb=53)
+            # for cell-variable k field
+            # hk = np.multiply(np.random.random_sample(np.shape(self.strt)), 10.)
+            hk = 10.
+            # hk = np.add(np.multiply(self.strt, 0.), 10)
+            self.mf_lpf = ModflowLpf(self.mf, hk=hk, vka=10., ss=1e-05, sy=0.15, ipakcb=53)
 
             # why is this relevant for particle tracking?
             # stress_period_data = {}
@@ -3620,19 +3753,20 @@ class FloPyEnv():
 
             # adding PCG package to the MODFLOW model
             # termination criteria currently empirically set
-            # self.mf_pcg = ModflowPcg(self.mf, hclose=1e1, rclose=1e1)
+            self.mf_pcg = ModflowPcg(self.mf, hclose=1e-3, rclose=1e-3)
+            # self.mf_pcg = ModflowPcgn(self.mf, close_h=self.hclose, close_r=self.rclose)
             # self.mf_pcg = ModflowPcg(self.mf)
 
             # for speed-ups try different solvers
 
-            from flopy.modflow import ModflowPcgn
+            from flopy.modflow import ModflowPcgn, ModflowGmg
             # too large termination criterion might cause unrealistic near-well particle trajectories
-            # self.mf_pcg = ModflowPcgn(self.mf, close_h=1e-1, close_r=1e-1)
-            self.mf_pcg = ModflowPcgn(self.mf, close_h=1e-1, close_r=1e-1)
+            # self.mf_pcg = ModflowPcgn(self.mf, close_h=1e-8, close_r=1e-8)
+            # self.mf_pcg = ModflowPcgn(self.mf, close_h=self.hclose, close_r=self.rclose)
 
             # this solver seems slightly quicker
             # from flopy.modflow import ModflowGmg
-            # self.mf_pcg = ModflowGmg(self.mf, hclose=1e1, rclose=1e1)
+            # self.mf_pcg = ModflowGmg(self.mf, hclose=1e-1, rclose=1e-1)
 
             # from flopy.modflow import ModflowSms
             # self.mf_pcg = ModflowSms(self.mf)
@@ -4177,13 +4311,6 @@ class FloPyEnv():
                             pause(self.MANUALCONTROLTIME)
             elif returnFigure:
                 self.plotArrays.append(imarray)
-                
-                # # print('self.ANIMATIONFOLDER', self.MODELNAME)
-                # if not exists(join(self.wrkspc, 'runs', self.MODELNAME)):
-                #     makedirs(join(self.wrkspc, 'runs', self.MODELNAME))
-                # self.fig.set_size_inches(7, 7)
-                # self.fig.savefig(join(self.wrkspc, 'runs', self.MODELNAME, str(self.timeStep).zfill(6) + '.png'), pad_inches=0, bbox_inches='tight')
-
                 if self.SAVEPLOT:
                     if self.done or self.timeStep == self.NAGENTSTEPS:
                         pathGIF = join(self.wrkspc, 'runs', self.ANIMATIONFOLDER, self.MODELNAME + '.gif')
@@ -4541,12 +4668,12 @@ class FloPyEnv():
         """Plot final game outcome on figure."""
         timeString = '%.0f' % (float(self.timeStep) * self.periodLength)
         if self.ENVTYPE in ['5s-c-cost']:
-            self.ax2.text(5, 90, ('score: ' + str('%.2f' % self.rewardCurrent) + ' €' + '\ntime: ' + timeString + ' d'),
-              fontsize=20,
+            self.ax2.text(5, 92, ('score: ' + str('%.2f' % self.rewardCurrent) + ' €' + '\ntime: ' + timeString + ' d'),
+              fontsize=12,
               zorder=zorder)
         else:
-            self.ax2.text(5, 90, ('score: ' + str(int(self.rewardCurrent)) + '\ntime: ' + timeString + ' d'),
-              fontsize=20,
+            self.ax2.text(5, 92, ('score: ' + str(int(self.rewardCurrent)) + '\ntime: ' + timeString + ' d'),
+              fontsize=12,
               zorder=zorder)
 
     def renderParticle(self, zorder=6):
@@ -4619,22 +4746,22 @@ class FloPyEnv():
           verticalalignment='center',
           rotation='vertical',
           zorder=10,
-          fontsize=20, alpha=0.25, color='blue')
+          fontsize=12)
         self.ax2.text((self.extentX - 2 * self.dCol), (0.5 * (bottom + top)), textRight, horizontalalignment='right',
           verticalalignment='center',
           rotation='vertical',
           zorder=10,
-          fontsize=20, alpha=0.25, color='blue')
+          fontsize=12)
         self.ax2.text((0.5 * (left + width)), (self.extentY - 2 * self.dRow), textTop, horizontalalignment='center',
           verticalalignment='top',
           rotation='horizontal',
           zorder=10,
-          fontsize=20, alpha=0.25, color='blue')
+          fontsize=12)
         self.ax2.text((0.5 * (left + width)), (self.minY + 2 * self.dRow), textBottom, horizontalalignment='center',
           verticalalignment='bottom',
           rotation='horizontal',
           zorder=10,
-          fontsize=20, alpha=0.25, color='blue')
+          fontsize=12)
 
     def renderUserInterAction(self):
         """Enable user control of the environment."""
@@ -5130,9 +5257,6 @@ class FloPyArcade():
                             state=self.env.observationsVectorNormalized,
                             actionType=self.env.actionType
                             )
-
-                # game.env.observationsVectorNormalized
-                print('debug action', self.env.timeStep, mean(action), mean(self.env.observationsVectorNormalized))
 
                 verbose = True
 
