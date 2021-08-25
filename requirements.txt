@@ -9,6 +9,6 @@ pathos==0.2.7
 pillow==8.2.0
 pygame==2.0.1
 scikit-image==0.17.2
-tensorflow==2.4.0rc1
+tensorflow==2.5.1
 tqdm==4.25.0
 xmipy==1.0.0
