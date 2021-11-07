@@ -133,6 +133,21 @@ Easily test yourself: Steer the existing environments on Windows. Skip installat
 [![TestOnwinENV2](examples/downloadENV2.png)](http://www.groundwaterautopilot.com/static/download/FloPyArcadeENV2.zip)
 [![TestOnwinENV3](examples/downloadENV3.png)](http://www.groundwaterautopilot.com/static/download/FloPyArcadeENV3.zip)
 
+## Citing
+
+To cite this repository in publications:
+
+```
+@misc{FloPyArcade,
+  author = {Hoehn, Philipp},
+  title = {FloPyArcade: Reinforcement learning in simulated groundwater environments},
+  year = {2020},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {https://github.com/philipphoehn/flopyarcade},
+}
+```
+
 ## Notes
 
 This project is meant to demonstrate a new avenue of applying FloPy. It is experimental and is developed only during spare time. The code is envisioned to ultimately be [PEP-8](https://www.python.org/dev/peps/pep-0008/)-compliant, but this has smaller priority than improving and optimizing functionality.
