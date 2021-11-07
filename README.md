@@ -125,7 +125,7 @@ Alternatively: With dependencies on compiled simulators, deployment is recommend
 docker build -t flopyarcade --no-cache -f Dockerfile .
 ```
 
-## Game (compiled for Windows)
+## Compiled game (for Windows)
 
 Easily test yourself: Steer the existing environments on Windows. Skip installation by downloading these versions:
 
