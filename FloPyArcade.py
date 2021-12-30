@@ -3212,7 +3212,7 @@ class FloPyEnv():
                 self.minH = 56.0
                 self.maxH = 62.0
                 self.nHelperWells = 0
-                self.deviationPenaltyFactor = 4.0
+                self.deviationPenaltyFactor = 10.0
                 self.actionRange = 0.5
             elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c']:
                 self.minH = 56.0
