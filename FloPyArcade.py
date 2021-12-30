@@ -4107,8 +4107,9 @@ class FloPyEnv():
         # potential problem: maybe reward for going backward and then going
         # less deviating way forward?
         if lengthShortest < 0.:
-            self.gameReward *= -1.0 * self.rewardMaxGame * \
-                (pathLengthRatio**2)
+            # self.gameReward *= -1.0 * self.rewardMaxGame * \
+            #     (pathLengthRatio**2)
+            self.gameReward = -1.0 * (self.gameReward**2)
             # self.gameReward *= -1.0 * self.gameReward
 
         return self.gameReward
