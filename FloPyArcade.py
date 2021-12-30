@@ -2972,7 +2972,9 @@ class FloPyEnv():
                 if self.ENVTYPE in ['5s-c-cost']:
                     self.reward = self.costQFail + self.rewardCurrent
                 else:
-                    self.reward = (self.rewardCurrent) * (-1.0)
+                    # resetting to zero if reward is positive
+                    if self.rewardCurrent >= 0.:
+                        self.reward = (self.rewardCurrent) * (-1.0)
             if self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 coords = []
                 for i in range(self.nHelperWells):
@@ -2988,7 +2990,9 @@ class FloPyEnv():
                         if self.ENVTYPE in ['5s-c-cost']:
                             self.reward = self.costQFail + self.rewardCurrent
                         else:
-                            self.reward = (self.rewardCurrent) * (-1.0)
+                            # resetting to zero if reward is positive
+                            if self.rewardCurrent >= 0.:
+                                self.reward = (self.rewardCurrent) * (-1.0)
 
             # checking if particle has reached eastern boundary
             if self.particleCoordsAfter[0] >= self.minX + self.extentX - self.dCol:
@@ -3000,7 +3004,9 @@ class FloPyEnv():
                 if self.ENVTYPE in ['5s-c-cost']:
                     self.reward = self.costQFail + self.rewardCurrent
                 else:
-                    self.reward = (self.rewardCurrent) * (-1.0)
+                    # resetting to zero if reward is positive
+                    if self.rewardCurrent >= 0.:
+                        self.reward = (self.rewardCurrent) * (-1.0)
 
             if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c', '3s-d', '3s-c', '3r-d', '3r-c', '4s-d', '4s-c', '4r-d', '4r-c', '5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c', '6s-d', '6s-c', '6r-d', '6r-c']:
                 # checking if particle has reached northern boundary
@@ -3011,7 +3017,9 @@ class FloPyEnv():
                     if self.ENVTYPE in ['5s-c-cost']:
                         self.reward = self.costQFail + self.rewardCurrent
                     else:
-                        self.reward = (self.rewardCurrent) * (-1.0)
+                        # resetting to zero if reward is positive
+                        if self.rewardCurrent >= 0.:
+                            self.reward = (self.rewardCurrent) * (-1.0)
 
             # checking if particle has reached southern boundary
             if self.particleCoordsAfter[1] <= self.minY + self.dRow:
@@ -3019,7 +3027,9 @@ class FloPyEnv():
                 if self.ENVTYPE in ['5s-c-cost']:
                     self.reward = self.costQFail + self.rewardCurrent
                 else:
-                    self.reward = (self.rewardCurrent) * (-1.0)
+                    # resetting to zero if reward is positive
+                    if self.rewardCurrent >= 0.:
+                        self.reward = (self.rewardCurrent) * (-1.0)
 
             # aborting game if a threshold of steps have been taken
             if self.timeStep == self.maxSteps:
@@ -3028,7 +3038,9 @@ class FloPyEnv():
                     if self.ENVTYPE in ['5s-c-cost']:
                         self.reward = self.costQFail + self.rewardCurrent
                     else:
-                        self.reward = (self.rewardCurrent) * (-1.0)
+                        # resetting to zero if reward is positive
+                        if self.rewardCurrent >= 0.:
+                            self.reward = (self.rewardCurrent) * (-1.0)
 
             self.rewardCurrent += self.reward
             # self.timeStepDuration.append(time() - t0total)
@@ -4095,7 +4107,9 @@ class FloPyEnv():
         # potential problem: maybe reward for going backward and then going
         # less deviating way forward?
         if lengthShortest < 0.:
-            self.gameReward *= -1.0 * self.gameReward
+            self.gameReward *= -1.0 * self.rewardMaxGame * \
+                (pathLengthRatio**2)
+            # self.gameReward *= -1.0 * self.gameReward
 
         return self.gameReward
 
