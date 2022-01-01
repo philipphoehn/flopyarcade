@@ -29,7 +29,7 @@ from numpy.random import choice
 env = FloPyEnv(ENVTYPE='3s-d')
 reward_total = 0.
 while not env.done:
-    action = choice(env.actionSpaceSize)
+    action = choice(env.actionSpace)
     observations, reward, done, info = env.step(env.observationsVectorNormalized, action, reward_total)
     reward_total += reward
 ```
