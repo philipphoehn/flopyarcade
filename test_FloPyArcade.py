@@ -15,6 +15,7 @@ from os import remove
 from os.path import abspath, dirname, isdir, isfile, join
 from shutil import rmtree
 import unittest
+# unittest.main(warnings="ignore")
 
 
 class TestFloPyEnvPlay(unittest.TestCase):
