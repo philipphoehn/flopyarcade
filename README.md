@@ -147,7 +147,7 @@ To cite this repository in publications:
 ```
 @misc{FloPyArcade,
   author = {Hoehn, Philipp},
-  title = {FloPyArcade: Reinforcement learning in simulated groundwater environments},
+  title = {FloPyArcade: Simulated groundwater environments for reinforcement learning},
   year = {2020},
   publisher = {GitHub},
   journal = {GitHub repository},
