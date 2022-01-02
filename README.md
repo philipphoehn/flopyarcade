@@ -24,17 +24,25 @@ After installation (see below), easily run an environment in Python:
 
 ```python
 from FloPyArcade import FloPyEnv
-from numpy.random import uniform
+from numpy.random import choice
+
+env = FloPyEnv(ENVTYPE='3s-d')
+reward_total = 0.
+while not env.done:
+	action = choice(env.actionSpace)
+	observations, reward, done, info = env.step(action)
+	reward_total += reward
+```
+
+Add the following if intending to render on screen:
+
+```python
 from matplotlib.pyplot import switch_backend
 switch_backend('TkAgg')
 
 env = FloPyEnv(ENVTYPE='6s-c', flagRender=True)
-reward_total = 0.
-while not env.done:
-    action = [uniform(low=0.0, high=1.0) for _ in range(env.actionSpaceSize)]
-    observations, reward, done, info = env.step(env.observationsVectorNormalized, action, reward_total)
-    reward_total += reward
 ```
+
 
 ## Environments
 
