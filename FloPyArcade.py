@@ -889,7 +889,7 @@ class FloPyAgent():
         # compiling to avoid warning while saving agents in genetic search
         # specifics are irrelevant, as genetic models are not optimized
         # along gradients
-        model.compile(loss='mean_squared_error', optimizer=Adam(lr=0.0001),
+        model.compile(loss='mean_squared_error', optimizer=Adam(learning_rate=0.0001),
                       metrics=['mean_squared_error'])
 
         return model
@@ -1037,8 +1037,7 @@ class FloPyAgent():
                 elif env.actionType == 'continuous':
                     action = list(uniform(low=0.0, high=1.0, size=self.actionSpaceSize))
 
-            new_state, reward, done, info = env.step(
-                env.observationsVectorNormalized, action, self.gameReward)
+            new_state, reward, done, info = env.step(action)
             new_state = env.observationsVectorNormalized
 
             # updating replay memory
@@ -1089,9 +1088,7 @@ class FloPyAgent():
                     action = self.getqsGivenAgentModel(
                         self.mainModel, env.observationsVectorNormalized)
                 # simulating and counting total reward
-                new_state, reward, done, info = env.step(
-                    env.observationsVectorNormalized, action,
-                    self.gameReward)
+                new_state, reward, done, info = env.step(action)
                 self.gameReward += reward
                 if self.envSettings['RENDER']:
                     if not iGame % self.envSettings['RENDEREVERY']:
@@ -1184,7 +1181,7 @@ class FloPyAgent():
     def runAgentsGeneticSingleRun(self, agentCount):
         """Run single game within genetic agent optimisation."""
 
-        print('debug running agentCount', agentCount)
+        # print('debug running agentCount', agentCount)
         # import os
         # os.system("taskset -p 0xfffff %d" % os.getpid())
 
@@ -1195,22 +1192,22 @@ class FloPyAgent():
         t0load_model = time()
 
 
-        # if self.envSettings['KEEPMODELHISTORY']:
-        #     agent = load_model(join(tempAgentPrefix + '.h5'), compile=False)
+        if self.envSettings['KEEPMODELHISTORY']:
+            agent = load_model(join(tempAgentPrefix + '.h5'), compile=False)
 
         
-        # else:
-        t0RecreateFromMutationHistory = time()
-        agentOffset = self.hyParams['NAGENTS'] * (self.geneticGeneration)
-        # print(self.mutationHistory)
-        agentNumber = agentCount + 1 + agentOffset
-        creationSeed = self.mutationHistory['agent' + str(agentNumber)]['creationSeed']
-        mutationSeeds = self.mutationHistory['agent' + str(agentNumber)]['mutationSeeds']
-        agent = self.loadModelFromMutationHistory(creationSeed, mutationSeeds)
-        tRecreateFromMutationHistory = (self.hyParams['NAGENTS']/self.envSettings['NAGENTSPARALLEL']) * (t0RecreateFromMutationHistory - time())
-        if agentCount == 1:
-            print('model recreation took about', tRecreateFromMutationHistory, 's')
-        # print('debug duration load_model compiled', time() - t0load_model)
+        else:
+            t0RecreateFromMutationHistory = time()
+            agentOffset = self.hyParams['NAGENTS'] * (self.geneticGeneration)
+            # print(self.mutationHistory)
+            agentNumber = agentCount + 1 + agentOffset
+            creationSeed = self.mutationHistory['agent' + str(agentNumber)]['creationSeed']
+            mutationSeeds = self.mutationHistory['agent' + str(agentNumber)]['mutationSeeds']
+            agent = self.loadModelFromMutationHistory(creationSeed, mutationSeeds)
+            tRecreateFromMutationHistory = (self.hyParams['NAGENTS']/self.envSettings['NAGENTSPARALLEL']) * (t0RecreateFromMutationHistory - time())
+            if agentCount == 1:
+                print('model recreation took about', tRecreateFromMutationHistory, 's')
+            # print('debug duration load_model compiled', time() - t0load_model)
 
         MODELNAMETEMP = ('Temp' + self.pid +
             '_' + str(agentCount + 1))
@@ -1292,8 +1289,7 @@ class FloPyAgent():
             
             t0step = time()
             # note: need to feed normalized observations
-            new_observation, reward, done, info = env.step(
-                env.observationsVectorNormalized, action, r)
+            new_observation, reward, done, info = env.step(action)
             # print('debug duration step', time() - t0step)
             actions[self.currentGame-1].append(action)
             rewards[self.currentGame-1].append(reward)
@@ -1340,7 +1336,7 @@ class FloPyAgent():
                   str(self.geneticGeneration + 1) + '/' +
                   str(self.hyParams['NGENERATIONS']) + ' generations')
             rewardsAgentsCurrent = self.runAgentsGenetic(agentCounts, env)
-            print(rewardsAgentsCurrent)
+            # print(rewardsAgentsCurrent)
             reward_agentsMin = minimum(reward_agentsMin, rewardsAgentsCurrent)
             reward_agentsMax = maximum(reward_agentsMax, rewardsAgentsCurrent)
             reward_agentsMean = add(reward_agentsMean, rewardsAgentsCurrent)
@@ -1964,7 +1960,7 @@ class FloPyAgent():
         # https://github.com/tensorflow/tensorflow/issues/32159
         if parallelProcesses == None:
             parallelProcesses = self.envSettings['NAGENTSPARALLEL']
-        print('debug parallelProcesses', parallelProcesses)
+        # print('debug parallelProcesses', parallelProcesses)
 
         # manual setting
         # async_ = False
@@ -2606,7 +2602,7 @@ class FloPyEnv():
 
             # self.timeStepDuration = []
 
-    def step(self, observations, action, rewardCurrent, teardownOnFinish=False):
+    def step(self, action, teardownOnFinish=False):
         """Perform a single step of forwards simulation."""
 
         if self.ENVTYPE in ['0s-c']:
@@ -2800,12 +2796,15 @@ class FloPyEnv():
 
             # print('debug action step', action)
             self.setActionValue(action)
-            observations = self.observationsVectorToDict(observations)
+
+            # !!!
+            observations = self.observationsVectorToDict(self.observationsVectorNormalized)
             self.particleCoordsBefore = observations['particleCoords']
 
             # it might be obsolete to feed this back,
             # as it can be stored with the object
-            self.rewardCurrent = rewardCurrent
+            # !!!
+            self.rewardCurrent = self.rewardCurrent
 
             # does this need to be enabled? It disables numpy finding different
             # random numbers throughout the game,
@@ -4265,7 +4264,13 @@ class FloPyEnv():
                     # print('DEBUG self.MODELNAME', self.MODELNAME)
                     pathGIF = join(self.wrkspc, 'runs', self.ANIMATIONFOLDER, self.MODELNAMEGENCOUNT + '.gif')
                     # print('pathGIF', pathGIF)
-                    self.writeGIFtodisk(pathGIF, self.plotArrays, optimizeSize=True)
+                    import sys
+                    is_windows = sys.platform.startswith('win')
+                    if is_windows:
+                        optimizeSize = False
+                    else:
+                        optimizeSize = True
+                    self.writeGIFtodisk(pathGIF, self.plotArrays, optimizeSize=optimizeSize)
 
             if returnFigure:
                 return imarray
@@ -4329,7 +4334,13 @@ class FloPyEnv():
                 if self.SAVEPLOT:
                     if self.done or self.timeStep == self.NAGENTSTEPS:
                         pathGIF = join(self.wrkspc, 'runs', self.ANIMATIONFOLDER, self.MODELNAME + '.gif')
-                        self.writeGIFtodisk(pathGIF, self.plotArrays, optimizeSize=True)
+                        import sys
+                        is_windows = sys.platform.startswith('win')
+                        if is_windows:
+                            optimizeSize = False
+                        else:
+                            optimizeSize = True
+                        self.writeGIFtodisk(pathGIF, self.plotArrays, optimizeSize=optimizeSize)
 
             self.renderClearAxes()
             del self.headsplot
@@ -4656,7 +4667,8 @@ class FloPyEnv():
         # https://stackoverflow.com/questions/23032847/matplotlib-image-get-window-extentrenderer-produces-all-zeros
         renderer = fig.canvas.renderer
         text.draw(renderer)
-        bbox_text = text.get_window_extent().inverse_transformed(ax.transData)
+        bbox_text = text.get_window_extent().transformed(ax.transData.inverted())
+        # transformed(transform.inverted())
 
         # evaluate fit and recursively decrease fontsize until text fits
         fits_width = bbox_text.width*whratio < width if width else True
@@ -4670,7 +4682,7 @@ class FloPyEnv():
         expandFinished = False
         while not expandFinished:
             text.draw(renderer)
-            bbox_text = text.get_window_extent().inverse_transformed(ax.transData)
+            bbox_text = text.get_window_extent().transformed(ax.transData.inverted())
             fits_width = bbox_text.width*whratio >= width if width else True
             fits_height = bbox_text.height/whratio < height if height else True
             if not all((fits_width, fits_height)):
@@ -5279,8 +5291,7 @@ class FloPyArcade():
                     action = self.actions[self.timeSteps]
 
                 t0step = time()
-                observations, reward, self.done, _ = self.env.step(
-                    self.env.observationsVectorNormalized, action, self.rewardTotal)
+                observations, reward, self.done, _ = self.env.step(action)
 
                 if self.keepTimeSeries:
                     # collecting time series of game metrices
