@@ -4091,14 +4091,17 @@ class FloPyEnv():
         lengthActual = self.calculatePathLength(x, y)
         lengthShortest = x[-1] - x[0]
         distanceFraction = lengthShortest / self.distanceMax
-        self.rewardMaxGame = (distanceFraction * self.rewardMax)
+        self.rewardMaxSegment = (distanceFraction * self.rewardMax)
 
         # pathLengthRatio defines the fraction of the highest possible reward
-        if lengthActual != 0.:
+        # if lengthActual != 0.:
+        if lengthShortest > 0.:
             pathLengthRatio = lengthShortest / lengthActual
-            self.gameReward = self.rewardMaxGame * \
-                (pathLengthRatio**self.deviationPenaltyFactor)
-        elif lengthActual == 0.:
+            # self.gameReward = self.rewardMaxSegment * \
+            #     (pathLengthRatio**self.deviationPenaltyFactor)
+            self.gameReward = self.rewardMaxSegment * (pathLengthRatio**self.deviationPenaltyFactor)
+        elif lengthShortest == 0.:
+        # elif lengthActual == 0.:
             # returning no reward if travelled neither forwards nor backwards
             pathLengthRatio = 1.0
             self.gameReward = 0.
@@ -4106,9 +4109,12 @@ class FloPyEnv():
         # potential problem: maybe reward for going backward and then going
         # less deviating way forward?
         if lengthShortest < 0.:
-            # self.gameReward *= -1.0 * self.rewardMaxGame * \
+            # self.gameReward *= -1.0 * self.rewardMaxSegment * \
             #     (pathLengthRatio**2)
-            self.gameReward = -1.0 * (self.gameReward**2)
+            distanceFraction = lengthShortest / self.distanceMax
+            self.rewardMaxSegment = (distanceFraction * self.rewardMax)
+            self.gameReward = -1.0 * 5 * numpyAbs(self.rewardMaxSegment)
+            # self.gameReward = -1.0 * (5*self.gameReward)
             # self.gameReward *= -1.0 * self.gameReward
 
         return self.gameReward
