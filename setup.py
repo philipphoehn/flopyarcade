@@ -35,7 +35,7 @@ setup(
 					  'joblib==1.0.0',
 					  'lz4==3.1.1',
 					  'matplotlib==3.2.2',
-					  'numpy==1.19.4',
+					  'numpy==1.21.0',
 					  'pandas==1.3.5',
 					  'pathos==0.2.7',
 					  'pillow==8.3.2',
