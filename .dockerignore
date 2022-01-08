@@ -1,0 +1,12 @@
+__pycache__/
+dist/
+flopyarcade.egg-info/
+flopyarcade/__pycache__/
+flopyarcade/dev/
+flopyarcade/models/
+flopyarcade/runs/
+flopyarcade/temp/
+flopyarcade/www/
+.git/
+.coverage
+coverage.xml
