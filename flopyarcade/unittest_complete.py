@@ -8,7 +8,7 @@
 
 from flopyarcade import play
 from flopyarcade import train_dqn
-from flopyarcade import train_genetic
+from flopyarcade import train_neuroevolution
 # import FloPyArcadePlay
 # import FloPyArcadeDQN
 # import FloPyArcadeGeneticNetwork
@@ -101,7 +101,7 @@ class TestFloPyAgentGenetic(unittest.TestCase):
     def test_FloPyAgentGenetic_noExceptionRaised(self):
         """Test the genetic algorithm on a computationally simple case."""
 
-        envSettings, hyParams = train_genetic.envSettings, train_genetic.hyParams
+        envSettings, hyParams = train_neuroevolution.envSettings, train_neuroevolution.hyParams
         # from train_genetic import envSettings, hyParams
         from matplotlib import use as matplotlibBackend
 
