@@ -171,4 +171,4 @@ Contact: [philipp.hoehn@yahoo.com](mailto:philipp.hoehn@yahoo.com)
 
 ## License
 
-[GNU GPLv3](https://choosealicense.com/licenses/gpl-3.0/)
+[MIT](https://choosealicense.com/licenses/mit/)
