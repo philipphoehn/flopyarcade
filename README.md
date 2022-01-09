@@ -117,7 +117,17 @@ However, groundwater environments of arbitrary complexity can be implemented sim
 
 ## Benchmarks
 
-Below is a list of benchmarks on the simpler 1s-d, 2s-d and 3s-d environments, for 4 different types of operation: (1) from random actions, (2) from control through an inexperienced human, (3) from control through an experienced human and (4) from control a trained deep neural network as a policy model. The optimization workflows for the policy models behind these benchmarks (trained using RLLib) and other benchmark data will soon be made available for reproducibility and completed. In these environments, the trained policy model significantly outperforms human control:
+Below is a list of benchmarks on the simpler 1s-d, 2s-d and 3s-d environments, for 4 different types of operation:
+
+(1) from random actions,
+
+(2) from control through an inexperienced human,
+
+(3) from control through an experienced human and
+
+(4) from control a trained deep neural network as a policy model.
+
+The optimization workflows for the policy models behind these benchmarks (trained using RLLib) and other benchmark data will soon be made available for reproducibility and completed. In these environments, the trained policy model significantly outperforms human control:
 
 ![averageEvolutions](flopyarcade/examples/benchmarks_averageEvolutions.png)
 ![operatorScores](flopyarcade/examples/benchmarks_operatorScores.png)
