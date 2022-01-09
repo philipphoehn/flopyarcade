@@ -61,7 +61,7 @@ Easily simulate an environment, for example with random actions:
 from flopyarcade import FloPyEnv
 from numpy.random import choice
 
-env = FloPyEnv(ENVTYPE='6r-c')
+env = FloPyEnv(ENVTYPE='3s-d')
 reward_total = 0.
 while not env.done:
   action = choice(env.actionSpace)
@@ -75,8 +75,19 @@ Add the following if intending to render on screen:
 from matplotlib.pyplot import switch_backend
 switch_backend('TkAgg')
 
-env = FloPyEnv(ENVTYPE='6r-c', flagRender=True)
+env = FloPyEnv(ENVTYPE='3s-d', flagRender=True)
 ```
+
+Change to the the following if intending to simulate an environment with continuous-valued control:
+
+```python
+from numpy.random import uniform
+
+env = FloPyEnv(ENVTYPE='6r-c')
+while not env.done:
+  action = uniform(low=0., high=1., size=env.actionSpaceSize)
+```
+
 
 ## Environments
 
