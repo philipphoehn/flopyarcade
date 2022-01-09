@@ -64,9 +64,9 @@ from numpy.random import choice
 env = FloPyEnv(ENVTYPE='6r-c')
 reward_total = 0.
 while not env.done:
-	action = choice(env.actionSpace)
-	observations, reward, done, info = env.step(action)
-	reward_total += reward
+  action = choice(env.actionSpace)
+  observations, reward, done, info = env.step(action)
+  reward_total += reward
 ```
 
 Add the following if intending to render on screen:
@@ -77,7 +77,6 @@ switch_backend('TkAgg')
 
 env = FloPyEnv(ENVTYPE='6r-c', flagRender=True)
 ```
-
 
 ## Environments
 
@@ -105,6 +104,15 @@ However, groundwater environments of arbitrary complexity can be implemented sim
 ![1s-c](flopyarcade/examples/environments/1s-c.gif)
 ![1r-c](flopyarcade/examples/environments/1r-c.gif)
 
+## Benchmarks
+
+Below is a list of benchmarks on the simpler 1s-d, 2s-d and 3s-d environments, for 4 different types of operation: (1) from random actions, (2) from control through an inexperienced human, (3) from control through an experienced human and (4) from control a trained deep neural network as a policy model. The optimization workflows for the policy models behind these benchmarks (trained using RLLib) and other benchmark data will soon be made available for reproducibility and completed. In these environments, the trained policy model significantly outperforms human control:
+
+![averageEvolutions](flopyarcade/examples/benchmarks_averageEvolutions.png)
+![operatorScores](flopyarcade/examples/benchmarks_operatorScores.png)
+
+As a temporary solution, RLLib checkpoints for restoring and using these policy models are stored in flopyarcade/examples/policymodels/.
+
 ## Optimization
 
 Two algorithms are currently provided along with the environments for training deep neural networks as policy models. These are implementions of (1) [double Q-learning](https://arxiv.org/abs/1509.06461) and (2) a weights-evolving [genetic algorithm](https://arxiv.org/abs/1712.06567), optionally combined with a simple implementation of [novelty search](https://arxiv.org/abs/1304.3362) to help avoiding convergence towards local minima. They reside in the FloPyAgent class.
@@ -114,10 +122,10 @@ The environment formulation allows for models, controls and objectives of arbitr
 ## Usage
 
 There are main files, that can be called as follows:
-1) play.py allows to simulate an environment with (1) manual control from keystrokes or (2) control from a given policy model located in the models subfolder. Test with manual control using:
+1) play.py allows to simulate an environment with (1) manual control from keystrokes or (2) control from a given policy model located in the models subfolder. In the simplest environments (1s-d, 1r-d, 2s-d, 2r-d, 3s-d and 3r-d), test, for example, with manual control:
 
 ```bash
-python -m flopyarcade.play --manualcontrol True
+python -m flopyarcade.play --manualcontrol True --envtype 3r-d
 ```
 
 2) train_dqn.py trains a feed-forward multi-layer (i.e. deep) neural network policy model using the Double Q-learning algorithm.
@@ -181,4 +189,4 @@ Contact: [philipp.hoehn@yahoo.com](mailto:philipp.hoehn@yahoo.com)
 
 ## License
 
-[MIT](https://choosealicense.com/licenses/mit/)
+[GNU GPLv3](https://choosealicense.com/licenses/gpl-3.0/)
