@@ -91,7 +91,7 @@ class TestFloPyAgentDQN(unittest.TestCase):
             except Exception as e:
                 raised = True
                 failed.append(ENVTYPE)
-                print('error FloPyArcadeDQN:', e)
+                print('error train_dqn:', e)
         for ENVTYPE in failed:
             self.assertFalse(raised, 'Test of deep Q-network agent in environment ' + ENVTYPE + ' failed.')
 
@@ -135,13 +135,13 @@ class TestFloPyAgentGenetic(unittest.TestCase):
                         hyParams['ADDNOVELTYEVERY'] = 1
                         hyParams['NNOVELTYELITES'] = 2
                         hyParams['NNOVELTYNEIGHBORS'] = 5
-                        train_genetic.main(envSettings, hyParams)
+                        train_neuroevolution.main(envSettings, hyParams)
                         # FloPyArcadeGeneticNetwork.main(envSettings, hyParams)
                         print('Genetic agent in environment ' + ENVTYPE + ' succeeded.')
                     except Exception as e:
                         raised = True
                         failed.append(ENVTYPE)
-                        print('error FloPyArcadeGeneticNetwork', e)
+                        print('error train_neuroevolution', e)
         for ENVTYPE in failed:
             self.assertFalse(raised, 'Genetic agent in environment ' + ENVTYPE + ' failed.')
 
