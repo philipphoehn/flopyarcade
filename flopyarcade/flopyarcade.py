@@ -25,6 +25,10 @@ from flopy.plot import PlotMapView
 from flopy.utils import HeadFile, PathlineFile
 from flopy.mf6.utils.binarygrid_util import MfGrdFile
 from glob import glob
+import warnings
+warnings.filterwarnings('ignore', 'SelectableGroups dict interface')
+from gym import Env as gymEnv
+from gym import spaces
 from imageio import get_writer, imread
 from itertools import chain, product
 from joblib import dump as joblibDump
@@ -63,7 +67,6 @@ environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 getLogger('tensorflow').setLevel(FATAL)
 
 # currently ignoring nested array error
-import warnings
 # from numpy import VisibleDeprecationWarning
 # warnings.filterwarnings("ignore", category=VisibleDeprecationWarning)
 warnings.filterwarnings("ignore")
@@ -2147,7 +2150,7 @@ class FloPyAgent():
         environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
         getLogger('tensorflow').setLevel(FATAL)
 
-class FloPyEnv():
+class FloPyEnv(gymEnv):
     """Environment to perform forward simulation using MODFLOW and MODPATH.
     On first call, initializes a model with a randomly-placed operating well,
     initializes the corresponding steady-state flow solution as a starting state
@@ -2158,6 +2161,12 @@ class FloPyEnv():
     the new particle location as an observation and a flag if the particle has
     reached the operating well or not as a state.
     """
+    
+    # necessary to render with rllib
+    # https://discourse.aicrowd.com/t/how-to-save-rollout-video-render/3246/9
+    metadata = {
+        "render.modes": ["human", "rgb_array"]
+      }
 
     def __init__(self,
                  ENVTYPE='1s-d', PATHMF2005=None, PATHMP6=None,
@@ -2165,10 +2174,17 @@ class FloPyEnv():
                  _seed=None, flagSavePlot=False, flagManualControl=False,
                  manualControlTime=0.1, flagRender=False, NAGENTSTEPS=200,
                  nLay=1, nRow=100, nCol=100, OBSPREP='perceptron',
-                 initWithSolution=True, PATHMF6DLL=None):
+                 initWithSolution=True, PATHMF6DLL=None,
+                 env_config={}):
         """Constructor."""
 
-        self.ENVTYPE = ENVTYPE
+        self.env_config = env_config
+
+        # print(env_config.keys())
+        if 'ENVTYPE' not in env_config.keys():
+            self.ENVTYPE = ENVTYPE
+        else:
+            self.ENVTYPE = env_config['ENVTYPE']
         self.PATHMF2005, self.PATHMP6 = PATHMF2005, PATHMP6
         self.MODELNAME = 'FloPyArcade' if (MODELNAME==None) else MODELNAME
         if self.ENVTYPE in ['0s-c']:
@@ -2182,7 +2198,7 @@ class FloPyEnv():
         self.MANUALCONTROLTIME = manualControlTime
         self.RENDER = flagRender
         self.NAGENTSTEPS = NAGENTSTEPS
-        self.info, self.comments = '', ''
+        self.info, self.comments = {}, '' # '', ''
         self.done = False
         self.nLay, self.nRow, self.nCol = nLay, nRow, nCol
         self.OBSPREP = OBSPREP
@@ -2200,6 +2216,7 @@ class FloPyEnv():
         self.tempDir = TemporaryDirectory(suffix=str(uuid4())[0:5])
         self.modelpth = self.tempDir.name
         # print('self.modelpth', self.modelpth)
+        # print('self.ENVTYPE', self.ENVTYPE)
         self.actionType = self.getActionType(self.ENVTYPE)
 
         self._SEED = _seed
@@ -2266,6 +2283,16 @@ class FloPyEnv():
 
         if self.initWithSolution:
             self.stepInitial()
+
+            # print('shape(self.observations)', shape(self.observations))
+            self.observation_space = spaces.Box(
+                -5.0, 5.0, shape=shape(self.observations), dtype=float32)
+
+            self.action_space = spaces.Discrete(len(self.actionSpace))
+            if self.actionType == 'discrete':
+                self.action_space = spaces.Discrete(len(self.actionSpace))
+            elif self.actionType == 'continuous':
+                self.action_space = spaces.Box(0.0, 1.0, shape=(len(self.actionSpace),), dtype=float32)
 
     def teardown(self):
         """
@@ -2602,6 +2629,8 @@ class FloPyEnv():
                     w = str(i+1)
                     self.stressesVectorNormalized += [self.helperWells['wellQ'+w]/self.minQ, self.helperWells['wellX'+w]/(self.minX+self.extentX),
                         self.helperWells['wellY'+w]/(self.minY+self.extentY), self.helperWells['wellZ'+w]/(self.zBot+self.zTop)]
+
+            self.observations = array(self.observationsVectorNormalized)
 
             # self.timeStepDuration = []
 
@@ -3066,6 +3095,8 @@ class FloPyEnv():
                 # if exists(self.modelpth):
                 #     # removing folder with model files after run
                 #     rmdir(self.modelpth)
+
+            self.observations = array(self.observationsVectorNormalized)
 
             return self.observations, self.reward, self.done, self.info
 
@@ -4180,7 +4211,7 @@ class FloPyEnv():
 
         return reward
 
-    def reset(self, _seed=None, MODELNAME=None, initWithSolution=None):
+    def reset(self, _seed=None, MODELNAME=None, initWithSolution=True):
         """Reset environment with same settings but potentially new seed."""
         
         if initWithSolution == None:
@@ -4203,13 +4234,52 @@ class FloPyEnv():
             # env.reset(MODELNAME=MODELNAMETEMP, _seed=SEEDTEMP)
 
         else:
-            self.__init__(self.ENVTYPE, self.PATHMF2005, self.PATHMP6,
-                self.MODELNAME if MODELNAME is None else MODELNAME,
-                _seed=_seed, flagSavePlot=self.SAVEPLOT,
-                flagManualControl=self.MANUALCONTROL, flagRender=self.RENDER,
-                nLay=self.nLay, nRow=self.nRow, nCol=self.nCol, OBSPREP=self.OBSPREP,
-                initWithSolution=initWithSolution)
+            if len(self.env_config) == {}:
+                self.__init__(self.ENVTYPE, self.PATHMF2005, self.PATHMP6,
+                    self.MODELNAME if MODELNAME is None else MODELNAME,
+                    _seed=_seed, flagSavePlot=self.SAVEPLOT,
+                    flagManualControl=self.MANUALCONTROL, flagRender=self.RENDER,
+                    nLay=self.nLay, nRow=self.nRow, nCol=self.nCol, OBSPREP=self.OBSPREP,
+                    initWithSolution=initWithSolution
+                    )
+            else:
+                self.__init__(env_config=self.env_config)
+
+            # print('self.ENVTYPE', self.ENVTYPE)
+
+            if initWithSolution:
+                # self.stepInitial()
+
+                # print('shape(self.observations)', shape(self.observations))
+                self.observation_space = spaces.Box(
+                    -5.0, 5.0, shape=shape(self.observations), dtype=float32)
+
+                self.action_space = spaces.Discrete(len(self.actionSpace))
+                if self.actionType == 'discrete':
+                    self.action_space = spaces.Discrete(len(self.actionSpace))
+                elif self.actionType == 'continuous':
+                    self.action_space = spaces.Box(0.0, 1.0, shape=(len(self.actionSpace),), dtype=float32)
+
+            env_config = {
+                'ENVTYPE': self.ENVTYPE,
+                'PATHMF2005': self.PATHMF2005,
+                'PATHMP6': self.PATHMP6,
+                'MODELNAME': self.MODELNAME if MODELNAME is None else MODELNAME,
+                '_seed': _seed,
+                'flagSavePlot': self.SAVEPLOT,
+                'flagManualControl': self.MANUALCONTROL,
+                'flagRender': self.RENDER,
+                'nLay': self.nLay,
+                'nRow': self.nRow,
+                'nCol': self.nCol,
+                'OBSPREP': self.OBSPREP,
+                'initWithSolution': initWithSolution
+                }
+
+            self.__init__(env_config=env_config)
             close()
+
+        return array(self.observationsVectorNormalized)
 
     def render(self, returnFigure=False, dpi=120):
         """Plot the simulation state at the current timestep.
