@@ -40,6 +40,7 @@ setup(
 					  'pathos==0.2.7',
 					  'pillow==8.3.2',
 					  'pygame==2.0.1',
+					  'ray[rllib]==1.9.2',
 					  'scikit-image==0.17.2',
 					  'tensorflow==2.5.2',
 					  'tqdm==4.25.0',
