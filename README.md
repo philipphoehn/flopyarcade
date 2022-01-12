@@ -51,9 +51,8 @@ Why this matters, in a nutshell: What is encapsulated in a game here, can be env
 
 Too late, with the peak of arcade games a few decades ago, you would think? Obviously. But they received renewed interest with the advent of [OpenAI Gym](https://gym.openai.com/) enabling to score past human performance with reinforcement learning. FloPyArcade offers a set of simple simulated groundwater flow environments, following their [style of environments](https://gym.openai.com/envs/#atari). They allow to experiment with existing or new reinforcement learning algorithms to find e.g. neural networks that yield optimal control policies. Two common learning algorithms are readily provided. Many more are and become available throughout the reinforcement learning community. Try and train for yourself. Adding your own simulation environment of arbitrary complexity with your own controls or your own optimization algorithm is possible.
 
-Examples of machine-controlled actions taken in the same environment by the highest-scoring agent of genetic optimization after various generations:
-![genetic optimization 3d](flopyarcade/examples/geneticoptimization_3d.gif)
-![genetic optimization](flopyarcade/examples/geneticoptimization.gif)
+Example simulations from benchmarking in environment 3s-d comparing different control agents:
+![benchmarkcontrolexample](flopyarcade/examples/benchmarkcontrolexample.gif)
 
 ## Getting started
 
@@ -146,6 +145,10 @@ More environments are available, yet remain currently free of benchmarks. Note: 
 Two algorithms are currently provided along with the environments for training deep neural networks as policy models. These are implementions of (1) [double Q-learning](https://arxiv.org/abs/1509.06461) and (2) a weights-evolving [genetic algorithm](https://arxiv.org/abs/1712.06567), optionally combined with a simple implementation of [novelty search](https://arxiv.org/abs/1304.3362) to help avoiding convergence towards local minima. They reside in the FloPyAgent class.
 
 The environment formulation allows for models, controls and objectives of arbitrary complexity. Modifications or more complex environments can easily be implemented with small changes to the code.
+
+Examples of machine-controlled actions taken in the same environment by the highest-scoring agent of genetic optimization after various generations:
+![genetic optimization 3d](flopyarcade/examples/geneticoptimization_3d.gif)
+![genetic optimization](flopyarcade/examples/geneticoptimization.gif)
 
 ## Usage
 
