@@ -38,7 +38,7 @@ setup(
 					  'numpy==1.21.0',
 					  'pandas==1.3.5',
 					  'pathos==0.2.7',
-					  'pillow==8.3.2',
+					  'pillow==9.0.0',
 					  'pygame==2.0.1',
 					  'ray[rllib]==1.9.2',
 					  'scikit-image==0.17.2',
