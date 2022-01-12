@@ -95,26 +95,9 @@ Multiple environment variants are currently included, three of which can be user
 
 However, groundwater environments of arbitrary complexity can be implemented similarly, if the desired opimization target(s) can be obtained from the simulation. Feel free to modify. Change the ENVTYPE variable to switch between environments. Examples below list the available environments.
 
-Note: '0s-d' is an experimental environment based on MODFLOW's BMI and not yet displayed.
-![6s-c](flopyarcade/examples/environments/6s-c.gif)
-![6r-c](flopyarcade/examples/environments/6r-c.gif)
-![5s-c](flopyarcade/examples/environments/5s-c.gif)
-![5s-c-cost](flopyarcade/examples/environments/5s-c-cost.gif)
-![5r-c](flopyarcade/examples/environments/5r-c.gif)
-![4s-c](flopyarcade/examples/environments/4s-c.gif)
-![4r-c](flopyarcade/examples/environments/4r-c.gif)
 ![3s-d](flopyarcade/examples/environments/3s-d.gif)
-![3r-d](flopyarcade/examples/environments/3r-d.gif)
-![3s-c](flopyarcade/examples/environments/3s-c.gif)
-![3r-c](flopyarcade/examples/environments/3r-c.gif)
 ![2s-d](flopyarcade/examples/environments/2s-d.gif)
-![2r-d](flopyarcade/examples/environments/2r-d.gif)
-![2s-c](flopyarcade/examples/environments/2s-c.gif)
-![2r-c](flopyarcade/examples/environments/2r-c.gif)
 ![1s-d](flopyarcade/examples/environments/1s-d.gif)
-![1r-d](flopyarcade/examples/environments/1r-d.gif)
-![1s-c](flopyarcade/examples/environments/1s-c.gif)
-![1r-c](flopyarcade/examples/environments/1r-c.gif)
 
 ## Benchmarks
 
