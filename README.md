@@ -113,6 +113,8 @@ Below is a list of benchmarks on the simpler 1s-d, 2s-d and 3s-d environments, f
 
 (4) from control a trained deep neural network as a policy model.
 
+In these benchmarks, the optimized policy model significantly outperforms human control.
+
 The optimization workflows for the policy models behind these benchmarks (trained using RLLib) and other benchmark data will soon be made available for reproducibility and completed. In these environments, the trained policy model significantly outperforms human control:
 
 ![averageEvolutions](flopyarcade/examples/benchmarks_averageEvolutions.png)
