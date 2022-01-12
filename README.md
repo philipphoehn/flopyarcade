@@ -51,7 +51,8 @@ Why this matters, in a nutshell: What is encapsulated in a game here, can be env
 
 Too late, with the peak of arcade games a few decades ago, you would think? Obviously. But they received renewed interest with the advent of [OpenAI Gym](https://gym.openai.com/) enabling to score past human performance with reinforcement learning. FloPyArcade offers a set of simple simulated groundwater flow environments, following their [style of environments](https://gym.openai.com/envs/#atari). They allow to experiment with existing or new reinforcement learning algorithms to find e.g. neural networks that yield optimal control policies. Two common learning algorithms are readily provided. Many more are and become available throughout the reinforcement learning community. Try and train for yourself. Adding your own simulation environment of arbitrary complexity with your own controls or your own optimization algorithm is possible.
 
-Example simulations from benchmarking in environment 3s-d comparing different control agents:
+These are example simulations from benchmarking in environment 3s-d - comparing different control agents:
+
 ![benchmarkcontrolexample](flopyarcade/examples/benchmarkcontrolexample.gif)
 
 ## Getting started
