@@ -113,7 +113,7 @@ Below is a list of benchmarks on the simpler 1s-d, 2s-d and 3s-d environments, f
 
 (4) from control a trained deep neural network as a policy model.
 
-In these benchmarks, the optimized policy model significantly outperforms human control.
+In these benchmarks, the optimized policy models significantly outperforms human control. When comparing the average cumulative reward of the optimized policy models with superiority of experienced human operation to control from random actions, the optimized policy model outperformed the experienced human control by 30.7 % in environment 1s-d, by 4.9 % in environment 2s-d and by 12.0 % in environment 3s-d.
 
 The optimization workflows for the policy models behind these benchmarks (trained using RLLib) and other benchmark data will soon be made available for reproducibility and completed. In these environments, the trained policy model significantly outperforms human control:
 
