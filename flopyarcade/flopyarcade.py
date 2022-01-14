@@ -1122,7 +1122,8 @@ class FloPyAgent():
         # debug: add if available number of CPU cores is exceeded
         cores = self.envSettings['NAGENTSPARALLEL']
 
-        if __name__ == 'FloPyArcade':
+        # if __name__ == 'FloPyArcade':
+        if 'flopyarcade' in __name__:
             if self.envSettings['SURROGATESIMULATOR'] is not None:
                 # removing environment in case of surrogate model
                 # as TensorFlow model cannot be pickled
