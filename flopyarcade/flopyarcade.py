@@ -1123,7 +1123,7 @@ class FloPyAgent():
         cores = self.envSettings['NAGENTSPARALLEL']
 
         # if __name__ == 'FloPyArcade':
-        if 'flopyarcade' in __name__:
+        if flopyarcade in '__name__':
             if self.envSettings['SURROGATESIMULATOR'] is not None:
                 # removing environment in case of surrogate model
                 # as TensorFlow model cannot be pickled
@@ -4235,7 +4235,7 @@ class FloPyEnv(gymEnv):
             # env.reset(MODELNAME=MODELNAMETEMP, _seed=SEEDTEMP)
 
         else:
-            if len(self.env_config) == {}:
+            if self.env_config == {}:
                 self.__init__(self.ENVTYPE, self.PATHMF2005, self.PATHMP6,
                     self.MODELNAME if MODELNAME is None else MODELNAME,
                     _seed=_seed, flagSavePlot=self.SAVEPLOT,
@@ -4261,6 +4261,7 @@ class FloPyEnv(gymEnv):
                 elif self.actionType == 'continuous':
                     self.action_space = spaces.Box(0.0, 1.0, shape=(len(self.actionSpace),), dtype=float32)
 
+            '''
             env_config = {
                 'ENVTYPE': self.ENVTYPE,
                 'PATHMF2005': self.PATHMF2005,
@@ -4278,6 +4279,7 @@ class FloPyEnv(gymEnv):
                 }
 
             self.__init__(env_config=env_config)
+            '''
             close()
 
         return array(self.observationsVectorNormalized)
