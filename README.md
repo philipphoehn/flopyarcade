@@ -51,7 +51,7 @@ Why this matters, in a nutshell: What is encapsulated in a game here, can be env
 
 Too late, with the peak of arcade games a few decades ago, you would think? Obviously. But they received renewed interest with the advent of [OpenAI Gym](https://gym.openai.com/) enabling to score past human performance with reinforcement learning. FloPyArcade offers a set of simple simulated groundwater flow environments, following their [style of environments](https://gym.openai.com/envs/#atari). They allow to experiment with existing or new reinforcement learning algorithms to find e.g. neural networks that yield optimal control policies. Two common learning algorithms are readily provided. Many more are and become available throughout the reinforcement learning community. Try and train for yourself. Adding your own simulation environment of arbitrary complexity with your own controls or your own optimization algorithm is possible.
 
-These are example simulations from benchmarking in environment the 3s-d, which compare different control agents:
+These are example simulations from benchmarking in environment 3s-d - comparing different control agents:
 
 ![benchmarkcontrolexample](flopyarcade/examples/benchmarkcontrolexample.gif)
 
@@ -113,7 +113,7 @@ Below is a list of benchmarks on the simpler 1s-d, 2s-d and 3s-d environments, f
 
 (4) from control a trained deep neural network as a policy model.
 
-In these benchmarks, the optimized policy models significantly outperforms human control. Across 1000 repeat control simulations, to rule out effects of variance from different random environmental initializations on the results: when comparing the average cumulative reward of the optimized policy models with superiority of experienced human operation to control from random actions, the optimized policy model outperformed the experienced human control by 30.7 % in environment 1s-d, by 4.9 % in environment 2s-d and by 12.0 % in environment 3s-d.
+In these benchmarks, the optimized policy model significantly outperforms human control.
 
 The optimization workflows for the policy models behind these benchmarks (trained using RLLib) and other benchmark data will soon be made available for reproducibility and completed. In these environments, the trained policy model significantly outperforms human control:
 
@@ -211,7 +211,7 @@ To cite this repository in publications:
 
 This project is meant to demonstrate a new avenue of applying FloPy. It is experimental and is developed only during spare time. The code is envisioned to ultimately be [PEP-8](https://www.python.org/dev/peps/pep-0008/)-compliant, but this has smaller priority than improving and optimizing functionality.
 
-We intend to shortly release simulation time benchmarks on a current state-of-the-art CPU to support optimization time estimations. The plumbing for FloPy is currently not ideal as files need to be constantly written to disk as the only way to inject information into the process models. With the recent BMI compliance of MODFLOW 6, exchanging information with MODFLOW through memory, while it is running, will soon simplify that.
+The plumbing for FloPy is currently not ideal as files need to be constantly written to disk as the only way to inject information into the process models. With the recent BMI compliance of MODFLOW 6, exchanging information with MODFLOW through memory, while it is running, will soon simplify that.
 
 ## Contributions
 

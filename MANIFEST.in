@@ -1,0 +1,4 @@
+exclude flopyarcade/examples/*.gif
+exclude flopyarcade/examples/*.png
+exclude flopyarcade/examples/environments
+include flopyarcade/simulators.zip
