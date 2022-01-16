@@ -123,6 +123,14 @@ python -m flopyarcade.train_rllib_apexdqn --envtype 3s-d
 
 Note the envtype argument is interchangeable to any provided discrete-action environment. Work to optimize continuous-valued environments using RLLib is currently in progress. Similarly, any of the many reinforcement learning libraries can be used instead. The human operation benchmark data will soon be made available for completeness.
 
+Use TensorFlow's TensorBoard to monitor the optimization progress, if desired, by starting it and providing the logdir path (here /log/dir/path) provided by RLLib during operation:
+
+```bash
+tensorboard --logdir /log/dir/path
+```
+
+Note that RLLib generally allows distributed optimization through Ray in a compute cluster to speed things up massively. This needs manual editing of the configuration, yet is relatively straightforward. Find out more in the Ray documentation. Achieving human operation level performance here might take around 1-2 days on a state-of-the-art machine with 16 cores, as of 2021.
+
 ## More environments
 
 More environments are available, yet currently remain free of benchmarks. Note: '0s-d' is an experimental environment based on MODFLOW's BMI and not yet displayed.
