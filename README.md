@@ -118,18 +118,19 @@ In these benchmarks, the optimized policy model significantly outperforms human 
 The optimization workflows for the policy models behind these benchmarks, can be reproduced using RLLib as follows:
 
 ```bash
-python -m flopyarcade.train_rllib_apexdqn --envtype 3s-d
+python -m flopyarcade.train_rllib_apexdqn --envtype 3s-d --cpus 16
 ```
 
-Note the envtype argument is interchangeable to any provided discrete-action environment. Work to optimize continuous-valued environments using RLLib is currently in progress. Similarly, any of the many reinforcement learning libraries can be used instead. The human operation benchmark data will soon be made available for completeness.
+Be sure to included the intended number of cpus you wish to dedicate to this process, but not more than logical processors available. Note that RLLib generally allows distributed optimization through Ray in a compute cluster to speed things up massively. This needs manual editing of the configuration, yet is relatively straightforward. Find out more in the Ray documentation. Achieving human operation level performance here might take around 1-2 days on a state-of-the-art machine with 16 cores, as of 2021.
+
+
+Note that the envtype argument is interchangeable to any provided discrete-action environment. Work to optimize continuous-valued environments using RLLib is currently in progress. Similarly, any of the many reinforcement learning libraries can be used instead. The human operation benchmark data will soon be made available for completeness.
 
 Use TensorFlow's TensorBoard to monitor the optimization progress, if desired, by starting it and providing the logdir path (here /log/dir/path) provided by RLLib during operation:
 
 ```bash
 tensorboard --logdir /log/dir/path
 ```
-
-Note that RLLib generally allows distributed optimization through Ray in a compute cluster to speed things up massively. This needs manual editing of the configuration, yet is relatively straightforward. Find out more in the Ray documentation. Achieving human operation level performance here might take around 1-2 days on a state-of-the-art machine with 16 cores, as of 2021.
 
 ## More environments
 
