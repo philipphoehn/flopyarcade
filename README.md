@@ -28,10 +28,18 @@ docker build -t flopyarcade --no-cache -f Dockerfile .
 
 ## See in action
 
-See an optimized policy model (benchmarks below) in control in different environment initializations (editable, here 3s-d):
+See an optimized policy model in control.
 
 ```bash
 python -m flopyarcade.train_rllib_apexdqn --playbenchmark True --envtype 3s-d
+```
+
+Until canceled (Alt+F4), the environment (editable, here 3s-d) will be machine-controlled in different environment initializations. Find benchmarks comparing performance to human control below.
+
+Control yourself, for instance the 3r-d environment using the arrow keys:
+
+```bash
+python -m flopyarcade.play --manualcontrol True --envtype 3r-d
 ```
 
 ## Rationale
