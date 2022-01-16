@@ -19,25 +19,6 @@ python -m pip install flopyarcade
 ```
 
 <!---
-Given [TensorFlow](https://www.tensorflow.org/)'s current compatibility, this project works with [Python 3](https://www.python.org/), tested up to version 3.7. 
-The installation is a 2-step procedure:
-
-1) To install all dependencies, create a directory and clone the master branch into it. The package manager [pip](https://pip.pypa.io/en/stable/) can then install them:
-
-```bash
-git clone -b master https://github.com/philipphoehn/FloPyArcade.git .
-pip install -r requirements.txt
-```
-
-2) For the environment-driving simulations to function, [MODFLOW2005](https://www.usgs.gov/software/modflow-2005-usgs-three-dimensional-finite-difference-ground-water-model) and [MODPATH]() need to be compiled on your system - either in a subdirectory named simulators or with the installation paths specified as variables when using FloPyArcade. This can easily be achieved across operating systems using [pymake](https://github.com/modflowpy/pymake). While still in the main project directory, create a subdirectory "simulators" and navigate to it. Then, follow pymake's instructions (possibly you have to point to the full path of make_mf2005.py and make_modpath6.py):
-
-```bash
-pip install https://github.com/modflowpy/pymake/zipball/master
-git clone https://github.com/modflowpy/pymake.git .
-python examples/make_mf2005.py
-python examples/make_modpath6.py
-```
-
 Alternatively: With dependencies on compiled simulators, deployment is recommended and easier in a Docker container. Create a directory first, navigate to it and build the container:
 
 ```bash
@@ -45,15 +26,31 @@ docker build -t flopyarcade --no-cache -f Dockerfile .
 ```
 -->
 
+## See in action
+
+See an optimized policy model in control of aquifer management.
+
+```bash
+python -m flopyarcade.train_rllib_apexdqn --playbenchmark True --envtype 3s-d
+```
+
+The environment (editable, here 3s-d) will be machine-controlled in different environment initializations, until canceled (Alt+F4). Find benchmarks comparing performance to human control below.
+
+To control an environment yourself, for instance the 3r-d environment, use the arrow keys:
+
+```bash
+python -m flopyarcade.play --manualcontrol True --envtype 3r-d
+```
+
 ## Rationale
-
-Why this matters, in a nutshell: What is encapsulated in a game here, can be envisioned to be a real-world operation of an arbitrary groundwater system given a model (ensemble). You can similarly optimize and test policy models, e.g. for real-time operation of your sites.
-
-Too late, with the peak of arcade games a few decades ago, you would think? Obviously. But they received renewed interest with the advent of [OpenAI Gym](https://gym.openai.com/) enabling to score past human performance with reinforcement learning. FloPyArcade offers a set of simple simulated groundwater flow environments, following their [style of environments](https://gym.openai.com/envs/#atari). They allow to experiment with existing or new reinforcement learning algorithms to find e.g. neural networks that yield optimal control policies. Two common learning algorithms are readily provided. Many more are and become available throughout the reinforcement learning community. Try and train for yourself. Adding your own simulation environment of arbitrary complexity with your own controls or your own optimization algorithm is possible.
 
 These are example simulations from benchmarking in environment 3s-d - comparing different control agents:
 
 ![benchmarkcontrolexample](flopyarcade/examples/benchmarkcontrolexample.gif)
+
+Why this matters, in a nutshell: What is encapsulated in a game here, can be envisioned to be a real-world operation of an arbitrary groundwater system given a model (ensemble). You can similarly optimize and test policy models, e.g. for real-time operation of your sites.
+
+Too late, with the peak of arcade games a few decades ago, you would think? Obviously. But they received renewed interest with the advent of [OpenAI Gym](https://gym.openai.com/) enabling to score past human performance with reinforcement learning. FloPyArcade offers a set of simple simulated groundwater flow environments, following their [style of environments](https://gym.openai.com/envs/#atari). They allow to experiment with existing or new reinforcement learning algorithms to find e.g. neural networks that yield optimal control policies. Two common learning algorithms are readily provided. Many more are and become available throughout the reinforcement learning community. Try and train for yourself. Adding your own simulation environment of arbitrary complexity with your own controls or your own optimization algorithm is possible.
 
 ## Getting started
 
@@ -115,16 +112,28 @@ Below is a list of benchmarks on the simpler 1s-d, 2s-d and 3s-d environments, f
 
 In these benchmarks, the optimized policy model significantly outperforms human control.
 
-The optimization workflows for the policy models behind these benchmarks (trained using RLLib) and other benchmark data will soon be made available for reproducibility and completed. In these environments, the trained policy model significantly outperforms human control:
-
 ![averageEvolutions](flopyarcade/examples/benchmarks_averageEvolutions.png)
 ![operatorScores](flopyarcade/examples/benchmarks_operatorScores.png)
 
-As a temporary solution, RLLib checkpoints for restoring and using these policy models are stored in flopyarcade/examples/policymodels/.
+The optimization workflows for the policy models behind these benchmarks, can be reproduced using RLLib as follows:
+
+```bash
+python -m flopyarcade.train_rllib_apexdqn --envtype 3s-d --cpus 16
+```
+
+Be sure to include the intended number of cpus you wish to dedicate to this process, but not more than logical processors available. Note that RLLib generally allows distributed optimization through Ray in a compute cluster to speed things up massively. This needs manual editing of the configuration, yet is relatively straightforward. Find out more in the Ray documentation. Achieving human operation level performance here might take around 1-2 days on a state-of-the-art machine with 16 cores, as of 2021.
+
+Note that the envtype argument is interchangeable to any provided discrete-action environment. Work to optimize continuous-valued environments using RLLib is currently in progress. Similarly, any of the many reinforcement learning libraries can be used instead. The human operation benchmark data will soon be made available for completeness.
+
+Use TensorFlow's TensorBoard to monitor the optimization progress, if desired, by starting it and providing the logdir path (here /log/dir/path) provided by RLLib during operation:
+
+```bash
+tensorboard --logdir /log/dir/path
+```
 
 ## More environments
 
-More environments are available, yet remain currently free of benchmarks. Note: '0s-d' is an experimental environment based on MODFLOW's BMI and not yet displayed.
+More environments are available, yet currently remain free of benchmarks. Note: '0s-d' is an experimental environment based on MODFLOW's BMI and not yet displayed.
 
 ![6s-c](flopyarcade/examples/environments/6s-c.gif)
 ![6r-c](flopyarcade/examples/environments/6r-c.gif)
