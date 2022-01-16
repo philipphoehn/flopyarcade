@@ -42,13 +42,13 @@ parser.add_argument('--bestagentanimation', default=True, type=str_to_bool,
     help='boolean defining whether to save animation of best agent per generation')
 parser.add_argument('--modelname', default='FloPyArcadeDQN', type=str,
     help='string defining model basename')
-parser.add_argument('--pathmf2005', default=None,
+parser.add_argument('--pathmf2005', default=None, type=str,
     help='string defining local path to MODFLOW 2005 executable')
-parser.add_argument('--pathmp6', default=None,
+parser.add_argument('--pathmp6', default=None, type=str,
     help='string defining local path to MODPATH 6 executable')
 parser.add_argument('--surrogatesimulator', default=None,
     help='currently unavailable')
-parser.add_argument('--nagentsparallel', default=None,
+parser.add_argument('--nagentsparallel', default=None, type=int,
     help='integer defining parallelized agent runs')
 parser.add_argument('--rewardmintosave', default=0.0, type=float,
     help='float defining minimal reward to save a model')
@@ -88,7 +88,7 @@ parser.add_argument('--convstrides', default=[4, 2, 1], nargs='+', type=int,
     help='list of integers defining convolutional stride sizes ')
 parser.add_argument('--convactivations', default=['linear', 'linear', 'linear'], nargs='+', type=str,
     help='list of strings defining convolutional activations')
-parser.add_argument('--convpooling', default=None,
+parser.add_argument('--convpooling', default=None, type=str,
     help='string defining type of pooling, options: [None, "mean", "max"]')
 parser.add_argument('--convpoolsizes', default=[1, 1, 1], nargs='+', type=int,
     help='list of integers defining sizes of convolutional pool')

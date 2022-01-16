@@ -1,23 +1,70 @@
+import os
+import sys
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+
+import logging
+
+logging.disable(logging.WARNING)
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 from argparse import ArgumentParser
-from ray import init as rayInit
-from ray.tune.registry import register_env
-from ray import tune
-from flopyarcade import FloPyEnv
+from logging import FATAL
+from numpy.random import randint
 from os import makedirs
 from os.path import abspath, dirname, exists, join
+from ray import tune
+from ray import init as rayInit
+from ray.tune.registry import register_env
+from ray.rllib.agents.dqn import ApexTrainer
 
-global ENVTYPE
-ENVTYPE = '3s-d'
+# must be imported as else a Ray class cannot find the module later
+wrkspc = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+os.chdir(wrkspc)
+try:
+    from flopyarcade.flopyarcade import FloPyEnv
+except:
+    from flopyarcade import FloPyEnv
 
+# from tensorflow import get_logger
+# get_logger().setLevel('ERROR')
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+import warnings
+warnings.filterwarnings('ignore', 'SelectableGroups dict interface')
+warnings.filterwarnings('ignore', category=DeprecationWarning)
+
+
+def str_to_bool(value):
+    if isinstance(value, bool):
+        return value
+    if value.lower() in {'false', 'f', '0', 'no', 'n'}:
+        return False
+    elif value.lower() in {'true', 't', '1', 'yes', 'y'}:
+        return True
+    raise ValueError(f'{value} is not a valid boolean value')
 
 parser = ArgumentParser(description='FloPyArcade optimization using deep Q networks')
+parser.add_argument('--envtype', default='1s-d', type=str,
+    help='string defining environment')
+parser.add_argument('--suffix', default='', type=str,
+    help='string defining environment')
 parser.add_argument('--cpus', default='1', type=int,
     help='integer defining number of cpus to use')
 parser.add_argument('--gpus', default='0', type=int,
     help='integer defining number of cpus to use')
+parser.add_argument('--playbenchmark', default=False, type=str_to_bool,
+    help='boolean to define if displaying runs')
+parser.add_argument('--external', default=True, type=str_to_bool,
+    help='boolean used as temporary helper during exection, can be ignored')
 args = parser.parse_args()
 
-wrkspc = abspath(dirname(__file__))
+if args.playbenchmark:
+    if args.external:
+        print('Starting benchmark visualization. Note that loading might take a moment.')
+
+global ENVTYPE
+ENVTYPE = args.envtype
 
 config_model = {
     "_use_default_native_models": False,
@@ -37,7 +84,7 @@ config = {
     'env': ENVTYPE,
     'seed': 1,
     'model': config_model,
-    "num_workers": args.cpus-2,
+    "num_workers": args.cpus-2 if args.cpus >= 3 else args.cpus, # weird, but 16 workers on 16 cores failed to work
     "num_gpus": args.gpus,
     "framework": "tf",
     "env": "my_env",
@@ -61,6 +108,7 @@ config = {
     "evaluation_interval": 1,
     "evaluation_num_episodes": 1,
     "evaluation_num_workers": 0,
+    "log_level": "ERROR"
 }
 
 config_stopCriteria = {
@@ -71,16 +119,22 @@ config_stopCriteria = {
 
 
 def env_creator(env_config):
+    # currently the argument env_config is not piped at creation
+    # therefore not using the argument until solved
+
     env_config = {}
     env_config['ENVTYPE'] = ENVTYPE
-    return FloPyEnv(config=env_config)
+    env = FloPyEnv(env_config=env_config)
+
+    return env
 
 
-def test(agent, env, seed):
+def test(agent, env):
     """Test trained agent for a single episode. Return the episode reward"""
     # https://github.com/ray-project/ray/issues/9220
     
-    observations = env.reset(_seed=seed)
+    # observations = env.reset(_seed=seed)
+    observations = env.observationsVectorNormalized
 
     from matplotlib.pyplot import switch_backend
     switch_backend('TkAgg')
@@ -96,24 +150,91 @@ def test(agent, env, seed):
 
 
 if __name__ == "__main__":
-    tune.registry.register_env('my_env', env_creator)
-    rayInit()
+
+    wrkspc = abspath(dirname(__file__))
+
+    if not args.playbenchmark:
+        rayInit()
+    elif args.playbenchmark:
+        # suppressing Ray messages and warnings here for comfort
+        rayInit(log_to_driver=False, logging_level=FATAL)
+    register_env('my_env', env_creator)
 
     if not exists(join(wrkspc, 'temp')):
         makedirs(join(wrkspc, 'temp'))
     if not exists(join(wrkspc, 'temp', 'ray_results')):
         makedirs(join(wrkspc, 'temp', 'ray_results'))
 
-    restore_path = join(wrkspc, 'temp', 'ray_results', 'APEX_my_env_2bce0_00000_0_2022-01-05_23-38-15', 'checkpoint_000540', 'checkpoint-540')
-    results = tune.run(
-            "APEX",
-            name="2s-d-APEX-ffnn-varyseed-stopmean900-lr0-00005-bs3M",
-            config=config,
-            stop=config_stopCriteria,
-            verbose=3,
-            checkpoint_freq=1,
-            checkpoint_at_end=True,
-            reuse_actors=False,
-            local_dir=join(wrkspc, 'temp', 'ray_results'),
-            # restore=resore_path
-            )
+    if not args.playbenchmark:
+
+        # restore_path = join(wrkspc, 'temp', 'ray_results', 'APEX_my_env_2bce0_00000_0_2022-01-05_23-38-15', 'checkpoint_000540', 'checkpoint-540')
+        results = tune.run(
+                "APEX",
+                name=ENVTYPE + args.suffix,
+                config=config,
+                stop=config_stopCriteria,
+                verbose=3,
+                checkpoint_freq=1,
+                checkpoint_at_end=True,
+                reuse_actors=False,
+                local_dir=join(wrkspc, 'temp', 'ray_results'),
+                # restore=resore_path
+                )
+
+    elif args.playbenchmark:
+        # external flag currently necessary as using -m is not working
+        # as Tensorflow will raise an error of having received
+        # an external symbolic tensor
+
+        if not args.external:
+
+            config = {
+            "num_workers": 1,
+            "num_gpus": 0,
+            "framework": "tf",
+            "env": "my_env",
+            "optimizer": {
+                    "max_weight_sync_delay": 400,
+                    "num_replay_buffer_shards": 1,
+                    "debug": False
+                },
+            "n_step": 3,
+            "buffer_size": 5000000,
+            "learning_starts": 50000,
+            "train_batch_size": 512,
+            "rollout_fragment_length": 50,
+            "target_network_update_freq": 500000,
+            "timesteps_per_iteration": 50000,
+            "exploration_config": {"type": "PerWorkerEpsilonGreedy"},
+            "worker_side_prioritization": True,
+            "min_iter_time_s": 30,
+            "training_intensity": None,
+            "lr": 0.00005,
+            }
+
+            __name__ == '__main__'
+            __package__ == None
+
+            agent = ApexTrainer(config)
+            checkpoint_path = join(wrkspc, 'flopyarcade', 'examples', 'policymodels', ENVTYPE, ENVTYPE)
+            agent.restore(checkpoint_path)
+
+            done = False
+            while not done:
+                env = env_creator(env_config={'ENVTYPE': ENVTYPE})
+                reward_total = test(agent, env)
+                print('total reward', reward_total)
+
+        if args.external:
+            os.chdir(join(wrkspc))
+
+            cmd = 'python train_rllib_apexdqn.py' +\
+            ' --envtype ' + str(args.envtype) +\
+            ' --cpus ' + str(args.cpus) +\
+            ' --gpus ' + str(args.gpus) +\
+            ' --playbenchmark ' + str(args.playbenchmark) +\
+            ' --external ' + 'False'
+            if str(args.suffix) != '':
+                cmd = cmd + ' --suffix ' + str(args.suffix)
+
+            os.system(cmd)

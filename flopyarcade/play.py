@@ -84,6 +84,7 @@ gameSettings = {
 def main(envSettings, gameSettings):
 
     game = FloPyArcade(
+        ENVTYPE=envSettings['ENVTYPE'],
         modelNameLoad=envSettings['MODELNAMELOAD'],
         modelName=envSettings['MODELNAME'],
         NAGENTSTEPS=gameSettings['NAGENTSTEPS'],

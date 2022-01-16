@@ -1123,7 +1123,7 @@ class FloPyAgent():
         cores = self.envSettings['NAGENTSPARALLEL']
 
         # if __name__ == 'FloPyArcade':
-        if flopyarcade in '__name__':
+        if 'flopyarcade' in __name__:
             if self.envSettings['SURROGATESIMULATOR'] is not None:
                 # removing environment in case of surrogate model
                 # as TensorFlow model cannot be pickled
@@ -1899,6 +1899,7 @@ class FloPyAgent():
         # playing a game with best agent to visualize progress
 
         game = FloPyArcade(modelNameLoad=bestAgentFileName,
+            ENVTYPE = env.ENVTYPE,
             modelName=MODELNAMEGENCOUNT,
             animationFolder=MODELNAME,
             NAGENTSTEPS=self.hyParams['NAGENTSTEPS'],
@@ -2151,7 +2152,9 @@ class FloPyAgent():
         environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
         getLogger('tensorflow').setLevel(FATAL)
 
-class FloPyEnv(gymEnv):
+import gym
+
+class FloPyEnv(gym.Env):
     """Environment to perform forward simulation using MODFLOW and MODPATH.
     On first call, initializes a model with a randomly-placed operating well,
     initializes the corresponding steady-state flow solution as a starting state
@@ -2177,17 +2180,86 @@ class FloPyEnv(gymEnv):
                  nLay=1, nRow=100, nCol=100, OBSPREP='perceptron',
                  initWithSolution=True, PATHMF6DLL=None,
                  env_config={}):
+
+    # def __init__(self, env_config={}, initWithSolution=True):
+
+    #     # ENVTYPE='1s-d',
+    #     PATHMF2005=None
+    #     PATHMP6=None
+    #     MODELNAME='FloPyArcade'
+    #     ANIMATIONFOLDER='FloPyArcade'
+    #     _seed=None
+    #     flagSavePlot=False
+    #     flagManualControl=False
+    #     manualControlTime=0.1
+    #     flagRender=False
+    #     NAGENTSTEPS=200
+    #     nLay=1
+    #     nRow=100
+    #     nCol=100
+    #     OBSPREP='perceptron'
+    #     initWithSolution=True
+    #     PATHMF6DLL=None
+
+    # def __init__(self, env_config={}, initWithSolution=True):
         """Constructor."""
+
+        import numpy as np
+        # print('env_config pre', env_config)
+
+        # !!! seed currently not in env_config as other methods are still parsing it via argument
+
+        # ENVTYPE='1s-d'
+        # ENVTYPE='6s-c'
+        ENVTYPE=env_config['ENVTYPE'] if 'ENVTYPE' in env_config.keys() else ENVTYPE
+        PATHMF2005=env_config['PATHMF2005'] if 'PATHMF2005' in env_config.keys() else PATHMF2005
+        PATHMP6=env_config['PATHMP6'] if 'PATHMP6' in env_config.keys() else PATHMP6
+        MODELNAME=env_config['MODELNAME'] if 'MODELNAME' in env_config.keys() else MODELNAME
+        ANIMATIONFOLDER=env_config['ANIMATIONFOLDER'] if 'ANIMATIONFOLDER' in env_config.keys() else ANIMATIONFOLDER
+        _seed=env_config['_seed'] if '_seed' in env_config.keys() else _seed
+        flagSavePlot=env_config['flagSavePlot'] if 'flagSavePlot' in env_config.keys() else flagSavePlot
+        flagManualControl=env_config['flagManualControl'] if 'flagManualControl' in env_config.keys() else flagManualControl
+        manualControlTime=env_config['manualControlTime'] if 'manualControlTime' in env_config.keys() else 0.1
+        flagRender=env_config['flagRender'] if 'flagRender' in env_config.keys() else flagRender
+        NAGENTSTEPS=env_config['NAGENTSTEPS'] if 'NAGENTSTEPS' in env_config.keys() else NAGENTSTEPS
+        nLay=env_config['nLay'] if 'nLay' in env_config.keys() else nLay
+        nRow=env_config['nRow'] if 'nRow' in env_config.keys() else nRow
+        nCol=env_config['nCol'] if 'nCol' in env_config.keys() else nCol
+        OBSPREP=env_config['OBSPREP'] if 'OBSPREP' in env_config.keys() else OBSPREP # 'perceptron'
+        initWithSolution=env_config['initWithSolution'] if 'initWithSolution' in env_config.keys() else initWithSolution
+        PATHMF6DLL=env_config['PATHMF6DLL'] if 'PATHMF6DLL' in env_config.keys() else PATHMF6DLL
+
+        env_config['ENVTYPE'] = ENVTYPE
+        env_config['PATHMF2005'] = PATHMF2005
+        env_config['PATHMP6'] = PATHMP6
+        env_config['MODELNAME'] = MODELNAME
+        env_config['ANIMATIONFOLDER'] = ANIMATIONFOLDER
+        # env_config['_seed'] = _seed
+        env_config['flagSavePlot'] = flagSavePlot
+        env_config['flagManualControl'] = flagManualControl
+        env_config['manualControlTime'] = manualControlTime
+        env_config['flagRender'] = flagRender
+        env_config['NAGENTSTEPS'] = NAGENTSTEPS
+        env_config['nLay'] = nLay
+        env_config['nRow'] = nRow
+        env_config['nCol'] = nCol
+        env_config['OBSPREP'] = OBSPREP
+        env_config['initWithSolution'] = initWithSolution
+        env_config['PATHMF6DLL'] = PATHMF6DLL
+
+        # print(env_config)
 
         self.env_config = env_config
 
-        # print(env_config.keys())
-        if 'ENVTYPE' not in env_config.keys():
-            self.ENVTYPE = ENVTYPE
-        else:
-            self.ENVTYPE = env_config['ENVTYPE']
+        # print('env_config post', env_config)
+
+        self.env_config = env_config
+
+        self.max_episode_steps = 200
+
+        self.ENVTYPE = ENVTYPE
         self.PATHMF2005, self.PATHMP6 = PATHMF2005, PATHMP6
-        self.MODELNAME = 'FloPyArcade' if (MODELNAME==None) else MODELNAME
+        self.MODELNAME = 'FloPyArcade' + str(uuid4())[0:5] if (MODELNAME==None) else MODELNAME
         if self.ENVTYPE in ['0s-c']:
             self.MODELNAMEGENCOUNT = self.MODELNAME
             self.MODELNAME = self.MODELNAME[0:15]
@@ -2199,7 +2271,7 @@ class FloPyEnv(gymEnv):
         self.MANUALCONTROLTIME = manualControlTime
         self.RENDER = flagRender
         self.NAGENTSTEPS = NAGENTSTEPS
-        self.info, self.comments = {}, '' # '', ''
+        self.info, self.comments = {}, ''
         self.done = False
         self.nLay, self.nRow, self.nCol = nLay, nRow, nCol
         self.OBSPREP = OBSPREP
@@ -2215,9 +2287,8 @@ class FloPyEnv(gymEnv):
         # if not exists(self.modelpth):
             # makedirs(self.modelpth)
         self.tempDir = TemporaryDirectory(suffix=str(uuid4())[0:5])
-        self.modelpth = self.tempDir.name
-        # print('self.modelpth', self.modelpth)
-        # print('self.ENVTYPE', self.ENVTYPE)
+        self.modelpth = str(self.tempDir.name)
+
         self.actionType = self.getActionType(self.ENVTYPE)
 
         self._SEED = _seed
@@ -2227,6 +2298,7 @@ class FloPyEnv(gymEnv):
         self.timeStep, self.keyPressed = 0, None
         self.reward, self.rewardCurrent = 0., 0.
         self.delFiles = True
+        self.canvasInitialized = False
 
         if self.ENVTYPE in ['0s-c']:
             # print('PATHMF6DLL', PATHMF6DLL)
@@ -2286,14 +2358,21 @@ class FloPyEnv(gymEnv):
             self.stepInitial()
 
             # print('shape(self.observations)', shape(self.observations))
-            self.observation_space = spaces.Box(
-                -5.0, 5.0, shape=shape(self.observations), dtype=float32)
+            self.observation_space = gym.spaces.Box(
+                -25.0, 25.0, shape=shape(self.observations), dtype=np.float32)
+                # -1.0, 2.0, shape=(shape(self.observations),), dtype=np.float32)
+            # print('self.actionSpace', self.actionSpace)
 
-            self.action_space = spaces.Discrete(len(self.actionSpace))
+            self.action_space = gym.spaces.Discrete(len(self.actionSpace))
+
             if self.actionType == 'discrete':
-                self.action_space = spaces.Discrete(len(self.actionSpace))
+                self.action_space = gym.spaces.Discrete(len(self.actionSpace))
             elif self.actionType == 'continuous':
-                self.action_space = spaces.Box(0.0, 1.0, shape=(len(self.actionSpace),), dtype=float32)
+                self.action_space = gym.spaces.Box(0.0, 1.0, shape=(len(self.actionSpace),), dtype=np.float32)
+
+    # def seed(self, seed=None):
+    #     from numpy.random import random
+    #     random.seed(seed)
 
     def teardown(self):
         """
@@ -2634,9 +2713,19 @@ class FloPyEnv(gymEnv):
             self.observations = array(self.observationsVectorNormalized)
 
             # self.timeStepDuration = []
+            # print('initial shape(self.observations)', shape(self.observations))
 
-    def step(self, action, teardownOnFinish=False):
+    # def step(self, observations, action, rewardCurrent, teardownOnFinish=False):
+    def step(self, action):
+
         """Perform a single step of forwards simulation."""
+
+        if self.actionType == 'discrete':
+            # if actions are given in integers
+            if action not in self.actionSpace:
+                action = self.actionSpace[action-1]
+
+        # print('min(action)', min(action), max(action))
 
         if self.ENVTYPE in ['0s-c']:
 
@@ -2829,15 +2918,14 @@ class FloPyEnv(gymEnv):
 
             # print('debug action step', action)
             self.setActionValue(action)
-
-            # !!!
-            observations = self.observationsVectorToDict(self.observationsVectorNormalized)
+            observations = self.observationsVectorToDict(list(self.observations))
+            rewardCurrent = self.rewardCurrent
+            # observations = self.observationsVectorToDict(observations)
             self.particleCoordsBefore = observations['particleCoords']
 
             # it might be obsolete to feed this back,
             # as it can be stored with the object
-            # !!!
-            self.rewardCurrent = self.rewardCurrent
+            self.rewardCurrent = rewardCurrent
 
             # does this need to be enabled? It disables numpy finding different
             # random numbers throughout the game,
@@ -3097,8 +3185,16 @@ class FloPyEnv(gymEnv):
                 #     # removing folder with model files after run
                 #     rmdir(self.modelpth)
 
+            # self.observations = array(self.observationsVectorNormalized)
             self.observations = array(self.observationsVectorNormalized)
+            # self.rewardCurrent = self.reward
+            # self.state = self.observationsVectorNormalized
 
+            # print('werb', self.observations, self.reward, self.done, self.info)
+            # return [0.4], -0.1, self.done, {}
+            # print('max obs', np.max(self.observationsVectorNormalized))
+
+            # print('shape(self.observations)', shape(self.observations))
             return self.observations, self.reward, self.done, self.info
 
     def defineEnvironment(self, seed=None):
@@ -3238,7 +3334,7 @@ class FloPyEnv(gymEnv):
             self.periods, self.periodLength, self.periodSteps = 1, 1.0, 11 # 11
             self.periodSteadiness = True # to get steady-state starting solution, will change later
             self.maxSteps = self.NAGENTSTEPS
-            self.sampleHeadsEvery = 5
+            self.sampleHeadsEvery = 3 # 5
 
             self.dRow = self.extentX / self.nCol
             self.dCol = self.extentY / self.nRow
@@ -3323,8 +3419,8 @@ class FloPyEnv(gymEnv):
 
             self.actionSpaceSize = len(self.actionSpace)
 
-            self.rewardMax = 1000
-            self.distanceMax = 97.9
+            self.rewardMax = 1000 # 1000
+            self.distanceMax = 98 # 97.9
 
         # solver data
         self.nouter, self.ninner = 100, 100
@@ -3797,10 +3893,9 @@ class FloPyEnv(gymEnv):
 
             self.mf_bas = ModflowBas(self.mf, ibound=self.ibound, strt=self.strt)
 
-            import numpy as np
             # adding LPF package to the MODFLOW model
             # for cell-variable k field
-            # hk = np.multiply(np.random.random_sample(np.shape(self.strt)), 10.)
+            # hk = multiply(random.random_sample(np.shape(self.strt)), 10.)
             hk = 10.
             # hk = np.add(np.multiply(self.strt, 0.), 10)
             self.mf_lpf = ModflowLpf(self.mf, hk=hk, vka=10., ss=1e-05, sy=0.15, ipakcb=53)
@@ -3824,17 +3919,19 @@ class FloPyEnv(gymEnv):
             self.mf_oc = ModflowOc(self.mf, stress_period_data=stress_period_data, # stress_period_data
                 compact=True)
 
+            # from flopy.modflow import ModflowPcgn, ModflowGmg, ModflowSms
+
             # adding PCG package to the MODFLOW model
             # termination criteria currently empirically set
-            self.mf_pcg = ModflowPcg(self.mf, hclose=1e-3, rclose=1e-3)
+            self.mf_pcg = ModflowPcg(self.mf)
+            # self.mf_pcg = ModflowPcg(self.mf, hclose=1e-1, rclose=1e-1)
             # self.mf_pcg = ModflowPcgn(self.mf, close_h=self.hclose, close_r=self.rclose)
             # self.mf_pcg = ModflowPcg(self.mf)
 
             # for speed-ups try different solvers
 
-            from flopy.modflow import ModflowPcgn, ModflowGmg
             # too large termination criterion might cause unrealistic near-well particle trajectories
-            # self.mf_pcg = ModflowPcgn(self.mf, close_h=1e-8, close_r=1e-8)
+            # self.mf_pcg = ModflowPcgn(self.mf, close_h=1e-6, close_r=1e-6)
             # self.mf_pcg = ModflowPcgn(self.mf, close_h=self.hclose, close_r=self.rclose)
 
             # this solver seems slightly quicker
@@ -4212,9 +4309,9 @@ class FloPyEnv(gymEnv):
 
         return reward
 
-    def reset(self, _seed=None, MODELNAME=None, initWithSolution=True):
+    def reset(self, _seed=None, MODELNAME=None, initWithSolution=None):
         """Reset environment with same settings but potentially new seed."""
-        
+
         if initWithSolution == None:
             initWithSolution=self.initWithSolution
         
@@ -4235,33 +4332,7 @@ class FloPyEnv(gymEnv):
             # env.reset(MODELNAME=MODELNAMETEMP, _seed=SEEDTEMP)
 
         else:
-            if self.env_config == {}:
-                self.__init__(self.ENVTYPE, self.PATHMF2005, self.PATHMP6,
-                    self.MODELNAME if MODELNAME is None else MODELNAME,
-                    _seed=_seed, flagSavePlot=self.SAVEPLOT,
-                    flagManualControl=self.MANUALCONTROL, flagRender=self.RENDER,
-                    nLay=self.nLay, nRow=self.nRow, nCol=self.nCol, OBSPREP=self.OBSPREP,
-                    initWithSolution=initWithSolution
-                    )
-            else:
-                self.__init__(env_config=self.env_config)
 
-            # print('self.ENVTYPE', self.ENVTYPE)
-
-            if initWithSolution:
-                # self.stepInitial()
-
-                # print('shape(self.observations)', shape(self.observations))
-                self.observation_space = spaces.Box(
-                    -5.0, 5.0, shape=shape(self.observations), dtype=float32)
-
-                self.action_space = spaces.Discrete(len(self.actionSpace))
-                if self.actionType == 'discrete':
-                    self.action_space = spaces.Discrete(len(self.actionSpace))
-                elif self.actionType == 'continuous':
-                    self.action_space = spaces.Box(0.0, 1.0, shape=(len(self.actionSpace),), dtype=float32)
-
-            '''
             env_config = {
                 'ENVTYPE': self.ENVTYPE,
                 'PATHMF2005': self.PATHMF2005,
@@ -4278,17 +4349,23 @@ class FloPyEnv(gymEnv):
                 'initWithSolution': initWithSolution
                 }
 
+            # print('env_config reset', env_config)
+
             self.__init__(env_config=env_config)
-            '''
             close()
 
         return array(self.observationsVectorNormalized)
 
-    def render(self, returnFigure=False, dpi=120):
+    def render(self, mode='human', dpi=120):
         """Plot the simulation state at the current timestep.
         Displaying and/or saving the visualisation. The active display can take
         user input from the keyboard to control the environment.
         """
+
+        if mode == 'human':
+            returnFigure = False
+        elif mode == 'rgb_array':
+            returnFigure = True
 
         if self.SAVEPLOT:
             returnFigure = True
@@ -4373,19 +4450,13 @@ class FloPyEnv(gymEnv):
                     # print('DEBUG self.MODELNAME', self.MODELNAME)
                     pathGIF = join(self.wrkspc, 'runs', self.ANIMATIONFOLDER, self.MODELNAMEGENCOUNT + '.gif')
                     # print('pathGIF', pathGIF)
-                    import sys
-                    is_windows = sys.platform.startswith('win')
-                    if is_windows:
-                        optimizeSize = False
-                    else:
-                        optimizeSize = True
-                    self.writeGIFtodisk(pathGIF, self.plotArrays, optimizeSize=optimizeSize)
+                    self.writeGIFtodisk(pathGIF, self.plotArrays, optimizeSize=True)
 
             if returnFigure:
                 return imarray
 
         else:
-            if self.timeStep == 0:
+            if self.timeStep == 0 or self.canvasInitialized == False:
                 self.renderInitializeCanvas()
                 self.plotfilesSaved = []
                 self.plotArrays = []
@@ -4429,6 +4500,9 @@ class FloPyEnv(gymEnv):
                 imarray = copy(frombuffer(data, dtype=uint8).reshape(cols, rows, 3))
                 self.fig.set_size_inches(s)
 
+            # temp
+            self.fig.savefig('C:\\Users\\admin\\Downloads\\forGitHub\\' + str(self.timeStep) + '.png')
+
             if not returnFigure:
                 if self.MANUALCONTROL:
                     self.renderUserInterAction()
@@ -4443,14 +4517,7 @@ class FloPyEnv(gymEnv):
                 if self.SAVEPLOT:
                     if self.done or self.timeStep == self.NAGENTSTEPS:
                         pathGIF = join(self.wrkspc, 'runs', self.ANIMATIONFOLDER, self.MODELNAME + '.gif')
-                        import sys
-                        is_windows = sys.platform.startswith('win')
-                        if is_windows:
-                            optimizeSize = False
-                        else:
-                            optimizeSize = True
-                        self.writeGIFtodisk(pathGIF, self.plotArrays, optimizeSize=optimizeSize)
-
+                        self.writeGIFtodisk(pathGIF, self.plotArrays, optimizeSize=True)
             self.renderClearAxes()
             del self.headsplot
 
@@ -4489,6 +4556,7 @@ class FloPyEnv(gymEnv):
         self.fig.gca().xaxis.set_major_locator(NullLocator())
         self.fig.gca().yaxis.set_major_locator(NullLocator())
         self.fig.tight_layout(pad=0.)
+        self.canvasInitialized = True
 
     def renderIdealParticleTrajectory(self, zorder=5):
         """Plot ideal particle trajectory associated with maximum reward."""
@@ -4610,11 +4678,12 @@ class FloPyEnv(gymEnv):
 
                 # points of the curve in figure coordinates:
                 x_fig,y_fig = (
-                    np.array(l) for l in zip(*self.axes.transData.transform([
+                    array(l) for l in zip(*self.axes.transData.transform([
                     (i,j) for i,j in zip(self.__x,self.__y)
                     ]))
                 )
 
+                import numpy as np
                 # point distances in figure coordinates
                 x_fig_dist = (x_fig[1:]-x_fig[:-1])
                 y_fig_dist = (y_fig[1:]-y_fig[:-1])
@@ -4677,11 +4746,14 @@ class FloPyEnv(gymEnv):
                     bbox2d = self.axes.transData.inverted().transform(bbox2)
                     dr = np.array(bbox2d[0]-bbox1d[0])
 
+                    from math import cos as mathCos
+                    from math import sin as mathSin
+
                     # the rotation/stretch matrix
                     rad = rads[il]
                     rot_mat = np.array([
-                        [math.cos(rad), math.sin(rad)*aspect],
-                        [-math.sin(rad)/aspect, math.cos(rad)]
+                        [mathCos(rad), mathSin(rad)*aspect],
+                        [-mathSin(rad)/aspect, mathCos(rad)]
                     ])
 
                     # computing the offset vector of the rotated character
@@ -4697,11 +4769,14 @@ class FloPyEnv(gymEnv):
                     # updating rel_pos to right edge of character
                     rel_pos += w-used
 
-        import math
-        import numpy as np
+        from numpy import cos as numpyCos
+        from numpy import sin as numpySin
+        from numpy import pi as numpyPi
+        # import math
+        # import numpy as np
         N = 500
-        self.wellSafetyZone_outer = [-1.0*self.wellRadius*np.cos(np.linspace(0, 2*np.pi, N)),
-                                      1.0*self.wellRadius*np.sin(np.linspace(0, 2*np.pi, N))]
+        self.wellSafetyZone_outer = [-1.0*self.wellRadius*numpyCos(linspace(0, 2*numpyPi, N)),
+                                      1.0*self.wellRadius*numpySin(linspace(0, 2*numpyPi, N))]
 
         label_onCircle = str(int(abs(self.wellQ))).replace("", ";")[1: -1] + r'   ;m;$^\mathrm{\mathsf{3}}$;   ;d;$^\mathrm{\mathsf{-1}}$'
         text = CurvedText(
@@ -4717,8 +4792,8 @@ class FloPyEnv(gymEnv):
             for i, c in enumerate(wellCoords):
                 Q = self.helperWells['wellQ'+str(i+1)]
                 color = self.renderGetWellColor(self.helperWells['wellQ'+str(i+1)])
-                helperWellSafetyZone_outer = [-1.0*self.helperWellRadius*np.cos(np.linspace(0, 2*np.pi, N)),
-                                              1.0*self.helperWellRadius*np.sin(np.linspace(0, 2*np.pi, N))]
+                helperWellSafetyZone_outer = [-1.0*self.helperWellRadius*numpyCos(linspace(0, 2*numpyPi, N)),
+                                              1.0*self.helperWellRadius*numpySin(linspace(0, 2*numpyPi, N))]
 
                 label_onCircle = str(int(abs(Q))).replace("", ";")[1: -1] # + r' ;m;$^\mathrm{\mathsf{3}}$; ;d;$^\mathrm{\mathsf{-1}}$'
                 text = CurvedText(
@@ -5265,7 +5340,7 @@ class FloPyEnv(gymEnv):
         return array
 
     def unnormalize(self, data):
-        from numpy import multiply
+        # from numpy import multiply
 
         keys = data.keys()
         if 'particleCoords' in keys:
@@ -5292,10 +5367,11 @@ class FloPyArcade():
         animationFolder=None, NAGENTSTEPS=200, PATHMF2005=None, PATHMP6=None,
         surrogateSimulator=None, flagSavePlot=False,
         flagManualControl=False, actions=None, flagRender=False,
-        keepTimeSeries=False, nLay=1, nRow=100, nCol=100,
+        keepTimeSeries=False, ENVTYPE='1s-d', nLay=1, nRow=100, nCol=100,
         OBSPREP='perceptron'):
         """Constructor."""
 
+        self.ENVTYPE = str(ENVTYPE)
         self.PATHMF2005 = PATHMF2005
         self.PATHMP6 = PATHMP6
         self.SURROGATESIMULATOR = surrogateSimulator
@@ -5319,17 +5395,25 @@ class FloPyArcade():
                          '5s-c', '5s-c-cost', '5r-c', # '5s-d', '5r-d'
                          '6s-c', '6r-c'  # '6s-d', '6r-d'
                          ]
-        self.wrkspc = FloPyEnv(initWithSolution=False).wrkspc
+        self.wrkspc = FloPyAgent().wrkspc
+        # if this is called, the rest instantiation in play will not take arguments
+        # self.wrkspc = FloPyEnv(initWithSolution=False).wrkspc
 
     def play(self, env=None, ENVTYPE='1s-d', seed=None, returnReward=False, verbose=False):
         """Play an instance of the Flopy arcade game."""
 
         t0 = time()
 
+        # print(self.MANUALCONTROL)
+        # print(env, self.ENVTYPE)
+
         # creating the environment
         if env is None:
             if self.SURROGATESIMULATOR is None:
-                self.env = FloPyEnv(ENVTYPE, self.PATHMF2005, self.PATHMP6,
+                # print('created', type(self.ENVTYPE))
+                self.env = FloPyEnv(
+                    ENVTYPE=self.ENVTYPE,
+                    PATHMF2005=self.PATHMF2005, PATHMP6=self.PATHMP6,
                     _seed=seed,
                     MODELNAME=self.MODELNAME if not None else 'FloPyArcade',
                     ANIMATIONFOLDER=self.ANIMATIONFOLDER if not None else 'FloPyArcade',
@@ -5340,7 +5424,8 @@ class FloPyArcade():
                     nLay=self.nLay,
                     nRow=self.nRow,
                     nCol=self.nCol,
-                    OBSPREP=self.OBSPREP)
+                    OBSPREP=self.OBSPREP,
+                    initWithSolution=True)
             elif self.SURROGATESIMULATOR is not None:
                 self.env = FloPyEnvSurrogate(self.SURROGATESIMULATOR, ENVTYPE,
                     MODELNAME=self.MODELNAME if not None else 'FloPyArcade',
