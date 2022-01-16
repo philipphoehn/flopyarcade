@@ -28,15 +28,15 @@ docker build -t flopyarcade --no-cache -f Dockerfile .
 
 ## See in action
 
-See an optimized policy model in control.
+See an optimized policy model in control of aquifer management.
 
 ```bash
 python -m flopyarcade.train_rllib_apexdqn --playbenchmark True --envtype 3s-d
 ```
 
-Until canceled (Alt+F4), the environment (editable, here 3s-d) will be machine-controlled in different environment initializations. Find benchmarks comparing performance to human control below.
+The environment (editable, here 3s-d) will be machine-controlled in different environment initializations, until canceled (Alt+F4). Find benchmarks comparing performance to human control below.
 
-Control yourself, for instance the 3r-d environment using the arrow keys:
+To control an environment yourself, for instance the 3r-d environment, use the arrow keys:
 
 ```bash
 python -m flopyarcade.play --manualcontrol True --envtype 3r-d
@@ -112,16 +112,20 @@ Below is a list of benchmarks on the simpler 1s-d, 2s-d and 3s-d environments, f
 
 In these benchmarks, the optimized policy model significantly outperforms human control.
 
-The optimization workflows for the policy models behind these benchmarks (trained using RLLib) and other benchmark data will soon be made available for reproducibility and completed. In these environments, the trained policy model significantly outperforms human control:
-
 ![averageEvolutions](flopyarcade/examples/benchmarks_averageEvolutions.png)
 ![operatorScores](flopyarcade/examples/benchmarks_operatorScores.png)
 
-As a temporary solution, RLLib checkpoints for restoring and using these policy models are stored in flopyarcade/examples/policymodels/.
+The optimization workflows for the policy models behind these benchmarks, can be reproduced using RLLib as follows:
+
+```bash
+python -m flopyarcade.train_rllib_apexdqn --envtype 3s-d
+```
+
+Note the envtype argument is interchangeable to any provided discrete-action environment. Work to optimize continuous-valued environments using RLLib is currently in progress. Similarly, any of the many reinforcement learning libraries can be used instead. The human operation benchmark data will soon be made available for completeness.
 
 ## More environments
 
-More environments are available, yet remain currently free of benchmarks. Note: '0s-d' is an experimental environment based on MODFLOW's BMI and not yet displayed.
+More environments are available, yet currently remain free of benchmarks. Note: '0s-d' is an experimental environment based on MODFLOW's BMI and not yet displayed.
 
 ![6s-c](flopyarcade/examples/environments/6s-c.gif)
 ![6r-c](flopyarcade/examples/environments/6r-c.gif)
