@@ -19,31 +19,20 @@ python -m pip install flopyarcade
 ```
 
 <!---
-Given [TensorFlow](https://www.tensorflow.org/)'s current compatibility, this project works with [Python 3](https://www.python.org/), tested up to version 3.7. 
-The installation is a 2-step procedure:
-
-1) To install all dependencies, create a directory and clone the master branch into it. The package manager [pip](https://pip.pypa.io/en/stable/) can then install them:
-
-```bash
-git clone -b master https://github.com/philipphoehn/FloPyArcade.git .
-pip install -r requirements.txt
-```
-
-2) For the environment-driving simulations to function, [MODFLOW2005](https://www.usgs.gov/software/modflow-2005-usgs-three-dimensional-finite-difference-ground-water-model) and [MODPATH]() need to be compiled on your system - either in a subdirectory named simulators or with the installation paths specified as variables when using FloPyArcade. This can easily be achieved across operating systems using [pymake](https://github.com/modflowpy/pymake). While still in the main project directory, create a subdirectory "simulators" and navigate to it. Then, follow pymake's instructions (possibly you have to point to the full path of make_mf2005.py and make_modpath6.py):
-
-```bash
-pip install https://github.com/modflowpy/pymake/zipball/master
-git clone https://github.com/modflowpy/pymake.git .
-python examples/make_mf2005.py
-python examples/make_modpath6.py
-```
-
 Alternatively: With dependencies on compiled simulators, deployment is recommended and easier in a Docker container. Create a directory first, navigate to it and build the container:
 
 ```bash
 docker build -t flopyarcade --no-cache -f Dockerfile .
 ```
 -->
+
+## See in action
+
+See an optimized policy model (benchmarks below) in control in different environment initializations (editable, here 3s-d):
+
+```bash
+python -m flopyarcade.train_rllib_apexdqn --playbenchmark True --envtype 3s-d
+```
 
 ## Rationale
 
