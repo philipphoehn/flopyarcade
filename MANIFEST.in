@@ -1,4 +1,16 @@
-exclude flopyarcade/examples/*.gif
-exclude flopyarcade/examples/*.png
-exclude flopyarcade/examples/environments
-include flopyarcade/simulators.zip
+# exclude flopyarcade/examples/*.gif
+# exclude flopyarcade/examples/*.png
+# exclude flopyarcade/examples/environments
+include flopyarcade/examples/policymodels/1s-d/.is_checkpoint
+include flopyarcade/examples/policymodels/1s-d/1s-d
+include flopyarcade/examples/policymodels/1s-d/1s-d.tune_metadata
+include flopyarcade/examples/policymodels/2s-d/.is_checkpoint
+include flopyarcade/examples/policymodels/2s-d/2s-d
+include flopyarcade/examples/policymodels/2s-d/2s-d.tune_metadata
+include flopyarcade/examples/policymodels/3s-d/.is_checkpoint
+include flopyarcade/examples/policymodels/3s-d/3s-d
+include flopyarcade/examples/policymodels/3s-d/3s-d.tune_metadata
+include flopyarcade/simulators/simulators_linux.zip
+include flopyarcade/simulators/simulators_mac.zip
+include flopyarcade/simulators/simulators_win32.zip
+include flopyarcade/simulators/simulators_win64.zip
