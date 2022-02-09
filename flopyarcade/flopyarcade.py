@@ -4501,7 +4501,7 @@ class FloPyEnv(gym.Env):
                 self.fig.set_size_inches(s)
 
             # temp
-            self.fig.savefig('C:\\Users\\admin\\Downloads\\forGitHub\\' + str(self.timeStep) + '.png')
+            # self.fig.savefig('C:\\Users\\admin\\Downloads\\forGitHub\\' + str(self.timeStep) + '.png')
 
             if not returnFigure:
                 if self.MANUALCONTROL:
