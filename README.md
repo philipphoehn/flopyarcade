@@ -18,6 +18,13 @@ Install in Python 3.7+ using pip:
 python -m pip install flopyarcade
 ```
 
+On Linux, additionally have the GNU Fortran compiler installed:
+
+```bash
+sudo apt install gfortran
+```
+
+
 <!---
 Alternatively: With dependencies on compiled simulators, deployment is recommended and easier in a Docker container. Create a directory first, navigate to it and build the container:
 
