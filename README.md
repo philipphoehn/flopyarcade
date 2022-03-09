@@ -62,11 +62,11 @@ python -m flopyarcade.play --manualcontrol True --envtype 3r-d
 Find the full benchmarking history visualized in the following videos - in case of curiosity about seeing control behavior compared:
 
 <p align="center">
-<a href="https://www.youtube.com/watch?v=LpQ8vY6zn78"><img alt="YouTube 3s-d" src="flopyarcade/examples/environments/YouTube_cue_3s-d.png" width="32%"></a>
+<a href="https://www.youtube.com/watch?v=LpQ8vY6zn78"><img alt="YouTube 3s-d" src="flopyarcade/examples/environments/YouTube_cue_3s-d.png" width="30%"></a>
 &nbsp; &nbsp;
-<a href="https://www.youtube.com/watch?v=VOg-d8rdQH0"><img alt="YouTube 2s-d" src="flopyarcade/examples/environments/YouTube_cue_2s-d.png" width="32%"></a>
+<a href="https://www.youtube.com/watch?v=VOg-d8rdQH0"><img alt="YouTube 2s-d" src="flopyarcade/examples/environments/YouTube_cue_2s-d.png" width="30%"></a>
 &nbsp; &nbsp;
-<a href="https://www.youtube.com/watch?v=eJ0YwvzvvXc"><img alt="YouTube 1s-d" src="flopyarcade/examples/environments/YouTube_cue_1s-d.png" width="32%"></a>
+<a href="https://www.youtube.com/watch?v=eJ0YwvzvvXc"><img alt="YouTube 1s-d" src="flopyarcade/examples/environments/YouTube_cue_1s-d.png" width="30%"></a>
 </p>
 
 ## Getting started
