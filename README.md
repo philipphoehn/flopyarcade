@@ -33,6 +33,16 @@ docker build -t flopyarcade --no-cache -f Dockerfile .
 ```
 -->
 
+## Rationale
+
+These are example simulations from benchmarking in environment 3s-d - comparing different control agents:
+
+![benchmarkcontrolexample](flopyarcade/examples/benchmarkcontrolexample.gif)
+
+Why this matters, in a nutshell: What is encapsulated in a game here, can be envisioned to be a real-world operation of an arbitrary groundwater system given a model (ensemble). You can similarly optimize and test policy models, e.g. for real-time operation of your sites.
+
+Too late, with the peak of arcade games a few decades ago, you would think? Obviously. But they received renewed interest with the advent of [OpenAI Gym](https://gym.openai.com/) enabling to score past human performance with reinforcement learning. FloPyArcade offers a set of simple simulated groundwater flow environments, following their [style of environments](https://gym.openai.com/envs/#atari). They allow to experiment with existing or new reinforcement learning algorithms to find e.g. neural networks that yield optimal control policies. Two common learning algorithms are readily provided. Many more are and become available throughout the reinforcement learning community. Try and train for yourself. Adding your own simulation environment of arbitrary complexity with your own controls or your own optimization algorithm is possible.
+
 ## See in action
 
 See an optimized policy model in control of aquifer management.
@@ -50,16 +60,8 @@ python -m flopyarcade.play --manualcontrol True --envtype 3r-d
 ```
 
 [![YouTube 3s-d](flopyarcade/examples/environments/YouTube_cue_3s-d.png)](https://www.youtube.com/watch?v=LpQ8vY6zn78 "3s-d in action")
-
-## Rationale
-
-These are example simulations from benchmarking in environment 3s-d - comparing different control agents:
-
-![benchmarkcontrolexample](flopyarcade/examples/benchmarkcontrolexample.gif)
-
-Why this matters, in a nutshell: What is encapsulated in a game here, can be envisioned to be a real-world operation of an arbitrary groundwater system given a model (ensemble). You can similarly optimize and test policy models, e.g. for real-time operation of your sites.
-
-Too late, with the peak of arcade games a few decades ago, you would think? Obviously. But they received renewed interest with the advent of [OpenAI Gym](https://gym.openai.com/) enabling to score past human performance with reinforcement learning. FloPyArcade offers a set of simple simulated groundwater flow environments, following their [style of environments](https://gym.openai.com/envs/#atari). They allow to experiment with existing or new reinforcement learning algorithms to find e.g. neural networks that yield optimal control policies. Two common learning algorithms are readily provided. Many more are and become available throughout the reinforcement learning community. Try and train for yourself. Adding your own simulation environment of arbitrary complexity with your own controls or your own optimization algorithm is possible.
+[![YouTube 2s-d](flopyarcade/examples/environments/YouTube_cue_2s-d.png)](https://www.youtube.com/watch?v=VOg-d8rdQH0 "2s-d in action")
+[![YouTube 1s-d](flopyarcade/examples/environments/YouTube_cue_1s-d.png)](https://www.youtube.com/watch?v=eJ0YwvzvvXc "1s-d in action")
 
 ## Getting started
 
