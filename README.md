@@ -59,14 +59,15 @@ To control an environment yourself, for instance the 3r-d environment, use the a
 python -m flopyarcade.play --manualcontrol True --envtype 3r-d
 ```
 
-<p align="center">
-<a href="https://www.youtube.com/watch?v=LpQ8vY6zn78"><img alt="YouTube 3s-d" src="flopyarcade/examples/environments/YouTube_cue_3s-d.png" width="30%"></a>
-&nbsp; &nbsp; &nbsp; &nbsp;
-<a href="https://www.youtube.com/watch?v=VOg-d8rdQH0"><img alt="YouTube 2s-d" src="flopyarcade/examples/environments/YouTube_cue_2s-d.png" width="30%"></a>
-&nbsp; &nbsp; &nbsp; &nbsp;
-</p>
+Find the full benchmarking history visualized in the following videos - in case of curiosity about seeing control behavior compared:
 
-[![YouTube 3s-d](flopyarcade/examples/environments/YouTube_cue_3s-d.png)](https://www.youtube.com/watch?v=LpQ8vY6zn78 "3s-d in action") [![YouTube 2s-d](flopyarcade/examples/environments/YouTube_cue_2s-d.png)](https://www.youtube.com/watch?v=VOg-d8rdQH0 "2s-d in action") [![YouTube 1s-d](flopyarcade/examples/environments/YouTube_cue_1s-d.png)](https://www.youtube.com/watch?v=eJ0YwvzvvXc "1s-d in action")
+<p align="center">
+<a href="https://www.youtube.com/watch?v=LpQ8vY6zn78"><img alt="YouTube 3s-d" src="flopyarcade/examples/environments/YouTube_cue_3s-d.png" width="32%"></a>
+&nbsp; &nbsp;
+<a href="https://www.youtube.com/watch?v=VOg-d8rdQH0"><img alt="YouTube 2s-d" src="flopyarcade/examples/environments/YouTube_cue_2s-d.png" width="32%"></a>
+&nbsp; &nbsp;
+<a href="https://www.youtube.com/watch?v=eJ0YwvzvvXc"><img alt="YouTube 1s-d" src="flopyarcade/examples/environments/YouTube_cue_1s-d.png" width="32%"></a>
+</p>
 
 ## Getting started
 
