@@ -49,6 +49,10 @@ To control an environment yourself, for instance the 3r-d environment, use the a
 python -m flopyarcade.play --manualcontrol True --envtype 3r-d
 ```
 
+<p align="center">
+<iframe width="560" height="315" src="https://www.youtube.com/embed/eJ0YwvzvvXc" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</p>
+  
 ## Rationale
 
 These are example simulations from benchmarking in environment 3s-d - comparing different control agents:
