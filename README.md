@@ -59,9 +59,7 @@ To control an environment yourself, for instance the 3r-d environment, use the a
 python -m flopyarcade.play --manualcontrol True --envtype 3r-d
 ```
 
-[![YouTube 3s-d](flopyarcade/examples/environments/YouTube_cue_3s-d.png)](https://www.youtube.com/watch?v=LpQ8vY6zn78 "3s-d in action")
-[![YouTube 2s-d](flopyarcade/examples/environments/YouTube_cue_2s-d.png)](https://www.youtube.com/watch?v=VOg-d8rdQH0 "2s-d in action")
-[![YouTube 1s-d](flopyarcade/examples/environments/YouTube_cue_1s-d.png)](https://www.youtube.com/watch?v=eJ0YwvzvvXc "1s-d in action")
+[![YouTube 3s-d](flopyarcade/examples/environments/YouTube_cue_3s-d.png)](https://www.youtube.com/watch?v=LpQ8vY6zn78 "3s-d in action") [![YouTube 2s-d](flopyarcade/examples/environments/YouTube_cue_2s-d.png)](https://www.youtube.com/watch?v=VOg-d8rdQH0 "2s-d in action") [![YouTube 1s-d](flopyarcade/examples/environments/YouTube_cue_1s-d.png)](https://www.youtube.com/watch?v=eJ0YwvzvvXc "1s-d in action")
 
 ## Getting started
 
