@@ -58,7 +58,7 @@ setup(
 					  'ray[tune]==1.9.2',
 					  'ray[rllib]==1.9.2',
 					  'scikit-image==0.17.2',
-					  'tensorflow==2.8.1', # 2.5.2
+					  'tensorflow==2.9.3', # 2.5.2
 					  'tqdm==4.25.0',
 					  'xmipy==1.0.0',
 					  ],
