@@ -52,7 +52,7 @@ setup(
 					  'numpy==1.22.0',
 					  'pandas==1.3.5',
 					  'pathos==0.2.7',
-					  'pillow==9.0.1',
+					  'pillow==9.3.0',
 					  'pygame==2.0.1',
 					  'ray==1.9.2',
 					  'ray[tune]==1.9.2',
