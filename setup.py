@@ -19,7 +19,7 @@ from setuptools import find_packages
 
 # official
 # python setup.py sdist
-# twine upload dist\flopyarcade-0.2.19.tar.gz
+# twine upload dist\flopyarcade-0.3.31.tar.gz
 # python -m pip install flopyarcade
 
 # using dependency-links did not work (anymore with this pip version)
@@ -34,7 +34,7 @@ def post_install(package):
 
 setup(
 	name='flopyarcade',
-	version='0.3.19',
+	version='0.3.31',
 	description='Simulated groundwater flow environments for reinforcement learning.',
 	url='https://github.com/philipphoehn/flopyarcade',
 	author='Philipp Hoehn',
@@ -43,25 +43,28 @@ setup(
 	packages=find_packages(),
 	include_package_data=True,
 	install_requires=[
-					  'gym==0.21.0',
-					  'imageio==2.9.0',
-					  'ipython==7.16.3',
+					  'flopy==3.3.5',
+					  # https://stackoverflow.com/questions/71411045/how-to-solve-module-gym-wrappers-has-no-attribute-monitor
+					  'gym==0.21.0', # update breaks playbenchmark
+					  'imageio==2.22.4',
+					  'ipython==7.34.0', # 8.7.0 on newer Python versions
 					  'joblib==1.2.0',
-					  'lz4==3.1.1',
-					  'matplotlib==3.2.2',
-					  'importlib-metadata==4.13.0',
-					  'numpy==1.22.0',
-					  'pandas==1.3.5',
-					  'pathos==0.2.7',
+					  'lz4==4.0.2',
+					  'matplotlib==3.5.3', # 3.6.2 on newer Python versions
+					  # https://stackoverflow.com/questions/73929564/entrypoints-object-has-no-attribute-get-digital-ocean
+					  'importlib-metadata==4.13.0', # update breaks
+					  'numpy==1.21.6', # 1.22.0 on newer Python versions
+					  'pandas==1.3.5', # 1.5.2 on newer Python versions
+					  'pathos==0.3.0',
 					  'pillow==9.3.0',
-					  'pygame==2.0.1',
-					  'ray==1.9.2',
-					  'ray[tune]==1.9.2',
-					  'ray[rllib]==1.9.2',
-					  'scikit-image==0.17.2',
-					  'tensorflow==2.9.3', # 2.5.2
-					  'tqdm==4.25.0',
-					  'xmipy==1.0.0',
+					  'pygame==2.1.2',
+					  'ray==1.9.2', # 2.1.0 but requires new benchmark checkpoints
+					  'ray[tune]==1.9.2', # 2.1.0 but requires new benchmark checkpoints
+					  'ray[rllib]==1.9.2', # 2.1.0 but requires new benchmark checkpoints
+					  'scikit-image==0.19.3',
+					  'tensorflow==2.11.0',
+					  'tqdm==4.64.1',
+					  'xmipy==1.0.0', # 1.2.0 # update breaks
 					  ],
 
 	classifiers=[
@@ -83,6 +86,6 @@ setup(
 	)
 
 # https://stackoverflow.com/questions/20288711/post-install-script-with-python-setuptools
-# necessary as quiet flopy version is not on PyPi, yet
-post_install('https://test-files.pythonhosted.org/packages/07/30/b2d5af6d652016bee97b2da5351ab5a49f5c7361f94bc63c49b43cd0bd8e/flopy-3.3.5a3.zip#sha256=98a972f60fd955d4a92802050ce6867afefea74a80deda0568438e2499ab0578')
+# not necessary anymore, as currently flopy==3.3.5 became available on PyPi
+# post_install('https://test-files.pythonhosted.org/packages/07/30/b2d5af6d652016bee97b2da5351ab5a49f5c7361f94bc63c49b43cd0bd8e/flopy-3.3.5a3.zip#sha256=98a972f60fd955d4a92802050ce6867afefea74a80deda0568438e2499ab0578')
 # post_install('https://test-files.pythonhosted.org/packages/18/c3/2763b5ca540233456b5ec31622df0de7853e2e97a37396e3d125ae1a4345/flopy-3.3.5a2.zip#sha256=34a11333301ecc44c5bfd95c84f9e969d8eb39267a44582130e9a5b083a876af')
