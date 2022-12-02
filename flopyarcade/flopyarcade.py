@@ -2318,7 +2318,8 @@ class FloPyEnv(gym.Env):
             self.actionSpaceSize = self.getActionSpaceSize(self.actionsDict)
             self.renderFlag = flagRender
             if system() == 'Windows':
-                self.add_lib_dependencies([join(self.wrkspc, 'simulators', 'win-builds', 'bin')])
+                # currently only supported in win64
+                self.add_lib_dependencies([join(self.wrkspc, 'simulators', 'win64', 'win-builds', 'bin')])
 
             self.constructModel()
 
@@ -2427,6 +2428,8 @@ class FloPyEnv(gym.Env):
             modelname = self.name
             exe = self.mf6dll
 
+            self.alive = True
+
             self.nameUpper = self.name.upper()
             if self.model_ws is not None:
                 chdir(self.model_ws)
@@ -2532,7 +2535,7 @@ class FloPyEnv(gym.Env):
             # print(self.mf6.get_output_var_names())
 
             # retrieving copy of recharge array
-            rch_tag = self.mf6.get_var_address("BOUND", self.nameUpper, "RCHA")
+            rch_tag = self.mf6.get_var_address("BOUND", self.nameUpper, "RCHA_0")
             new_recharge = self.mf6.get_value(rch_tag).copy()
 
             grid_shape = shape(head.reshape((self.nlay, self.nrow, self.ncol)))
@@ -2542,6 +2545,10 @@ class FloPyEnv(gym.Env):
             self.max_iter = self.mf6.get_value(mxit_tag)
 
             # get copy of well data
+
+            # currently requires copying of set_value function from https://github.com/Deltares/xmipy/blob/develop/xmipy/xmiwrapper.py
+            # to local installation
+
             self.well_tag = self.mf6.get_var_address("BOUND", self.nameUpper, "WEL_0")
             self.well = self.mf6.get_value(self.well_tag)
 
@@ -2579,6 +2586,7 @@ class FloPyEnv(gym.Env):
             observation += observations_wells
             observation += observations_storms
 
+            self.observations = observation
             self.observationsVectorNormalized = observation
             reward = 0.
             self.done = False
@@ -2716,7 +2724,7 @@ class FloPyEnv(gym.Env):
             # print('initial shape(self.observations)', shape(self.observations))
 
     # def step(self, observations, action, rewardCurrent, teardownOnFinish=False):
-    def step(self, action):
+    def step(self, action, teardownOnFinish=True):
 
         """Perform a single step of forwards simulation."""
 
@@ -2748,7 +2756,7 @@ class FloPyEnv(gym.Env):
                 head = self.mf6.get_value_ptr(head_tag)
                 self.head = head
 
-                rch_tag = self.mf6.get_var_address("BOUND", self.nameUpper, "RCHA")
+                rch_tag = self.mf6.get_var_address("BOUND", self.nameUpper, "RCHA_0")
                 new_recharge = self.mf6.get_value(rch_tag)
 
                 # updating well location
@@ -2797,6 +2805,17 @@ class FloPyEnv(gym.Env):
                 # print(self.current_time, Qs)
 
                 self.well[:, 0] = Qs
+
+                # print('NODELIST', wel_x, type(wel_x), type(wel_x[0]))
+                # print(dir(self.mf6))
+                import numpy as np
+                _values = add(multiply(wel_x, 0), wellCells)
+                _values = np.int32(_values)
+                # for i, v in enumerate(_values):
+                    # _values[i] = np.float64(float(v))
+                # print(type(_values[0]))
+                # print(wel_xtag, _values)
+
                 self.mf6.set_value(self.well_tag, self.well)
 
                 # updating recharge randomly
@@ -2896,6 +2915,7 @@ class FloPyEnv(gym.Env):
             # print('time 9', time()-t0Step)
 
             # print('time per step', time()-t0Step)
+            self.observations = observation
             self.observationsVectorNormalized = observation
 
             return self.observationsVectorNormalized, reward, self.done, info
@@ -3056,9 +3076,9 @@ class FloPyEnv(gym.Env):
                     self.observationsNormalized)
 
             if self.observations['particleCoords'][0] >= self.extentX - self.dCol:
-                self.success = True
+                self.alive = True
             else:
-                self.success = False
+                self.alive = False
 
             if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
                 self.stressesVectorNormalized = [(self.actionValueSouth - self.minH)/(self.maxH - self.minH),
@@ -3210,6 +3230,8 @@ class FloPyEnv(gym.Env):
             self.nper = 1
             # self.nstp = 200
             self.nstp = 50
+            self.maxSteps = self.nstp
+
 
             self.tdis_rc = []
             self.tdis_rc.append((self.perlen, self.nstp, 1))
@@ -4316,15 +4338,14 @@ class FloPyEnv(gym.Env):
             initWithSolution=self.initWithSolution
         
         if self.ENVTYPE in ['0s-c']:
-            # self.model_ws = os.path.join(self.wrkspc, 'models', self.exdir)
-            # self.define_environment(_seed)
-            # self.build_model(self.model_ws, self.name)
-
-            self.model_ws = join(self.wrkspc, 'models', MODELNAME)
-            # self.define_environment(_seed)
-            self.defineEnvironment(self._SEED)
-            # self.build_model(self.model_ws, MODELNAME)
+            # self.model_ws = join(self.wrkspc, 'models', MODELNAME)
+            self.model_ws = join(self.wrkspc, 'models', self.exdir)
+            self.defineEnvironment(_seed)
             self.constructModel()
+            if self.timeStep == self.nstp:
+                # on repeated reset
+                # to reset timesteps etc.
+                self.stepInitial()
 
             # env = self.env
             # # resetting to unique temporary folder to enable parallelism
@@ -4385,9 +4406,10 @@ class FloPyEnv(gym.Env):
             ax.cla()
             ax.set_title('step ' + str(self.timeStep) + ', reward ' + '%.2f' % (float(self.rewardCurrent)))
 
-            fname = join(self.wrkspc, 'models', self.MODELNAME, self.MODELNAME + '.dis.grb')
+            # fname = join(self.wrkspc, 'models', self.MODELNAME, self.MODELNAME + '.dis.grb')
+            fname = join(self.model_ws, self.MODELNAME + '.dis.grb')
             grd = MfGrdFile(fname, verbose=False)
-            mg = grd.get_modelgrid()
+            mg = grd.modelgrid # get_modelgrid()
             modelmap = PlotMapView(modelgrid=mg, ax=ax) # modelgrid=mg
             modelmap.plot_grid(alpha=0.1)
             cmap = ListedColormap(['r','g',])
