@@ -34,7 +34,7 @@ def post_install(package):
 
 setup(
 	name='flopyarcade',
-	version='0.3.31',
+	version='0.3.32',
 	description='Simulated groundwater flow environments for reinforcement learning.',
 	url='https://github.com/philipphoehn/flopyarcade',
 	author='Philipp Hoehn',
@@ -45,7 +45,7 @@ setup(
 	install_requires=[
 					  'flopy==3.3.5',
 					  # https://stackoverflow.com/questions/71411045/how-to-solve-module-gym-wrappers-has-no-attribute-monitor
-					  'gym==0.21.0', # update breaks playbenchmark
+					  'gym==0.22.0', # update breaks playbenchmark
 					  'imageio==2.22.4',
 					  'ipython==7.34.0', # 8.7.0 on newer Python versions
 					  'joblib==1.2.0',
