@@ -46,7 +46,7 @@ setup(
 					  'gym==0.21.0',
 					  'imageio==2.9.0',
 					  'ipython==7.16.3',
-					  'joblib==1.0.0',
+					  'joblib==1.2.0',
 					  'lz4==3.1.1',
 					  'matplotlib==3.2.2',
 					  'numpy==1.22.0',
