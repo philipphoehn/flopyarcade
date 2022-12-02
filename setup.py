@@ -58,9 +58,9 @@ setup(
 					  'pathos==0.3.0',
 					  'pillow==9.3.0',
 					  'pygame==2.1.2',
-					  'ray==1.9.2', # 2.1.0 but requires new benchmark checkpoints
-					  'ray[tune]==1.9.2', # 2.1.0 but requires new benchmark checkpoints
-					  'ray[rllib]==1.9.2', # 2.1.0 but requires new benchmark checkpoints
+					  'ray==1.9.2', # 2.1.0 requires new benchmark checkpoints
+					  'ray[tune]==1.9.2', # 2.1.0 requires new benchmark checkpoints
+					  'ray[rllib]==1.9.2', # 2.1.0 requires new benchmark checkpoints
 					  'scikit-image==0.19.3',
 					  'tensorflow==2.11.0',
 					  'tqdm==4.64.1',
