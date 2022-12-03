@@ -34,7 +34,7 @@ def post_install(package):
 
 setup(
 	name='flopyarcade',
-	version='0.3.33',
+	version='0.3.34',
 	description='Simulated groundwater flow environments for reinforcement learning.',
 	url='https://github.com/philipphoehn/flopyarcade',
 	author='Philipp Hoehn',
