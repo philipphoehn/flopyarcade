@@ -62,7 +62,7 @@ setup(
 					  'ray[tune]==1.9.2', # 2.1.0 requires new benchmark checkpoints
 					  'ray[rllib]==1.9.2', # 2.1.0 requires new benchmark checkpoints
 					  'scikit-image==0.19.3',
-					  'tensorflow==2.11.0',
+					  'tensorflow==2.11.1',
 					  'tqdm==4.64.1',
 					  'xmipy==1.0.0', # 1.2.0 # update breaks
 					  ],
