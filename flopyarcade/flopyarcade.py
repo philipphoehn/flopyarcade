@@ -120,8 +120,24 @@ class FloPyAgent():
     """
 
     def getActionType(self, ENVTYPE):
-        """Retrieve action type from ENVTYPE variable."""
-        
+        """Determine whether the environment has a discrete or continuous action type, based on its name.
+    
+        Args:
+          ENVTYPE (str) : Name of Environment
+    
+        Raises:
+            ValueError : If 'd' is not in the name and neither is 'c'.
+    
+        Returns:
+            str : Either "discrete" or "continuous".
+    
+        Examples:
+          >>> getActionType("CartPole-v1")
+              "discrete"
+          >>> getActionType("MountainCarContinuous-v0")
+              "continuous"
+    
+        """        
         if '-d' in ENVTYPE:
             actionType = 'discrete'
         elif '-c' in ENVTYPE:
