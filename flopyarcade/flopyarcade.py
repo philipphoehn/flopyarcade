@@ -120,7 +120,8 @@ class FloPyAgent():
     """
 
     def getActionType(self, ENVTYPE):
-        """Determine whether the environment has a discrete or continuous action type, based on its name.
+        """
+        Determine whether the environment has a discrete or continuous action type, based on its name.
     
         Args:
           ENVTYPE (str) : Name of Environment
@@ -137,7 +138,8 @@ class FloPyAgent():
           >>> getActionType("MountainCarContinuous-v0")
               "continuous"
     
-        """        
+        """
+        
         if '-d' in ENVTYPE:
             actionType = 'discrete'
         elif '-c' in ENVTYPE:
@@ -265,13 +267,17 @@ class FloPyAgent():
                     self.envSettings['MODELNAME'] + '_hyParams.p'))
 
     def initializeDQNAgent(self):
-        """Initialize agent to perform Deep Double Q-Learning.
-        Bug fix for predict function:
-        https://github.com/keras-team/keras/issues/6462
         """
-
+        Initializes a DQN agent's main and target models, and replay memory buffer.
+        Bug fix for predict function: https://github.com/keras-team/keras/issues/6462
+        
+        Parameters:
+            self (DQNAgent): An instance of the DQNAgent class that holds the neural network models used for training on the environment. 
+        
+        Returns: None
+        """
+        
         # actionType = self.envSettings
-
         actionType = FloPyEnv(initWithSolution=False).getActionType(self.envSettings['ENVTYPE'])
         
         # initializing main predictive and target model
@@ -289,7 +295,14 @@ class FloPyAgent():
         self.targetUpdateCount = 0
 
     def initializeGeneticAgents(self):
-        """Initialize genetic ensemble of agents."""
+        """
+        Initializes an ensemble of genetic agents with their associated models and history of mutations.
+        
+        Parameters:
+            self (GeneticAgent): An instance of the GeneticAgent class that holds the neural network models used for training on the environment.
+        
+        Returns: None
+        """
 
         if self.envSettings['KEEPMODELHISTORY']:
             chunksTotal = self.yieldChunks(arange(self.hyParams['NAGENTS']),
@@ -305,7 +318,19 @@ class FloPyAgent():
                 self.mutationHistory = self.updateMutationHistory(self.mutationHistory, agentNumber, creationSeed, mutationSeeds=[], mutationSeed=None)
 
     def setSeeds(self):
-        """Set seeds."""
+        """
+        Set seeds.
+        
+        Parameters
+        ----------
+        envSettings : dict, required 
+            A dictionary containing environment settings for this agent. This should include a SEEDAGENT key which will be used to set numpy seed and random state of the agent.
+        
+        Returns
+        -------
+        None
+        """
+        
         self.SEED = self.envSettings['SEEDAGENT']
         numpySeed(self.SEED)
         randomSeed(self.SEED)
