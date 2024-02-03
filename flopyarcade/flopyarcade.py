@@ -339,8 +339,46 @@ class FloPyAgent():
     def runDQN(self, env):
         """
         Run main pipeline for Deep Q-Learning optimisation.
-        # Inspiration and larger parts of code modified after sentdex
-        # https://pythonprogramming.net/deep-q-learning-dqn-reinforcement-learning-python-tutorial/
+
+        Inspiration and larger parts of code modified after sentdex:
+        https://pythonprogramming.net/deep-q-learning-dqn-reinforcement-learning-python-tutorial/
+
+    
+        Parameters:
+            self (agent object) - agent instance with all attributes and methods
+                - actionType attribute is used to determine which type of action
+                    to perform in the game, whether it be random or from policy
+                - envSettings dictionary contains settings for model name, seed 
+                    number, reward threshold minimum, and epsilon decay parameters
+            env (environment object) - environment instance with all attributes
+                and methods; this is used to run games on an agent. It is called 
+                    to reset the game, to determine if a game was successful or not,
+                        and also contains information about the reward earned from the game.
+    
+        Returns:
+            None - does not return anything but updates self attributes with results
+                of each game played by the agent. These include rewards (gameReward),
+                    min/max/average cross-validated scores, and epsilon decay parameters.
+    
+        Raises:
+            None - does not raise any exceptions but will print errors if 
+                something goes wrong with running the agent
+    
+        Example usage of runDQN function:
+            # initialize a DQN agent object instance; this is where the actionType,
+                    epsilon decay parameters, and other attributes are set for the agent.
+            agent = DQNAgent(envSettings)
+    
+            # initialize an environment object instance to be used by the agent.
+                This could also be a different environment than what was originally 
+                used when training the model weights loaded into the network model of this agent,
+                    if you want to test how well it can generalize to new environments.
+            env = Environment()
+    
+            # run games with agent and update results each game played until done playing
+                This function is where actionType, epsilon decay parameters, and other 
+                attributes are used for the agent during training.
+            agent.runDQN(env)
         """
 
         self.actionType = env.actionType
