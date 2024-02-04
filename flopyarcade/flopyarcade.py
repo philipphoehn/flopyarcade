@@ -944,7 +944,38 @@ class FloPyAgent():
         return rangeLower, rangeHigher, iAgentInCroppedArray, needsUpdate
 
     def createNNModel(self, actionType, seed=None):
-        """Create neural network."""
+
+        """
+        Creates a multi-layer perceptron (MLP) neural network model.
+    
+        The type of MLP is determined by the NNTYPE parameter in hyParams dictionary, 
+        either 'perceptron' or 'convolution'.
+            - If 'perceptron', then fully-connected feed-forward multi-layer neural 
+              network.
+                * Applies architecture (variable number of nodes per hidden layer).
+    
+            - elif 'convolutional', then convolutional feed-forward neural network, with
+              2D convolutional layers and a flattened dense output layer for action space outputs.
+    
+        The initializer used is determined by the ACTIVATION parameter in hyParams 
+        dictionary. It can be one of 'glorot_normal', 'glorot_uniform', 'random_uniform' or 'random_normal'. 
+            - If not specified, then use glorot normal initialization.
+    
+        Parameters:
+            1) actionType (str): the type of agent action space being used, either 'discrete' or 'continuous':
+                * If 'discrete', then the model output layer has a linear activation function and uses softmax for 
+                  predicting probabilities.
+    
+                * elif 'continuous', then the model output layer has sigmoid activation function.
+            2) seed (int, optional): numpy random state/seed to use when generating initializer objects. Defaults to None.
+    
+        Returns:
+            keras Model object: uncompiled neural network model architecture.
+    
+        Raises:
+            ValueError: if the NNTYPE parameter in hyParams dictionary is not 'perceptron' or 'convolution'.
+        """
+            
         if seed is None:
             seed = self.SEED
         model = Sequential()
