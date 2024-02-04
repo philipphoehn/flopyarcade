@@ -1210,8 +1210,21 @@ class FloPyAgent():
             self.replayMemory[-i][2] = 0.0
 
     def train(self, terminal_state, step):
-        """Trains main network every step during a game."""
-
+        """
+         Trains main network every step during a game using randomized batches from memory replay table to update Q-values.
+    
+        Args:
+            - self is the class instance of this method, which contains all attributes needed for training.
+                This includes:
+                    - `replayMemory`: list of tuples that holds memories of states, actions and reward over time;
+                                   each tuple represents a single transition or "step" in an episode
+            - terminal_state (bool): Boolean indicating if we are at the end of the game
+            - step (int): current timestep within episode.
+            
+        Returns:
+             None
+        """
+        
         # training only if certain number of samples is already saved
         if len(self.replayMemory) < self.hyParams['REPLAYMEMORYSIZEMIN']:
             return
