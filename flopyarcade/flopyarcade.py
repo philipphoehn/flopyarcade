@@ -1771,8 +1771,28 @@ class FloPyAgent():
         # print(agentIdx, 'save', time()-t0)
 
     def returnChildrenGenetic(self, sortedParentIdxs):
-        """Mutate best parents, keep elite child and save them to disk
-        individually.
+        """
+        Returns child agents by mutating parent agents and adds them to 
+        the history of training models. In other words: Mutate best parents,
+        keep elite child and save them to disk individually.
+    
+        Parameters
+        ----------
+        self : object instance
+    
+        sortedParentIdxs : list or array_like
+                Indices of top ranked agents (i.e. parents) for mutation.
+    
+        Returns
+        -------
+        None 
+            Saves results to file and attributes in `self`.
+    
+        Examples
+        --------
+        >>> self = object instance that holds environment settings, model 
+                parameters, etc.
+        >>> sortedParentIdxs : list or array_like
         """
 
         if self.rereturnChildrenGenetic:
