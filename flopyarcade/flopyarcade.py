@@ -1736,10 +1736,32 @@ class FloPyAgent():
         return reward_agentsMean
 
     def randomAgentGenetic(self, agentIdx, generation=1):
-        """Creates an agent for genetic optimisation and saves
-        it to disk individually.
         """
-
+        Randomly generate an agent for genetic optimisation
+        and save to a temporary model path with unique id.
+        
+        Parameters:
+            self : Agent class instance
+                Instance of the Agent class that can create a neural network (NN).
+        
+            agentIdx : int or float-like
+                The index of the agent being generated, e.g., 1 for first agent.
+        
+            generation : int or float-like
+                Generation number, which is used to determine how many generations have been run.
+        
+        Returns:
+            None
+        
+        Raises:
+            ValueError - if the `agentIdx` parameter is not a positive integer or zero.
+            TypeError - if the `self` parameter has no `.envSettings`, `.tempModelpth`, and/or `.zFill`.
+        
+        Todo:
+            * Use type hints for parameters instead of docstrings, when possible. (https://stackoverflow.com/questions/15806349)
+            * Add more tests to check if the agent is saved with unique pathname and that the `agentIdx` is positive integer or zero.
+        """
+        
         # t0 = time()
         actionType = FloPyEnv(initWithSolution=False).getActionType(self.envSettings['ENVTYPE'])
         agent = self.createNNModel(actionType, seed=self.envSettings['SEEDAGENT']+agentIdx)
