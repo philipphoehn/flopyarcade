@@ -750,7 +750,19 @@ class FloPyAgent():
             print('')
 
     def loadActions(self, agents=None):
-
+        """
+        Load actions from a given agent and returns them as an array.
+    
+        Parameters:
+            self (NoveltyArchive) : A novelty archive class object.
+    
+            agents (list of ints or noneType) : The list of integers that represent the indices for each unique agent in the archive. 
+                If no list is provided, then use all the unique agents as defined by the instance variable `agentsUnique`.
+    
+        Returns:
+            sharedArrayActions (np.ndarray) : An array containing all of the actions from each agent that was loaded into the function.
+            """
+        
         if agents == None:
             agents = self.agentsUnique
 
