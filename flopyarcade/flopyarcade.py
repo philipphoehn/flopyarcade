@@ -1376,8 +1376,21 @@ class FloPyAgent():
                 break
 
     def crossvalidateDQN(self, env):
-        """Simulate a given number of games and cross-validate current DQN
+        """
+        Simulate a given number of games and cross-validate current DQN
         success.
+    
+        Parameters
+            self (object): The object instance of this class.
+            env (environment object): the environment we want to use for testing our model.
+    
+        Returns: None, but updates the attributes `gameRewardsCV`, `average_rewardCV`, 
+                `min_rewardCV` and `max_rewardCV`.
+    
+        Examples
+            >>> crossvalidateDQN(self=mySelfObject, env=myEnvObject)
+            # This will update the attributes of mySelfObject with the results of
+            # running this function.
         """
 
         # loop to cross-validate on unique set of models
