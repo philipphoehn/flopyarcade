@@ -2091,8 +2091,21 @@ class FloPyAgent():
         return random(shape) < probability
 
     def getqsGivenAgentModel(self, agentModel, state):
-        """ Query given model for Q values given observations of state
         """
+        Return the action/actions and predicted Q value(s), given a state.
+        
+        Parameters
+        ----------
+            agentModel (tf model) : A TensorFlow keras model of type DQN.
+                The model should be trained beforehand to have any useful predictions.
+    
+            state (np array) : A numpy ndarray containing the game board or environment state.
+    
+        Returns
+        -------
+            prediction (list, tuple) : Containing the action(s), and the predicted Q value for each of them.
+            """
+    
         # predict_on_batch robust in parallel operation?
 
         # t0 = time()
