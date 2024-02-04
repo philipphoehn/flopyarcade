@@ -1303,8 +1303,27 @@ class FloPyAgent():
         Take an action and update as well as train the main network every
         step during a game. Acts as the main operating body of the runDQN
         function.
+    
+        Parameters:
+            self (object) : The current instance of the class that contains this function object; allows for access to other objects within the same instance.
+            env (class instance) : An environment class instance with functions that can be called on from inside this function, e.g. env.observationsVectorNormalized() and env.step(action).
+    
+        Returns:
+            No return value. Instead, updates attributes of the `self` object such as self.gameReward and self.gameStep. Also updates replay memory through a call to updateReplayMemory(). Finally, trains main network on every step by calling train() function.
+    
+        Raises:
+            ValueError : If any of the following is not True then raise an error. Please note that if all these conditions are met, no errors will be raised and training will proceed as normal.:
+                - self.epsilon > 0;
+                - self.gameReward >= 0 ;
+    
+        Examples:
+            >>> takeActionsUpdateAndTrainDQN(self, env) # doctest: +SKIP
+            >>> pass
+    
+        Todo:
+            * Use an epsilon-greedy approach to choosing actions based on the current state of the agent model. This is already done in this function so it need not be implemented again.
         """
-
+        
         # retrieving initial state
         current_state = env.observationsVectorNormalized
 
