@@ -855,9 +855,36 @@ class FloPyAgent():
         return sharedArrayActions
 
     def calculateNoveltyNeighborBounds(self, iAgent):
-        """Check if half of NNOVELTYNEIGHBORS are available surrounding the given index,
-        if not agents are selected until the index boundary and more from the other end."""
-
+        """
+        Calculates the upper and lower bounds of novelty neighbors to consider.
+        This function calculates the index range for calculating the novelty score.
+        In other words: Checks if half of NNOVELTYNEIGHBORS are available surrounding the given index,
+        if not agents are selected until the index boundary and more from the other end.
+    
+        Parameters
+        ----------
+            self: Self object instance used by this method
+                agent_list : List[Agent]
+                    The list of agents.
+                hyParams : Dict[str, Any]
+                     A dictionary of hyperparameters
+    
+        Returns
+        -------
+        Tuple[int]
+            4-tuple indicating the range to consider for calculating novelty neighbors as well as whether or not it needs updating
+    
+        Raises:
+            Exceptions
+                If the agent index is out of bounds.
+    
+        Examples
+        --------
+        >>> # 10 agents, 5th agent in list has a value of 2348932 (novelty)
+        >>> calculateNoveltyNeighborBounds(self, iAgent=5):
+            (1, 7, 6, True)
+        """
+        
         nAgentsUnique = len(self.agentsUnique)
 
         # defining how many neighbors to consider below and above
