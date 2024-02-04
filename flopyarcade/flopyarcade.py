@@ -1542,7 +1542,7 @@ class FloPyAgent():
                 agent being run in the current generation.
     
         Returns:
-            - NoneType
+            - None
     
         Raises:
             - ValueError if `agentCount` is not an integer or less than zero.
