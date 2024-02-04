@@ -1965,8 +1965,46 @@ class FloPyAgent():
             return record
 
     def countParameters(self, agent):
-        """Count number of policy model parameters."""
-
+        """
+        Counts the total number of policy model parameter values in a given agent's current set of weights. 
+        This is useful when comparing different agents or policies for hyperparameter tuning.
+    
+        Parameters
+        ----------
+        self : object
+            A reference to an instance of the class containing this function definition,
+                which will be used as a parameter for the agent.get_weights() call. 
+    
+        agent: keras.engine.training.Model
+            An instantiated Keras model that has been compiled and trained. The 
+               get_weights() method of this instance is called to obtain a list 
+                containing each parameter tensor in the graph.
+    
+        Returns
+        -------
+        nParameters : int
+           A count of all parameters (i.e., values) in agent's weight tensors, which is equal to the sum of the number of elements per tensor.
+    
+    
+        Examples 
+        --------
+        >>> # Create two agents using Keras Sequential API and add layers:
+        ... model1 = keras.Sequential()
+        ... model2 = keras.Sequential()
+    
+        >>> # Add first layer to both models (both models will have the same input dimensions)
+        ... model1.add(keras.layers.Dense(4, activation='relu',input_dim=5)) 
+        ... model2.add(keras.layers.Dense(4, activation='relu',input_dim=5))
+    
+        >>> # Add second layer to both models (but these layers will have different dimensions)
+        ... model1.add(keras.layers.Dense(6,activation='sigmoid')) 
+        ... model2.add(keras.layers.Dense(3))
+    
+        >>> # Compile the models using binary cross entropy as their loss function:
+        ... model1.compile(loss="binary_crossentropy",optimizer=tf.train.AdamOptimizer()) 
+        ... model2.compile(loss="binary_crossentropy",optimizer=tf.train.AdamOptimizer())
+        """
+        
         parameters = agent.get_weights()
         nParameters = 0
         for iParam, parameters in enumerate(parameters):
