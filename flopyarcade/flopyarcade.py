@@ -2068,8 +2068,26 @@ class FloPyAgent():
         return random() < probability
 
     def mutateDecisions(self, probability, shape):
-        """Return boolean defining whether to mutate or not."""
-
+        """
+        Returns an array of boolean values that describes whether or not each individual should be subject to a mutation operation.
+        
+        Parameters:
+        - self : (Individual) An Individual object containing information about an individuals genotype and phenotypes
+        - probability : (float) The likelihood of an individual being selected for mutation
+        - shape : (tuple) A tuple that describes the dimensions of the array to be created, e.g., (100, 2).
+        
+        Results:
+          Returns a boolean value that describes whether or not the individual should be subject to mutation.
+        
+        Todo:
+        - [ ] Ensure that both "probability" and "shape" are of type float/tuple respectively. If so, raise an error.
+        
+        Examples:
+          >>> individual = Individual() # Assume this creates some kind of object for our purposes.
+          >>> mutateDecision(individual, .2) # A 20% chance that the individual will be subject to a mutation
+          [1., 0.]
+        """
+        
         return random(shape) < probability
 
     def getqsGivenAgentModel(self, agentModel, state):
