@@ -2013,25 +2013,22 @@ class FloPyAgent():
         return nParameters
 
     def mutateGenetic(self, agent, seed):
-    """
-    Generates a new genetic mutant based on the current agent's weight values trough mutation
-    and returns it as an updated agent object.
-    Mutation power is a hyperparameter. Find example values at:
-    https://arxiv.org/pdf/1712.06567.pdf
- 
-    Parameters:
-        - self : The instance of the class that called this function
-        - agent (object) : A trained neural network with assigned weights to be modified by this function
-        - seed : An integer used for random number generation, passed into numpy.random.seed(seed) for reproducibility
-
-    Returns:
-        agent (object): The mutated agent object that is returned to the genetic algorithm function.
-
-    Raises:
-        None
-    """
-        
-        """Mutate single agent model.
+        """
+        Generates a new genetic mutant based on the current agent's weight values trough mutation
+        and returns it as an updated agent object.
+        Mutation power is a hyperparameter. Find example values at:
+        https://arxiv.org/pdf/1712.06567.pdf
+     
+        Parameters:
+            - self : The instance of the class that called this function
+            - agent (object) : A trained neural network with assigned weights to be modified by this function
+            - seed : An integer used for random number generation, passed into numpy.random.seed(seed) for reproducibility
+    
+        Returns:
+            agent (object): The mutated agent object that is returned to the genetic algorithm function.
+    
+        Raises:
+            None
         """
 
         numpySeed(seed)
