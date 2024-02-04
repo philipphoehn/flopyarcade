@@ -1694,8 +1694,23 @@ class FloPyAgent():
         return r
 
     def runAgentsRepeatedlyGenetic(self, agentCounts, n, env):
-        """Run all agents within genetic optimisation for a defined number of
-        games.
+        """
+        This method runs agents repeatedly.
+    
+        Parameters:
+            self (object) : This is the object that we're operating on.
+                It doesn't need to be here but I think it makes sense because this function is part of a class.
+             agentCounts(int): The number of agents that are being run at once.
+                 Must be positive, and can not exceed the maximum size allowed by `env`.
+            n (int) : The total number of times to run an individual set of agents before moving on.
+                This is akin to a batchsize in machine learning. It must be greater than 0.
+             env(str): The environment that will be used when running the game. Must be specified by `agentCounts` as well.
+        Returns:
+            reward_agentsMean (array) : A numpy array of shape `len(agentCounts)` which contains the mean rewards for each agent.
+                This is a float because it's an average over all runs, and can have non-integer values.
+    
+         Raises:
+             ValueError: If any parameter value is not within its specified range of allowed values, throw this error.
         """
 
         reward_agentsMin = zeros(len(agentCounts))
