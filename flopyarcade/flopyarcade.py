@@ -437,12 +437,20 @@ class FloPyAgent():
             pass
 
     def runGenetic(self, env, searchNovelty=False):
-        """Run main pipeline for genetic agent optimisation.
-        # Inspiration and larger parts of code modified after and inspired by:
-        # https://github.com/paraschopra/deepneuroevolution
-        # https://arxiv.org/abs/1712.06567
         """
-
+        Runs main pipeline for genetic agent optimisation with given hyperparameters.
+        
+        Inspiration and larger parts of code modified after and inspired by:
+        https://github.com/paraschopra/deepneuroevolution
+        https://arxiv.org/abs/1712.06567
+    
+        Args:
+            env (FloPyEnv) : Flopy model class instance representing the groundwater flow problem to be solved via RL agent.
+    
+        Returns:
+            None, all outputs are saved directly as pickle files and stored in the directory defined by 'self'.
+        """
+        
         self.actionType = env.actionType
 
         # if self.hyParams['NOVELTYSEARCH'] and not self.envSettings['KEEPMODELHISTORY']:
