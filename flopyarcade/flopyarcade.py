@@ -1530,7 +1530,27 @@ class FloPyAgent():
         return reward_agents
 
     def runAgentsGeneticSingleRun(self, agentCount):
-        """Run single game within genetic agent optimisation."""
+        """
+        Run single game within genetic agent optimisation.
+    
+        Parameters:
+            - self (object)
+                Class object for this function to be called from.
+    
+            - agent_count (int)
+                0-indexed integer indicating the index of the 
+                agent being run in the current generation.
+    
+        Returns:
+            - NoneType
+    
+        Raises:
+            - ValueError if `agentCount` is not an integer or less than zero.
+    
+        Example:
+            self.runAgentsGeneticSingleRun(5)
+                would run the 6th agent in the current generation, and return None.
+        """
 
         # print('debug running agentCount', agentCount)
         # import os
