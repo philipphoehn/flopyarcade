@@ -1203,9 +1203,24 @@ class FloPyAgent():
         self.replayMemory.append(transition)
 
     def updateReplayMemoryZeroReward(self, steps):
-        """Update replay memory rewards to zero in case game ended up with zero
-        reward.
         """
+        Update replay memory rewards to zero in case game ended up with zero reward.
+    
+        Parameters
+        ----------
+            self : The current state of the environment.
+                replayMemory : A list that contains (state, action, reward, next_state) tuples.
+    
+            steps : int
+    
+        Returns:
+            None
+    
+        Examples
+        --------
+        >>> updateReplayMemoryZeroReward(self, 10) # If there is no change to rewards in the last 10 states
+        """
+        
         for i in range(steps):
             self.replayMemory[-i][2] = 0.0
 
