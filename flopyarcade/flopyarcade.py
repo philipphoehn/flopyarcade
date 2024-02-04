@@ -1434,7 +1434,32 @@ class FloPyAgent():
         self.max_rewardCV = max(self.gameRewardsCV)
 
     def runAgentsGenetic(self, agentCounts, env):
-        """Run genetic agent optimisation, if opted for with multiprocessing.
+        """
+        Run genetic agent optimisation, if opted for with multiprocessing.
+        
+        Args:
+        self (object): An instance of the object that holds this method as an attribute.
+        
+          * The `envSettings` field should be a dictionary with keys `'NAGENTSPARALLEL'`,`'SURROGATESIMULATOR'` and values which are integers or strings respectively. 
+        
+            - If the value corresponding to key `'SURROGATESIMULATOR'` is not None, then it should be a string that corresponds to some valid Python code that can be executed within the namespace of `FloPyArcade` when imported as a module (or whatever other name your module has been given).
+        
+          * The `'NGENERATIONS'` field should also correspond to an integer value.
+        
+        agentCounts (List[int]): An array-like object containing integers representing the number of agents being trained in each generation.
+        
+        Returns:
+        reward_agents (list): A list containing floating point numbers. The nth element should be interpreted as the average reward that was attained by the best agent during training for the nth generation.
+        
+        Raises:
+        ValueError: If `agentCounts` contains values less than zero, then this function will raise a value error.
+        
+          * Please make sure to use non-negative integer values only.
+        
+        Warns:
+        UserWarning: If the length of agentCounts is greater than one and any two adjacent integers are equal, then this function will warn that the results may be misleading.
+        
+          * For best results please ensure that no two consecutive generations have an identical number of agents being trained in each generation, as training for different numbers of agents can take varying amounts of time.
         """
 
         # running in parallel if specified
