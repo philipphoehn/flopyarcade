@@ -1058,7 +1058,24 @@ class FloPyAgent():
         return model
 
     def checkParameterMean(self, agent):
-        
+
+        """
+        Calculates the average weight value per parameter for an agent.
+    
+        Parameters
+        ----------
+        self : object
+            An instance of a class with weights attribute containing 2D list or numpy array of floats.
+    
+        agent : object
+            An instance of a class with get_weights() method that returns a 1D list, where each value is the weight to be averaged.
+    
+        Returns
+        -------
+        float
+           The mean average per parameter across all weights in an agent's parameters.
+        """
+       
         weights, means = agent.get_weights(), []
         for iParam, parameters in enumerate(weights):
             means.append(mean(weights[iParam]))
