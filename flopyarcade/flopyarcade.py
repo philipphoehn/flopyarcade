@@ -1110,7 +1110,37 @@ class FloPyAgent():
         return agent
 
     def updateMutationHistory(self, mutationHistory, agentNumber, creationSeed, mutationSeeds=[], mutationSeed=None):
-
+        """
+        Update a dict that stores the mutations history.
+    
+        Parameters
+        ----------
+            mutationHistory : Dict[str, int]
+                A dictionary to store the mutations history of an agent
+    
+            agentNumber : str
+                The index assigned for this agent
+    
+            creationSeed : int
+               Seed used when creating this agent's genome.
+    
+        Returns
+        -------
+            Dict[str, int]
+              A dictionary to store the mutations history of an agent 
+    
+        Raises
+        ------
+           ValueError: The `agentNumber` parameter should be a string!
+               Please check your input.
+    
+        Examples
+        --------
+            >>> from collections import OrderedDict
+            >>> updateMutationHistory(OrderedDict([('agent0', {'creationSeed': 1, 'mutationSeeds': [2]})]), 'agent3', 4) == OrderedDict([('agent0', {'creationSeed': 1, 'mutationSeeds': [2]}), ('agent3', {'creationSeed': 4, 'mutationSeeds': []})])
+            True
+        """
+        
         mutationHistory['agent' + str(agentNumber)] = {}
         mutationHistory['agent' + str(agentNumber)]['creationSeed'] = creationSeed
         mutationHistory['agent' + str(agentNumber)]['mutationSeeds'] = mutationSeeds
