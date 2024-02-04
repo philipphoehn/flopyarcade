@@ -2118,7 +2118,26 @@ class FloPyAgent():
         return prediction
 
     def loadAgentModel(self, modelNameLoad=None, compiled=False):
-        """Load an agent model."""
+        """
+        Load an Agent Model from a given path in HDF5 or JSON format (depending on availability).
+        If available, also loads the weights of the agent.
+        
+        Parameters
+        ----------
+        modelNameLoad : string
+            Name of the model to load from disk; if not provided, defaults to None
+        compiled: bool
+            Whether to compile the loaded model in Keras or not (defaults to False)
+        
+        Returns
+        -------
+        agentModel: keras Model object 
+                The agent model that was loaded
+        
+        Examples
+        ---------
+        >>> loadAgentModel(self, "mymodel") # Load a model named 'mymodel' from disk if it exists.
+        """
 
         # Note: change model load and save as json mode is faster
         # this is a temporary quickfix
