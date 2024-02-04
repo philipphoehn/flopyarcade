@@ -1151,6 +1151,25 @@ class FloPyAgent():
 
     def createMutationRecord(self, creationSeed, mutationSeeds=[], mutationSeed=None):
 
+        """
+        This function returns a dictionary containing the information about the mutation.
+        If `mutationSeed` is not None, then it is appended to `mutationSeeds`.
+        
+        Parameters
+        ----------
+        creationSeed : int
+            The seed used for creating this record.
+        mutationSeeds: List[int]
+            A list of seeds that were used in mutations applied to the original seed.
+        mutationSeed: Optional(int)
+            If not None, then append `mutationSeed` to `mutationSeeds`.
+        
+        Returns
+        -------
+        Dict
+            A dictionary containing information about this record.
+        """
+        
         record = {}
         record['creationSeed'] = creationSeed
         record['mutationSeeds'] = mutationSeeds
