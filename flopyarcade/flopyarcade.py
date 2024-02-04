@@ -1179,9 +1179,27 @@ class FloPyAgent():
         return record
 
     def updateReplayMemory(self, transition):
-        """Update replay memory by adding a given step's data to a memory
-        replay array.
         """
+        Update replay memory by adding a given step's data to a memory
+        replay array.
+        
+        Parameters
+        ----------
+        self : object
+            An instance of the class containing this function definition.
+        transition : tuple
+            A tuple (state, action, reward) representing a single update step for the agent.
+                state  = The current observation from the environment's state space.
+                    Type: numpy array of shape [4, 84, 84].
+                    Alias: "screen".
+                action = Action taken by the agent.
+                    Type: int in range [0, 17] (both included).
+                    Aliases: "action" or "a", e.g., state, action = env.step(action)
+                reward : The amount of reward returned after previous action.
+                    Type: float.
+            Example: (np.array([4,84,84]), 0, 1.)
+        """
+        
         self.replayMemory.append(transition)
 
     def updateReplayMemoryZeroReward(self, steps):
