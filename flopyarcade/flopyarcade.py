@@ -2160,14 +2160,56 @@ class FloPyAgent():
 
     def getAction(self, mode='random', keyPressed=None, agent=None,
             modelNameLoad=None, state=None, actionType='discrete'):
-        """Determine an action given an agent model.
+        """
+        Gets the action to take from a given agent model or randomly generated.
+        In other words: Determine an action given an agent model.
+        
         Either the action is determined from the player pressing a button or
         chosen randomly. If the player does not press a key within the given
         timeframe for a game, the action remains unchanged.
         Note: mode 'modelNameLoad' can massively throttleneck in loops from
         recurring model loading overhead.
+       
+        Parameters
+        ----------
+        mode : str (default='random')
+            The type of input to use for determining actions.
+                'manual': Uses keyboard inputs, currently only supports discrete action spaces.
+                'random' : Generates a random value from the given action space.
+                'modelNameLoad' : Loads an agent model and uses that as the source for generating actions in this environment
+                                  Note: Currently requires state input to be provided.
+                'model': Uses the current models (self) to determine the best possible course of action.
+        keyPressed : str or None, optional
+            Required if mode == 'manual' otherwise it is ignored and can safely remain as None.
+        agent : Agent-like or None, optional
+            Can be any object that has a `getqs` method. It is required when using the modes: modelNameLoad, model but can 
+            safely remain None if mode == 'random'. It is used to generate actions based on its own models.
+        modelNameLoad : str or None, optional
+            The path and filename of a saved agent model. If given will load the model when using the `modelNameLoad` mode.
+        
+        state : numpy ndarray (optional)
+            A collection of values for each action that are used to predict future rewards based on past experiences.
+            Required if using the modes: 'model', and 'modelNameLoad'. Otherwise it is ignored.
+        
+        actionType : str, optional
+            The type of actions allowed by this environment (discrete/continuous). If not given defaults to discrete.
+        
+        Returns
+        -------
+        self.action
+            A randomly selected or determined value from the current model(s) that is used as an input for determining future 
+            rewards and experiences.
+        
+        Raises
+        ------
+        ValueError
+            If mode == 'manual' AND keyPressed not given OR if actionType = continuous AND mode='random'.
+        
+        Notes:
+          This code is currently only supported for discrete actions spaces. Continuous support will be added in a future 
+        release.
         """
-
+    
         if actionType == 'discrete':
             if mode == 'manual':
                 if keyPressed in self.actionSpace:
