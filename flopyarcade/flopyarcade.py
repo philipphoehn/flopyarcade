@@ -2046,7 +2046,24 @@ class FloPyAgent():
         return agent
 
     def mutateDecision(self, probability):
-        """Return boolean defining whether to mutate or not."""
+        """
+        Returns a boolean value that describes whether or not the individual should be subject to mutation.
+        
+        Parameters:
+          - self : (Individual) An Individual object containing information about an individuals genotype and phenotypes
+          - probability : (float) The likelihood of an individual being selected for mutation
+        
+        Results:
+          Returns a boolean value that describes whether or not the individual should be subject to mutation.
+        
+        Todo:
+        - [ ] Ensure that the type of "probability" is checked and that it is a float between 0.0 and 1.0. If so, raise an error.
+        
+        Examples:
+          >>> individual = Individual() # Assume this creates some kind of object for our purposes.
+          >>> mutateDecision(individual, .2) # A 20% chance that the individual will be subject to a mutation
+          1
+        """
 
         return random() < probability
 
