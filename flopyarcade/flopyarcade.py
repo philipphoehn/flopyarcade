@@ -1878,6 +1878,20 @@ class FloPyAgent():
 
     def returnChildrenGeneticSingleRun(self, childIdx):
         """
+        Returns children agent by loading parent model and performing genetic mutations on it.
+        This function is only called if we are not using multiprocessing to evolve agents in parallel, 
+        which occurs when the number of agents being created at once is less than 2x the nCPUs used for evolution (or 10).
+    
+        Arguments:
+            self {[type]} -- [description]
+    
+        Raises:
+            Exception -- If an error occurs while loading the parent model, or in case of race conditions.
+                        This can occur if models are still being created when this function is called during training. 
+    
+        Returns:
+            str OR '' -- Returns a string containing mutation history info to be written to file, or an empty string.
+                If we are not saving the model history and creating agents using multiprocessing, then return ''.
         """
 
         len_ = len(self.candidateParentIdxs)
