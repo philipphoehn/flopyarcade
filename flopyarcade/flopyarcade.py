@@ -2623,7 +2623,73 @@ class FloPyAgent():
 
     def saveBestAgentAnimation(self, env, bestAgentFileName, MODELNAMEGENCOUNT,
         MODELNAME):
-        # playing a game with best agent to visualize progress
+
+        """
+        Plays a single episode with the best agent, saving plots of the
+        results to 'animationFolder' for visualization of progress.
+        
+        Parameters
+        ----------
+        self : object (the class object that contains this method)
+            Instance of the game environment used to play an animation using
+            a pretrained agent model. 
+        
+        env : object (environmental settings for the game environment)
+            Contains information such as 'ENVTYPE' and 'SEEDENV', which are
+            then passed into FloPyArcade in order to run the simulation that is
+            used to create an animation of a single episode. 
+        
+        bestAgentFileName : str (file name for pretrained agent model)
+           Name of the saved pre-trained agent model file, which will be
+           loaded by FloPyArcade. 
+        
+        MODELNAMEGENCOUNT: int or list (information on generation count)
+            Used to create a unique identifier in order to save each new 
+            trained agent model and its related information. Is appended onto
+            the end of 'modelName' in order to formulate the final name for a
+            given agent file. If a list is provided, then only the first element
+            will be used (i.e., MODELNAMEGENCOUNT[0]). 
+        
+        modelName: str (name of the agent)
+           The root name that will be combined with other information to formulate
+           the final name for a given agent file, including 'modelType' and an
+           optional generation count. This is used as part of a filename for saving
+           training data in a .csv format, and for saving any plots generated 
+           during training (either by TensorBoard or custom code). If not provided,
+           then this defaults to 'currentModel'. 
+        
+        Returns
+        -------
+            None. Only generates an animation of the simulation results.
+        
+        Examples
+        --------
+        >>> game = FloPyArcade(modelNameLoad=bestAgentFileName,
+                               ENVTYPE = env.ENVTYPE,
+                               modelName=MODELNAMEGENCOUNT,
+                               animationFolder=MODELNAME,
+                               NAGENTSTEPS=self.hyParams['NAGENTSTEPS'],
+                               PATHMF2005=self.envSettings['PATHMF2005'],
+                               PATHMP6=self.envSettings['PATHMP6'],
+                               flagSavePlot=True,
+                               flagManualControl=False,
+                               flagRender=False,
+                               nLay=env.nLay, 
+                               nRow=env.nRow, 
+                               nCol=env.nCol,
+                               OBSPREP=self.hyParams['NNTYPE'])
+        >>> game.play(ENVTYPE=self.envSettings['ENVTYPE'], seed=self.envSettings['SEEDENV'] + self.currentGame-1)
+            Sets up the simulation environment and plays a single episode in order 
+            to generate an animation of the results for visualization purposes. This
+            is done using information provided from 'env' as well as the other passed
+            parameters, such as 'bestAgentFileName', 'modelNameLoad', and others.  
+        
+        Todo
+        ----
+        * Improve documentation for this method in future versions of FloPyArcade.
+        """
+            
+            # playing a game with best agent to visualize progress
 
         game = FloPyArcade(modelNameLoad=bestAgentFileName,
             ENVTYPE = env.ENVTYPE,
