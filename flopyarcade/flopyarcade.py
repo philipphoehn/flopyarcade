@@ -2794,8 +2794,54 @@ class FloPyAgent():
         globals()['arr_lock'] = arr_lock
 
     def multiprocessChunks(self, function, chunk, parallelProcesses=None, wait=False, async_=True, sharedArr=None, sharedDict=None):
-        """Process function in parallel given a chunk of arguments."""
-
+        """
+        Multiprocesses the given chunks and returns a list of results.  If `sharedDict` is provided as an input argument, then it will be passed to each individual chunk in parallel as well.
+        
+        Parameters:
+            self (self) - An object that has at least two attributes: envSettings, which contains the number of agents to run in parallel; and init_arr(), which initializes a shared array for multiprocessing purposes.
+        
+            function ([function]) - The function to be executed on each chunk.  It should expect either one argument (the chunk) or two arguments (the chunk, then the `sharedDict` object).  This can take any form: e.g., it could be a lambda expression.
+        
+                Example of a simple function:
+                    >>> def add_one(chunk): return [i + 1 for i in chunk]
+        
+            chunk ([list]) - A list containing the chunks to be executed on.
+        
+            parallelProcesses (int) - The number of agents that should run in parallel at any given time.  If none is provided, it will default to `self.envSettings['NAGENTSPARALLEL']`.  This value must be positive.
+        
+                Example:
+                    >>> parallelProcesses = self.envSettings["NAGENTSPARALLEL"] # this would return a number like 4
+        
+            wait (bool) - Whether or not to wait for the result of each process before continuing on with execution, which is useful if you want results in order when running asynchronously.  Defaults to False.  If True, then it will also force `async_` to be set to True.
+        
+                Example:
+                    >>> wait = True # This would ensure that the next line of code only gets executed after all chunks have finished processing and their results returned.
+        
+            async_ (bool) - Whether or not to run asynchronously, which is useful if you don't care about order and/or want performance gains from parallelization at any given moment in time.  Defaults to True.  If `wait` is set to True, then this value will be ignored.
+        
+                Example:
+                    >>> async_ = False # This would force the code to wait until all chunks have finished processing and their results returned before continuing on with execution.
+        
+            sharedArr (np.ndarray) - An optional array that can be used in place of a `sharedDict` object if you want to use NumPy arrays instead.  This would be passed along with the chunk data, which will then become accessible inside your function call without being copied between processes each time it is called.
+        
+                Example:
+                    >>> sharedArr = np.zeros([100]) # This could then be used in place of `sharedDict` and accessed like a list within any calls to the provided function.
+        
+            sharedDict (dict) - An optional dictionary that can be passed along with the chunk data, which will become accessible inside your function call without being copied between processes each time it is called.  This should only contain data types that are pickleable: https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled
+        
+                Example:
+                    >>> sharedDict = {"key": [1,2], "foo": 5} # This could then be used within any calls to the provided function and accessed like a dictionary (e.g., `sharedDict["key"]`).
+        
+        Returns:
+            list - The results of each parallel process in order if run synchronously, or an unordered array-like object otherwise that can be converted into a list.
+        
+                Example for asynchronous running with the same inputs as above and using the provided add_one() function:
+                    >>> multiprocessChunks(self=None, function=add_one, chunk=[1,2,3], parallelProcesses=4, wait=False) # this would return an unordered array-like object containing [2, 3, 4] in some order.
+        
+                Example for synchronous running with the same inputs as above and using the provided add_one() function:
+                    >>> multiprocessChunks(self=None, function=add_one, chunk=[1,2,3], parallelProcesses=4) # this would return [2, 3, 4] in order.
+        """
+        
         # Pool object from pathos instead of multiprocessing library necessary
         # as tensor.keras models are currently not pickleable
         # https://github.com/tensorflow/tensorflow/issues/32159
