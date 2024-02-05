@@ -2748,9 +2748,24 @@ class FloPyAgent():
             str(self.geneticGeneration).zfill(self.zFill))
 
     def yieldChunks(self, lst, n):
-        """Yield successive n-sized chunks from a given list.
-        Taken from: https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks
         """
+        Yield successive n-sized chunks from the list.
+        Taken from: https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks
+        
+        Args:
+             self (object): An object instance of a class that contains this method
+             lst (list): The original iterable to be chunked into smaller lists/chunks
+             n (int): Size of each new chunk
+        
+        Returns:
+            A generator object which is an iterator.
+        
+         Todo:
+           * Add type hints for parameters and return types.
+           * Ensure that the size of chunks to be created are not larger than 2048 bytes in memory
+               - this can cause a performance hit on your system if too big!
+        """
+        
         for i in range(0, len(lst), n):
             yield lst[i:i + n]
 
