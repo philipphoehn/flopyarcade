@@ -2589,7 +2589,31 @@ class FloPyAgent():
         return novelty
 
     def saveBestAgent(self, MODELNAME):
-        # saving best agent of the current generation
+        '''
+        This function saves the best agent of a given generation. It will also update the name 
+        of that agent with information about the generation number and it's average reward score.
+        
+        Parameters
+        ----------
+            self : This is used to refer to the current object (i.e this class)
+        
+            MODELNAME: str <br>
+                A string containing the name of the model. 
+        
+        Returns
+        -------
+            bestAgentFileName : str <br>
+                The file name that is used for saving and loading the agent
+        
+        Examples
+        --------
+           # >>> saveBestAgent(self, 'MyModel')
+        
+        Todo: 
+          * Add in a parameter to set whether or not this function should be called <br>
+            `save = False` by default. This way we can skip saving if the user doesn't want it (or needs more space).      
+        '''    
+        
         bestAgent = load_model(join(self.tempModelPrefix + '_agentBest.h5'),
                 compile=False)
         self.bestAgentFileName = (f'{MODELNAME}' + '_gen' +
