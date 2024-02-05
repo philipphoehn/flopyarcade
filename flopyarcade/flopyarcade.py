@@ -2709,6 +2709,34 @@ class FloPyAgent():
             seed=self.envSettings['SEEDENV'] + self.currentGame-1)
 
     def generatePathPrefixes(self):
+        """
+        Generates path prefixes for the temp model, next gen and prev gen models
+        
+        Parameters
+        ----------
+            self : object (GeneticTrainer)
+                GeneticTrainer class instance
+        
+        Returns
+        -------
+           None : NoneType 
+               Nothing. Sets values of prefixes as attributes on the input parameter
+        
+        Raises:
+        ------
+            None : NoneType 
+                No errors raised by this function if run in accordance with its intended purpose.
+        
+        Example
+        -------
+        >>> generatePathPrefixes(self)
+           Sets values of the following attributes on self (class instance): tempModelPrefix, 
+           tempNextModelPrefix and tempPrevModelPrefix to:
+           1. [temp model path + env settings['MODELNAME']]_gen[genetic generation + 1].zfill(self.zFill)]
+           2. [temp model path + env settings['MODELNAME']]_gen[genetic generation + 2].zfill(self.zFill)]
+           3. [temp model path + env settings['MODELNAME']]_gen[genetic generation].zfill(self.zFill)]
+        """
+        
         self.tempModelPrefix = join(self.tempModelpth,
             self.envSettings['MODELNAME'] + '_gen' +
             str(self.geneticGeneration + 1).zfill(self.zFill))
