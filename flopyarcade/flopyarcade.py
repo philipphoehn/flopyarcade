@@ -2461,7 +2461,29 @@ class FloPyAgent():
         return novelty
 
     def calculateNoveltyPerAgent(self, iAgent, actionsDict=None):
-
+        """
+        Calculate the average novelty between a given agent and all other agents. 
+        
+        Parameters
+        ----------
+            self : object (class)
+                An instance of the class containing this method.
+        
+            iAgent : int
+               The index of the agent for which we want to calculate the average novelty between it 
+                     and all other agents within its neighborhood.
+        
+            actionsDict: dictionary, optional
+                    A key-value pairing of an integer representing an agent's ID with their respective action sequence.
+        
+        Returns
+        -------
+           float :   The average novelty between a given agent and each agent in it's neighbourhood. 
+                     If the neighborhood limit has been reached, this will be the mean novelty only for agents within its neighborhoud.
+        
+            TODO: This method may need to load actions from disk if we are calculating novelty outside of an iteration (i.e., outside of the main process).
+        """
+        
         # args.append([iAgent, sharedArrayActions[rangeLower:rangeHigher], rangeLower, rangeHigher, iAgentInCroppedArray])
         iAgentOriginal, arr, rangeLower, rangeHigher, iAgentInCroppedArray = iAgent[0], iAgent[1], iAgent[2], iAgent[3], iAgent[4]
 
