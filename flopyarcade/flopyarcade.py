@@ -2406,6 +2406,30 @@ class FloPyAgent():
         return novelty
 
     def calculateNoveltyPerPair(self, args):
+        """
+        Calculate the average novelty between two agent action sets.
+        
+        Parameters
+        ----------
+        self : object
+          An instance of a class containing this method.
+        
+        args: list or tuple
+        A set of arguments that contain (in order):
+          1) actions, an array or list of agent actions; and
+          2) action2, another such array or list of agent actions.
+        
+        Returns
+        -------
+        novelty : float
+          The average novelty between the two sets of agent actions.
+        
+        Examples:
+        ----------
+        >>> calculateNoveltyPerPair(None, ([1., 2., 3], [4., 5., 6]))
+        0.75
+        """
+        
         # agentStr = 'agent' + str(args[0]+1)
         # agentStr2 = 'agent' + str(args[1]+1)
         # actionsDict = args[2]
