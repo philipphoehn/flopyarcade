@@ -5679,6 +5679,29 @@ class FloPyEnv(gym.Env):
                 pass
 
     def writeGIFtodisk(self, pathGIF, ims, fps=2, optimizeSize=False):
+        """
+        Write image frames to disk as a GIF file.
+        
+        Parameters
+        ----------
+            pathGIF : str
+                Path of the GIF file created.
+        
+            ims : list
+                List containing images as numpy arrays.
+        
+            fps : int, optional
+                Frames per second used for creating animated GIF (default is 2).
+
+        Returns
+        -------
+            None
+        
+        Todo
+        -----
+           Optimize GIF size by using pygifsicle and/or imageio.get_writer().
+        """
+        
         with get_writer(pathGIF, mode='I', fps=fps) as writer:
             for image in ims:
                 writer.append_data(image)
