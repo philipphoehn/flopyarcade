@@ -2770,6 +2770,25 @@ class FloPyAgent():
             yield lst[i:i + n]
 
     def init_arr(self, arr, arr_lock=None, shape=None):
+          """
+          Initialize an array.
+        
+          Parameters:
+              self (object) -- a class object
+              arr (array-like) -- array to initialize with
+              arr_lock -- lock for threading safety (default is None)
+              shape (tuple of ints) -- dimensions of arr, e.g., (3, 2) (default is None)
+        
+          Returns:
+              a new instance of this class
+        
+          Examples:
+            init_arr(self, [1, 2], arr_lock=None, shape=(4))
+        
+          Todo:
+            * fix threading safety issues (i.e., lock acquisition)
+          """
+        
         arr = array(list(arr))
         globals()['arr'] = frombuffer(arr, dtype='float64').reshape(shape)
         globals()['arr_lock'] = arr_lock
