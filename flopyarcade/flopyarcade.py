@@ -5717,7 +5717,25 @@ class FloPyEnv(gym.Env):
                     optimizeGIF(pathGIF)
 
     def cellInfoFromCoordinates(self, coords):
-        """Determine layer, row and column corresponding to model location."""
+        """
+        Determine layer, row and column corresponding to model location.
+    
+        Parameters
+        ----------
+            coords : tuple 
+                Tuple containing X-, Y- and Z-coordinates (in m).
+    
+        Returns
+        -------
+            l, c, r : int
+                Layer, row and column numbers.
+    
+        Notes
+        -----
+           Model domain is assumed to be regular, i.e., the grid spacing 
+           does not change within a layer/row/column.
+        """
+    
         x, y, z = coords[0], coords[1], coords[2]
         layer = int(ceil((z + self.zBot) / self.dVer))
         column = int(ceil((x + self.minX) / self.dCol))
