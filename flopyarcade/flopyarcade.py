@@ -2245,6 +2245,39 @@ class FloPyAgent():
         return self.action
 
     def resumeGenetic(self):
+        """
+        Resumes a genetic algorithm training session.
+        
+        Checks if the best agent of the current generation exists. If so, then it'll 
+        skip any further calculations in order to resume at a later stage. Otherwise, 
+        regenerate all children for this generation and return them as well as some 
+        metadata about the agents and their history (novelty).
+        
+        Args:
+            self - A class object.
+        
+        Returns:
+            sortedParentIdxs(list): Sorted indexes of which parents to keep for next gen.
+            continueFlag(bool)   : Whether or not a new generation should be started.
+            breakFlag(bool)      : Whether or not this method has failed and must abort.
+        
+        Example:
+        
+            # Resume training from an existing model:
+            >>> self = agent_trainer()
+            >>> sortedParentIdxs, continueFlag, breakFlag = resumeGenetic(self)
+        
+                [0] : --
+                    The method has not been executed.
+        
+            >>> self = agent_trainer('./models/2019-10-31')
+            >>> sortedParentIdxs, continueFlag, breakFlag = resumeGenetic(self)
+        
+                [1] : --
+                    The method has not been executed.
+        
+        """
+        
         # checking if bestModel already exists for current generation
         # skipping calculations then to to resume at a later stage
         continueFlag, breakFlag = False, False
