@@ -2759,28 +2759,6 @@ class FloPyAgent():
         globals()['arr'] = frombuffer(arr, dtype='float64').reshape(shape)
         globals()['arr_lock'] = arr_lock
 
-    # def multiprocessChunks(self, function, chunk, parallelProcesses=None, wait=False):
-    #     """Process function in parallel given a chunk of arguments."""
-
-    #     # Pool object from pathos instead of multiprocessing library necessary
-    #     # as tensor.keras models are currently not pickleable
-    #     # https://github.com/tensorflow/tensorflow/issues/32159
-    #     if parallelProcesses == None:
-    #         parallelProcesses = self.envSettings['NAGENTSPARALLEL']
-    #     p = Pool(processes=parallelProcesses)
-    #     pasync = p.map_async(function, chunk)
-    #     # waiting is important to order results correctly when running
-    #     # -- really?
-    #     # in asynchronous mode (correct reward order is validated)
-    #     pasync = pasync.get()
-    #     if wait:
-    #         pasync.wait()
-    #     p.close()
-    #     p.join()
-    #     p.terminate()
-
-    #     return pasync
-
     def multiprocessChunks(self, function, chunk, parallelProcesses=None, wait=False, async_=True, sharedArr=None, sharedDict=None):
         """Process function in parallel given a chunk of arguments."""
 
