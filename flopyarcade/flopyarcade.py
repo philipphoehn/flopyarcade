@@ -2912,7 +2912,34 @@ class FloPyAgent():
 
     def multiprocessChunks_OLD(self, function, chunk, parallelProcesses=None,
         wait=False, async_=True, sharedArr=None, sharedDict=None, threadPool=False):
-        """Process function in parallel given a chunk of arguments."""
+        """
+        Executes a function on all elements in the chunk. The size of the 
+        chunks is determined by the number of processes to run it in parallel.
+        
+        Parameters:
+            self (class)                   : A class object. Required for passing as an argument to the function.
+            function (function):           : An arbitrary function that takes a single item from the chunk as its first argument,
+                                             and returns some result of processing it.
+            chunk ([any])                  : List with items to process in parallel.
+        
+        Keyword Arguments:
+            parallelProcesses (int)       : Number of processes to run in parallel. Defaults to None which uses the settings from the environment file.
+            wait (bool)                    : Whether or not to wait for all results before returning them. Defaults to False.
+            async_ (bool)                  : Whether or not to process items asynchronously. Defaults to True. 
+            sharedArr (array-like object)  : A NumPy array to be shared across processes that is passed into the function argument. If this option is used, a dictionary should also be passed to share data between processes in memory without using file I/O. Defaults to None which does not use a shared array or dict.
+            sharedDict (dict)              : A Python dict object to be shared across processes that is passed into the function argument. If this option is used, an array should also be passed to share data between processes in memory without using file I/O. Defaults to None which does not use a shared array or dict.
+            threadPool (bool)              : Whether or not to run in threads instead of subprocesses for parallel processing. Defaults to False. 
+        
+        Returns:
+            pasync ([any])                : List with results from the function, ordered as they were passed in the chunk parameter.
+        
+        
+        Todo:
+           * Improve docstring formatting.
+           * Use sharedArr and sharedDict together instead of separately.
+           * Find way to pass manager object between processes so that data is not lost when Pool() closes.
+            - https://stackoverflow.com/questions/10415028/how-can-i-recover-the-return-value-of-a-function-passed-to-multiprocessing-proce
+        """
 
         # Pool object from pathos instead of multiprocessing library necessary
         # as tensor.keras models are currently not pickleable
