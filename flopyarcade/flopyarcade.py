@@ -2329,6 +2329,35 @@ class FloPyAgent():
         return self.sortedParentIdxs, continueFlag, breakFlag
 
     def actionNoveltyMetric(self, actions1, actions2, actionType):
+        """
+        Calculates the novelty metric between two sets of actions.
+        
+        Parameters
+        ----------
+        self : object
+        An instance of a class containing this method.
+        
+        actions1 : list or numpy array
+        A set of actions, either discrete (integers) or continuous (floats).
+        
+        actions2 : list or numpy array
+          Another set of actions with which to compare the first action set.
+        
+        actionType: string
+        The type of action space in use; must be one of 'discrete' or
+        'continuous'.
+        
+        Returns
+        -------
+        novelty : float
+        A number between zero and one, where higher values represent a greater 
+        difference between the two sets of actions.
+        
+        Examples
+        --------
+        >>> actionNoveltyMetric(None, [1., 2., 3.], [4., 5., 6.], 'continuous')
+        """
+        
         # finding largest object, or determining equal length
         # do this conversion while loading or saving?
         actions1 = array(actions1)
