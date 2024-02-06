@@ -3410,14 +3410,28 @@ class FloPyEnv(gym.Env):
             elif self.actionType == 'continuous':
                 self.action_space = gym.spaces.Box(0.0, 1.0, shape=(len(self.actionSpace),), dtype=np.float32)
 
-    # def seed(self, seed=None):
-    #     from numpy.random import random
-    #     random.seed(seed)
-
     def teardown(self):
         """
         Remove the example folder
+        
+        Parameters
+        ----------
+        exdir : str, optional 
+          Path to the example directory that will be removed. Default is None which removes all files in the present working directory.
+        
+        Returns
+        -------
+        teardownSuccess: Boolean (True or False)
+            True if successful and False otherwise.
+        
+        Examples
+        --------
+        >>> # Remove example folder 01_fhenry
+        >>> import flopy.utils as fupy
+        >>> tst = fupy.mftest()
+        >>> tst.teardown(exdir='01_fhenry')
         """
+        
         chdir(self.wrkspc)
 
         if self.delFiles:
