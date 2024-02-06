@@ -3086,7 +3086,22 @@ class FloPyAgent():
             print('Unknown compression algorithm specified.')
 
     def GPUAllowMemoryGrowth(self):
-        """Allow GPU memory to grow to enable parallelism on a GPU."""
+
+def GPUAllowMemoryGrowth(self):
+        """
+        This function allows the memory growth of a tensorflow session if you are using a GPU as hardware. This will prevent any further 
+        errors regarding the lack or inability to use your gpu. 
+        
+        Parameters:
+          self - The class that this method is called on, which should always be an instance of the K object imported from keras.backend module
+        
+        Returns:
+          None (but does set the session config to allow growth)
+        
+        Examples:
+          GPUAllowMemoryGrowth(K) # where K is some instance of a Keras backend class
+        """
+        
         config = ConfigProto()
         config.gpu_options.allow_growth = True
         sess = TFSession(config=config)
