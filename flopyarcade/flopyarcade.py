@@ -3032,6 +3032,32 @@ class FloPyAgent():
 
     def pickleDump(self, path, objectToDump, compress=None, compressLevel=3):
         """Store object to file using pickle."""
+
+        """
+        Store an arbitrary Python object to file using `pickle`.
+
+        Parameters
+        ----------
+            path : str or Path
+                Filepath.
+            objectToDump : any picklable python object
+            compress : {None, 'lz4', 'lzma'}, default None
+                Compression algorithm to use for output file.
+        
+        Returns
+        -------
+            None
+        
+        Examples
+        --------
+            >>> from pathlib import Path
+            >>> pickleDump(Path('testfile.pickl'), 'hello world!')
+        
+        Todo
+        ----
+        1) Add compression option for `gzip` (and maybe `bz2`?).
+        """
+        
         if compress == None:
             with open(path, 'wb') as f:
                 dump(objectToDump, f)
