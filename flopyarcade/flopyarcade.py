@@ -3460,7 +3460,25 @@ class FloPyEnv(gym.Env):
 
     def bmi_return(self, success, model_ws, modelname):
         """
-        parse libmf6.so and libmf6.dll stdout file
+        Returns the status of a run and stdout contents to screen.
+        Or: Parses libmf6.so and libmf6.dll stdout file.
+        
+        Parameters
+        ----------
+        self : flopy object
+                    A FloPy object for which to return the BMI status.
+        success : boolean
+            True or False value denoting if the model run was successful.
+        model_ws : str, optional
+            Path to output workspace of the model.  Default is None, in which case
+            flopy uses self.model_ws.
+        modelname: str, optional
+            Name of FloPy object for which to return BMI status.  Default is None, in which
+                case flopy returns the status of all models.
+        
+        Returns
+        -------
+            A string with stdout contents.  If a failure has occurred, an Exception will be raised.
         """
 
         fpth = join(model_ws, modelname + '.stdout')
