@@ -3108,8 +3108,25 @@ def GPUAllowMemoryGrowth(self):
         K.set_session(sess)
 
     def suppressTensorFlowWarnings(self):
-        # suppressing TensorFlow output on import, except fatal errors
-        # https://stackoverflow.com/questions/40426502/is-there-a-way-to-suppress-the-messages-tensorflow-prints
+        """
+        Suppresses the Tensorflow warnings on import, except fatal errors.
+        From: https://stackoverflow.com/questions/40426502/is-there-a-way-to-suppress-the-messages-tensorflow-prints
+        
+        Parameters
+        ----------
+        None
+        
+        Results
+        -------
+        Supressing all warning messages in tensorflow.
+        
+        Examples
+        ---------
+        >>> from logging import getLogger, FATAL
+        >>> environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+        >>> getLogger('tensorflow').setLevel(FATAL)
+        """
+        
         from logging import getLogger, FATAL
         environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
         getLogger('tensorflow').setLevel(FATAL)
