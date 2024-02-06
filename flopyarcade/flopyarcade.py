@@ -3019,7 +3019,23 @@ class FloPyAgent():
         return pasync
 
     def pickleLoad(self, path, compressed=None):
-        """Load pickled object from file."""
+
+    """
+    Load a previously saved pickled Python object from file and 
+    returns it to the caller. The function will automatically use the best
+    method available for loading based on the compression type specified in
+    parameter `compressed`. If no value is provided, then the raw pickle module
+    is used. Otherwise, joblib will be used.
+
+    Parameters:
+      path (str): The path to the object file.
+      compressed (str|None): Compression method used when saving the object. 
+                             None or 'lz4' and 'lzma' are supported.
+                             
+    Returns:
+        An unpickled Python object of any type.
+    """
+        
         if compressed == None:
             with open(path, 'rb') as f:
                 objectLoaded = load(f)
