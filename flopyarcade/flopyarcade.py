@@ -3486,12 +3486,24 @@ class FloPyEnv(gym.Env):
         return success, open(fpth).readlines()
 
     def stepInitial(self):
-        """Initialize with the steady-state solution.
+        """
+        Initialize with the steady-state solution.
         
         Note: If just initializing environments without intention of solving,
         or intentions of solving later, this can be a massive throttleneck.
-        """
 
+        Parameters:
+            None: 
+    
+        Returns:
+            self.observationsVectorNormalized : numpy array of type float64
+                Normalized observation vector for initial conditions of the model run.
+    
+        Raises:
+            TypeError:
+               Error if model initialization fails due to invalid configuration file or other input files. 
+        """
+        
         if self.ENVTYPE in ['0s-c']:
 
             self.model_ws = join(self.wrkspc, 'models', self.exdir)
