@@ -4970,7 +4970,24 @@ class FloPyEnv(gym.Env):
                 self.wellQ = self.minQ
 
     def updateWell(self):
-
+        """
+        Update the location of wells and add WEL package to MODFLOW model.
+        
+        Parameters
+        ----------
+        self : Modflow object
+            The current instance of the ModFlow class.
+        
+        Returns
+        -------
+        None if ENVTYPE in ['1r', '2r','3r'] else a dictionary containing the following keys/values:
+        lrcq = {0: [[layer, row, col, flux] ...]}
+        
+        Examples
+        --------
+        >>> updateWell(self)
+        """
+        
         if self.ENVTYPE in ['1r-d', '1r-c', '2r-d', '2r-c', '4r-d', '4r-c', '5r-d', '5r-c', '6r-d', '6r-c']:
             # generating random well location fluctuations
             dwellX = uniform(low=-1.0, high=1.0)*self.maxCoordChange
