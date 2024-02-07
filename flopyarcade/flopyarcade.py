@@ -4723,10 +4723,30 @@ class FloPyEnv(gym.Env):
                 self.helperWells['actionValueQ'+w] = self.helperWells['wellQ'+w]
 
     def initializeParticle(self):
-        """Initialize spawn of particle randomly.
-         The particle will be placed on the Western border just east of the
-         Western stream with with buffer to boundaries.
-         """
+        """
+        This function initializes a particle at the top of the domain. 
+        It sets x-position to be slightly off left wall (to prevent overlap with boundary conditions).
+        The y position is randomly assigned between 0 and extentY, with an additional buffer above and below
+        the centerline to avoid particles too close to the walls or the centerline. Finally it assigns z as maximum height of the domain.
+        
+        In other words: Initialize spawn of particle randomly. 
+        The particle will be placed on the Western border just east of the
+        Western stream with with buffer to boundaries.
+        
+        Parameters:
+            self - a ParticleSimulation object initialized in main()
+        
+        Returns: 
+            None
+        
+        Todo: 
+            * This could be improved by allowing for initializing particles with random x, y and z positions within specified bounds 
+              as well as initializing the particle velocity.
+        
+        Example(s):
+            >>> initializeParticle() # if in main() function
+            >>> initializeParticle(self) # if not in main() function (i.e. within ParticleSimulation class)
+        """
 
         self.particleSpawnBufferY = 20.0
         self.particleX = self.extentX - 1.1 * self.dCol
