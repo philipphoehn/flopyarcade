@@ -4920,8 +4920,25 @@ class FloPyEnv(gym.Env):
         return actionType
 
     def updateModel(self):
-        """Update model domain for transient simulation."""
+        """
+        Update model domain for transient simulation.
 
+        Parameters
+        ----------
+        self : object
+            Instantiated class of type `ModelUpdater`.
+
+        Returns
+        -------
+        None
+
+        Example
+        -------
+        >>> from ModelUpdater import ModelUpdater as mu
+        >>> m = mu()
+        >>> m.updateModel(1)  # Update model domain
+        """
+        
         self.constructModel()
 
     def updateWellRate(self):
