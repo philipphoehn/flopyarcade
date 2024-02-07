@@ -4942,8 +4942,20 @@ class FloPyEnv(gym.Env):
         self.constructModel()
 
     def updateWellRate(self):
-        """Update model to continue using well."""
-
+        """
+        Updates the pumping rate in order for it to not surpass the constraints of maximum or minimum allowed rates. 
+        Randomly generates a fluctuation value between -1 and +1, then adds this change factor times maxQChange to the current pumping rate (wellQ).
+    
+        Parameters:
+            self : the object that calls upon updateWellRate()
+    
+        Returns:
+            None : only updates wellQ attribute of model object. Does not return any value or variable.
+    
+        Todo:
+            * add error handling for instances where ENVTYPE does not correspond to any of the expected values
+        """
+        
         if self.ENVTYPE in ['1r-d', '1r-c', '2r-d', '2r-c', '3r-d', '3r-c', '4r-d', '4r-c', '5r-d', '5r-c', '6r-d', '6r-c']:
             # generating random well rate fluctuations
             dQ = uniform(low=-1.0, high=1.0)*self.maxQChange
