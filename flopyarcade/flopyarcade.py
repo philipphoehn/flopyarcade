@@ -4573,6 +4573,48 @@ class FloPyEnv(gym.Env):
         self.hclose, self.rclose, self.relax = 1e-8, 1e-8, 1.
 
     def initializeSimulators(self, PATHMF2005=None, PATHMP6=None, PATHMF6DLL=None):
+        """
+        Initialize the MODFLOW and MODPATH simulator executables.
+        
+        Parameters
+        ----------
+        PATHMF2005 : str, default None
+            Path to mf2005 executable. If not provided, then default path is assumed from
+                       self.wrkspc/simulators/{system}/{bits}
+       
+        PATHMP6 : str, default None
+             Path to mp6 executable. If not provided, then default path is assumed from
+                     self.wrkspc/simulators/{system}/{bits}.
+        
+        PATHMF6DLL : str, default None
+            Path to libmf6 dll file. If not provided, then default path is assumed from
+                         self.wrkspc/simulators/{system}/{bits}
+        
+        Returns
+        -------
+        exe_name : str
+             Full path of mf2005 executable to be used in simulation
+        
+        exe_mp : str
+            Full path of mp6 executable to be used in simulation.
+        
+        PATHMF6DLL: str
+           Full path of libmf6 dll file to be used in simulation.
+        
+        Notes
+        -----
+        1. If platform system is unknown, then it prints an error message and exits without returning anything.
+        2. It assumes that self.wrkspc exists as a valid directory where the simulators are located or will be downloaded to.
+            If not provided (as None) for any of PATHMF2005, PATHMP6 or PATHMF6DLL, then default paths in self.wrkspace
+                with respective subfolders {system}/{bits} is assumed. Here system can take values 'win32', 'win64' etc., and bits='32', '64'.
+            If provided as a valid path (i.e. the executable exists in that location), then it uses this information to initialize the simulators, else it exits with error message.
+        3. It assumes self.wrkspc is defined and is a valid directory where the simulator executables will be located or downloaded to. If not provided (as None) for any of PATHMF2005, PATHMP6 or PATHMF6DLL, then default paths in self.wrkspace
+                with respective subfolders {system}/{bits} is assumed. Here system can take values 'win32', 'win64' etc., and bits='32', '64'.
+            If provided as a valid path (i.e. the executable exists in that location), then it uses this information to initialize the simulators, else it exits with error message.
+        4. It assumes self.versionMODFLOW is set and can be read from there, if not found, it sets version to 'mf2005'
+        5. It assumes self.versionMODPATH is set and can be read from there, if not found, it sets the version to 'mp6'
+        """
+        
         """Initialize simulators depending on operating system.
         Executables have to be specified or located in simulators subfolder.
         """
