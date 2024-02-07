@@ -4870,8 +4870,20 @@ class FloPyEnv(gym.Env):
         self.wel = ModflowWel(self.mf, stress_period_data=lrcq)
 
     def initializeState(self, state):
-        """Initialize aquifer hydraulic head with state from previous step."""
-
+        """
+        Initializes the headsPrev attribute to store current head states in.
+        In other words: Initialize aquifer hydraulic head with state from previous step.
+    
+        Parameters:
+            state (dict): The game's state dictionary.
+    
+        Returns:
+          None
+    
+        Todo: 
+            Add an example of how this would be used later on for other functions that change the state.
+        """
+        
         self.headsPrev = copy(self.state['heads'])
 
     def getActionType(self, ENVTYPE):
