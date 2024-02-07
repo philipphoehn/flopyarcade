@@ -4323,8 +4323,17 @@ class FloPyEnv(gym.Env):
             return self.observations, self.reward, self.done, self.info
 
     def defineEnvironment(self, seed=None):
-        """Define environmental variables."""
+        """
+        Defines the environment (spatial domain and recharge rates) for a given ENVTYPE.
 
+        Args:
+            seed : int or NoneType
+                The random seed used to create the numpyRandomState instance which is then 
+                used throughout this function when sampling values from uniform distributions. If
+                `seed` is not provided, then no seeding of the global state occurs and a random 
+                value will be used instead. 
+        """
+        
         numpySeed(self._SEED)
 
         if self.ENVTYPE in ['0s-c']:
