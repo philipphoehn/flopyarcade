@@ -4887,7 +4887,27 @@ class FloPyEnv(gym.Env):
         self.headsPrev = copy(self.state['heads'])
 
     def getActionType(self, ENVTYPE):
-        """Retrieve action type from ENVTYPE variable."""
+        """
+        Return the environment type for a given string `ENVTYPE`. 
+    
+        Parameters
+        ----------
+        self : object
+            An instance of the main class.
+    
+        ENVTYPE: str
+            The name of an environment
+    
+        Returns
+        -------
+        actionType : str
+            Either "discrete" or "continuous".
+    
+        Examples 
+        --------
+        >>> getActionType('CartPole-v0') 
+        'discrete'
+        """
         
         if '-d' in ENVTYPE:
             actionType = 'discrete'
