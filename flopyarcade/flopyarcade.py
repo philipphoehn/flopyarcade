@@ -4688,7 +4688,16 @@ class FloPyEnv(gym.Env):
         self.versionMODPATH = 'mp6'
 
     def initializeAction(self):
-        """Initialize actions randomly."""
+        """
+        Initialize the actions with random values.
+    
+            Args:
+              None
+    
+            Returns:
+                None
+        """
+        
         if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
             self.actionValueNorth = uniform(self.minH, self.maxH)
             self.actionValueSouth = uniform(self.minH, self.maxH)
