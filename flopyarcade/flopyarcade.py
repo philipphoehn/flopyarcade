@@ -3808,9 +3808,30 @@ class FloPyEnv(gym.Env):
 
     # def step(self, observations, action, rewardCurrent, teardownOnFinish=False):
     def step(self, action, teardownOnFinish=True):
-
-        """Perform a single step of forwards simulation."""
-
+        """
+        The agent takes a step in the environment through forward simulation.
+    
+        Parameters
+        ----------
+        action : int or array of floats
+            The action taken by the model indexed by action type [0, 1] -> action.
+    
+        Returns
+        -------
+        observation: np.array
+            Observations that are returned after taking a step in the environment.
+    
+        reward: float
+            Reward that is returned from the environment after taking a step.
+    
+        done: bool
+            Whether or not the episode is complete.
+    
+        info : dict
+            Diagnostic information useful for debugging. 
+    
+        """
+        
         if self.actionType == 'discrete':
             # if actions are given in integers
             if action not in self.actionSpace:
