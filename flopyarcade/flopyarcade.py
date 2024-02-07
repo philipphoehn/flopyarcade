@@ -5047,15 +5047,29 @@ class FloPyEnv(gym.Env):
         self.wel = ModflowWel(self.mf, stress_period_data=lrcq, options=['NOPRINT'])
 
     def constructModel(self):
-        """Construct the groundwater flow model used for the arcade game.
+        """
+        Constructs the MODFLOW model object and all of its packages, as well as other objects needed to run a simulation. 
+        In other words: Construct the groundwater flow model used for the arcade game.
         Flopy is used as a MODFLOW wrapper for input file construction.
         A specified head boundary condition is situated on the western, eastern
         and southern boundary. The southern boundary condition can be modified
         during the game. Generally, the western and eastern boundaries promote
         groundwater to flow towards the west. To simplify, all model parameters
         and aquifer thickness is homogeneous throughout.
+    
+        Parameters
+        ----------
+            N/A
+    
+        Returns
+        -------
+            N/A
+    
+        Raises
+        ------
+            ValueError: if the number of periods is not equal to 1, as this model assumes a steady state simulation. Also raises an error if no executable path was given for MODFLOW and MT3D.
         """
-
+        
         if self.ENVTYPE in ['0s-c']:
 
             self.sim = MFSimulation(sim_name=self.name, version='mf6',
