@@ -5324,8 +5324,25 @@ class FloPyEnv(gym.Env):
             # self.mf_pcg = ModflowNwt(self.mf)
 
     def get_cellID(self, x, y):
-        # function to get correct cell for use in BMI call
-
+        """
+        Get the cell ID for a specific location in the model grid - to get correct cell for use in BMI call.
+    
+        Parameters: 
+            self (object) -- BMI object containing relevant information about the model
+                delc (int or float) -- size of cells along columns of model area
+                    nrow (int or float) -- number of rows
+                        delr (int or float) -- size of cells along row of model area
+            x (float, unit=m) -- location to find cell ID in the x-direction 
+                y (float, unit=m) -- location to find cell ID in the y-direction
+    
+        Returns:
+            cellID (int or float) -- cell index corresponding to a specific location within the model area.
+    
+        Examples:
+            >>> get_cellID(self, 4056, 1893)
+            27645
+        """
+        
         iCol = int(x/self.delc)
         iRow = self.nrow-1 - int(y/self.delr)
         cellID = (iRow*self.ncol)+iCol+1
