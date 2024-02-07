@@ -5350,8 +5350,26 @@ class FloPyEnv(gym.Env):
         return cellID
 
     def get_cellColRow(self, x, y):
-        # function to get correct cell for use in BMI call
-
+        """
+        This function takes a point as input and returns the column and row indices for that point.
+    
+            Parameters
+             ----------
+                 self : Object to be used in conjunction with other functions to extract data from .wdb files (specifically flopy).
+                 x : The value of the X coordinate.
+                 y : The value of the Y coordinate.
+    
+              Returns 
+               -------
+                   A tuple containing two integer values: iCol and iRow, which is the column and row index for that point respectively.
+    
+             Examples
+              --------
+                  >>> import <module_name> as mn # Import module
+                  >>> colrow = get_cellColRow(object, 3045968, 27131) # Call function
+                  (33, 25) # The returned tuple.
+        """
+        
         iCol = int(x/self.delc)
         iRow = self.nrow-1 - int(y/self.delr)
 
