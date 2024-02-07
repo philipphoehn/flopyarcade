@@ -4821,7 +4821,32 @@ class FloPyEnv(gym.Env):
         return wellX, wellY, wellZ, wellCoords, wellQ
 
     def initializeWell(self):
-        """Implement initialized well as model feature."""
+        """
+        Initialise the well at a given position in the world as a model feature.
+    
+        Parameters
+        ----------
+            self : object instance of Well class
+    
+        Raises 
+        ------
+           No errors are raised by this function, but the following warnings may be shown:
+               * A warning is raised if no helper wells were defined and ENVTYPE requires them.
+    
+        Todo
+        ----
+            * Add input checks to ensure that the coordinates of all wells (well + helper) exist in the world grid. 
+    
+        Examples
+        --------
+          See docstrings for `Well` class and `World` class, respectively.
+    
+        Returns
+        -------
+            None : no value is returned by this function; it updates attributes of a Well instance only. 
+    
+        """
+            
         l, c, r = self.cellInfoFromCoordinates([self.wellX,
                                                 self.wellY,
                                                 self.wellZ]
