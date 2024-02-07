@@ -4757,8 +4757,24 @@ class FloPyEnv(gym.Env):
         self.particleCoords = [self.particleX, self.particleY, self.particleZ]
 
     def initializeModel(self):
-        """Initialize groundwater flow model."""
-
+        """
+        Initialize groundwater flow model.
+        
+        Parameters:
+            None
+        
+        Returns:
+            1) A constructed Model object
+        
+        Todo:
+          * Implement a check to ensure the model is properly created
+        
+        Example:
+            >>> myModel = initializeModel()
+            >>> type(myModel)
+                <class 'flopy.mbase.model'>
+        """
+        
         self.constructModel()
 
     def initializeWellRate(self, minQ, maxQ):
