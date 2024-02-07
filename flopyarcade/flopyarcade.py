@@ -4778,7 +4778,35 @@ class FloPyEnv(gym.Env):
         self.constructModel()
 
     def initializeWellRate(self, minQ, maxQ):
-        """Initialize well randomly in the aquifer domain within margins."""
+        """
+        Initialize the coordinates of a new well randomly in the aquifer domain within margins..
+        
+        Args:
+            self (object) : an instantiated object defined by class <NameOfClass>
+                            containing at least xmin,xmax, ymin,ymax as attributes.
+        
+            minQ (float): minimum flow rate to be assigned for the new well.
+        
+            maxQ (float): maximum flow rate to be assigned for the new well.
+        
+        Returns:
+            wellX : float, x-coordinate of the new well's position.
+                Note that this is a 2D simulation with z=0 being ground level.
+        
+            wellY : float, y-coordinate of the new well's position.
+        
+            wellZ : float, z-coordinate of the new well's position.
+        
+            wellCoords: list(float), [x,y] coordinates of the new well as a pair in 2D space (z=0).
+        
+            wellQ : float, flow rate to be assigned for the new well.
+        
+        Todo:
+           - check if we want to set the z-coordinate to something other than self.zTop.
+        
+        Examples:
+            >>> wellX,wellY,wellZ,wellCoords,wellQ = initializeWellRate(self=my_class, minQ=-1e6, maxQ=+1e6)
+        """
 
         xmin = 0.0 + self.wellSpawnBufferXWest
         xmax = self.extentX - self.wellSpawnBufferXEast
