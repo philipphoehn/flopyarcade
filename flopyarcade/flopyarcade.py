@@ -5376,6 +5376,39 @@ class FloPyEnv(gym.Env):
         return iCol, iRow
 
     def changeActionDict(self, actionsDict, action):
+        """
+        Change the action dictionary according to given parameters.
+    
+        Parameters
+        ----------
+        self : {Class}
+            Instance of the Class where this function is defined in.
+    
+        actionsDict : dict[str,int]
+            Dictionary containing all the action values (default or not) for each key 'wellXactionY' with X the number
+            of helper well and Y one between dxRight/dxLeft/dyUp/dyDown/dQUp/dQDown.
+    
+        action : ndarray[int]
+            An array containing all the new values to be used in actionsDict.
+    
+        Returns
+        -------
+        dict[str, int]
+            Dictionary updated with the given action vector.
+    
+        Todo
+        ----
+        Check if offset can be calculated once and for all or needs to change every iteration of this function is called.
+    
+        Examples
+        --------
+        >>> self = {Class}() # Create a Class instance where this method belongs in, with default attributes values.
+        >>> actionsDict = {'well0actiondxRight' : 25, 'well1actiondQDown': 36, ...} # Dictionnary containing all the action values (default or not) for each key wellXactionY with X the number of helper well and Y one between dxRight/dxLeft/dyUp/dyDown/dQUp/dQDown.
+        >>> action = np.array([1,2,3,4,...,60]) # An array containing all the new values to be used in actionsDict.
+        >>> changeActionDict(self, actionsDict, action)
+            {'well0actiondxRight' : 1, 'well1actiondQDown': 7, ...} # Dictionnary updated with the given action vector.
+        """
+        
         iOffset = 0
         offset = 6
         for iHelper in range(self.nHelperWells):
