@@ -5509,24 +5509,46 @@ class FloPyEnv(gym.Env):
         return actionsDict
 
     def add_lib_dependencies(self, lib_dependencies):
-        # for an example, see:
-        # https://github.com/JoerivanEngelen/wflow_modflow6_bmi
-        # on Windows, install: http://mingw-w64.org/doku.php
-        # http://win-builds.org/doku.php/download_and_installation_from_windows
-        # print('lib_dependencies DEBUG IN XMIPYWRAPPER', lib_dependencies)
-        # print('lib_path DEBUG IN XMIPYWRAPPER', lib_path)
+        """
+        Adds library dependencies to the system's PATH or LD_LIBRARY_PATH environment variable.
 
-        # bmi installation linux
-        # https://github.com/MODFLOW-USGS/executables/releases/download/5.0/linux.zip
-        # maybe replace locally:
-        # or force to install current xmipy
-        # https://github.com/Deltares/xmipy/blob/develop/xmipy/xmiwrapper.py
-        # sudo install libifport
-        # https://software.intel.com/content/www/us/en/develop/articles/redistributable-libraries-for-intel-c-and-fortran-2020-compilers-for-linux.html
+        for an example, see: https://github.com/JoerivanEngelen/wflow_modflow6_bmi
+        on Windows, install: http://mingw-w64.org/doku.php
+        http://win-builds.org/doku.php/download_and_installation_from_windows
 
-        # use nightly builds
-        # https://github.com/MODFLOW-USGS/modflow6-nightly-build/releases
+        bmi installation linux
+        https://github.com/MODFLOW-USGS/executables/releases/download/5.0/linux.zip
+        maybe replace locally:
+        or force to install current xmipy
+        https://github.com/Deltares/xmipy/blob/develop/xmipy/xmiwrapper.py
+        sudo install libifport
+        https://software.intel.com/content/www/us/en/develop/articles/redistributable-libraries-for-intel-c-and-fortran-2020-compilers-for-linux.html
 
+        use nightly builds
+        https://github.com/MODFLOW-USGS/modflow6-nightly-build/releases
+    
+        Args:
+            lib_dependencies: A list of paths containing libraries that need to be added.
+                If not provided, no changes will be made to the environment variables.
+    
+        Todo:
+            * Implement support for adding dependencies on non-Windows platforms.
+                - Determine if there is an equivalent of 'pathsep' in these environments,
+                  e.g., ':' (Unix) or ';' (Windows)
+                - Update the function to handle LD_LIBRARY_PATH instead of PATH
+                    when appropriate
+    
+        Examples:
+    
+        Windows:
+            >>> add_LIB_dependencies(['C:\\Libraries\\lib1.dll', 'C:\\Libraries\\lib2.lib'])
+    
+        Unix-like system:
+            $ export LIBRARY="path/to/lib1.so path/to/lib2.a"
+            >>>
+            >>> add_LIB_dependencies(['/usr/local/lib/', '/opt/software/libs/'])
+        """
+        
         if lib_dependencies:
             if system() == 'Windows':
                 for dep_path in lib_dependencies:
