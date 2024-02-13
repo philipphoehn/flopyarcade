@@ -5562,7 +5562,25 @@ class FloPyEnv(gym.Env):
                         environ['PATH'] = (dep_path + pathsep + environ['PATH'])
 
     def runMODFLOW(self, check=False):
-        """Execute forward groundwater flow simulation using MODFLOW."""
+        """
+        Runs the MODFLOW model in a forward groundwater simulation using MODFLOW
+        and writes input files.
+    
+        Parameters
+        ----------
+        check : bool (optional)
+            If True, checks if the model setup is valid. Default is False.
+    
+        Returns
+        -------
+        success_MODFLOW : boolean
+            Whether or not the MODFLOW simulation was successful. 
+        buff : str
+            Buffer containing output from the run_model function.
+    
+        Todo:
+        - Implement method to write only changes to input files instead of full rewrites.
+        """
 
         # writing MODFLOW input files
         t0 = time()
