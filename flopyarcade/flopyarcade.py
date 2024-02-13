@@ -5406,7 +5406,7 @@ class FloPyEnv(gym.Env):
         >>> actionsDict = {'well0actiondxRight' : 25, 'well1actiondQDown': 36, ...} # Dictionnary containing all the action values (default or not) for each key wellXactionY with X the number of helper well and Y one between dxRight/dxLeft/dyUp/dyDown/dQUp/dQDown.
         >>> action = np.array([1,2,3,4,...,60]) # An array containing all the new values to be used in actionsDict.
         >>> changeActionDict(self, actionsDict, action)
-            {'well0actiondxRight' : 1, 'well1actiondQDown': 7, ...} # Dictionnary updated with the given action vector.
+            {'well0actiondxRight' : 1, 'well1actiondQDown': 7, ...} # Dictionary updated with the given action vector.
         """
         
         iOffset = 0
@@ -5423,6 +5423,25 @@ class FloPyEnv(gym.Env):
         return actionsDict
 
     def getActionSpaceSize(self, actionsDict):
+        """
+        This function calculates the size of an action space based on a dictionary containing 
+        actions as keys. The length of the key set is used to determine the number of unique actions.
+        
+        Parameters:
+        - actionsDict (dict): A dictionary where each entry represents an action and its associated value
+        
+        Returns:
+        - int: Size of the action space
+
+        Example:
+        actions_dict = {"move_forward": 0, "turn_left": 1}
+        print(getActionSpaceSize(actions_dict))
+        >>> 2
+
+        todo:
+        Implement a more efficient method to calculate the action space size if needed.
+        """
+        
         return len(actionsDict.keys())
 
     def getActionValues(self, actionsDict):
