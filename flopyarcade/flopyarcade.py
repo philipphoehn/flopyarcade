@@ -5445,6 +5445,36 @@ class FloPyEnv(gym.Env):
         return len(actionsDict.keys())
 
     def getActionValues(self, actionsDict):
+        """
+        This function calculates the updated values for each action in a given well.
+    
+        Parameters
+        ----------
+        actionsDict : dict
+            A dictionary containing all necessary information about the wells and their corresponding actions.
+    
+        Returns
+        -------
+        actionsDict : dict
+            The input `actionsDict` with updated values after applying the changes to x, y, cellID, and Q for each well.
+    
+        Todo:
+        - Implement error handling if any of the parameters are not in the correct format or range
+    
+        Examples
+        --------
+        >>> from docstring_examples import getActionValues_example_1
+        >>> actionsDict = {'well0actiondxRight': 2.5, 'well0x': 3., 'maxQ': -4}
+        >>> print(getActionValues(actionsDict))
+            # Output: {'well0actiondxRight': 2.5,
+                      'well0x': 1.9875,
+                      'cellID': 6,
+                      'well0Q': -4}
+    
+        Notes
+        -----
+        The function works by iterating over each well and updating the values for x, y, cellID, and Q based on their corresponding actions.
+        """
 
         for iHelper in range(self.nHelperWells):
             dxRight = self.well_dxMax*actionsDict['well' + str(iHelper) + 'actiondxRight']
