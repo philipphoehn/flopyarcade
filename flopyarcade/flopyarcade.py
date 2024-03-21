@@ -3138,6 +3138,7 @@ class FloPyEnv(gym.Env):
             # checking if particle has reached eastern boundary
             if self.particleCoordsAfter[0] >= self.minX + self.extentX - self.dCol:
                 self.done = True
+                self.success = True
 
             # checking if particle has returned to western boundary
             if self.particleCoordsAfter[0] <= self.minX + self.dCol:
@@ -4869,7 +4870,7 @@ class FloPyEnv(gym.Env):
                 gameResult = 'Success'
             elif self.success == False:
                 gameResult = 'Failure'
-            self.text = self.ax2.text(1.25, 65., gameResult, fontsize=500,
+            self.text = self.ax2.text(1.25, 65., gameResult, fontsize=400,
                 color='red', zorder=zorder, alpha=0.25,
                 bbox=dict(facecolor='none', edgecolor='none', pad=0.0))
 
@@ -4903,7 +4904,8 @@ class FloPyEnv(gym.Env):
         # evaluate fit and recursively decrease fontsize until text fits
         fits_width = bbox_text.width*whratio < width if width else True
         fits_height = bbox_text.height/whratio < height if height else True
-        dFontDecrease = 5.
+        dFontDecrease = 10.
+        # dFontDecrease = 5.
         if not all((fits_width, fits_height)):
             text.set_fontsize(text.get_fontsize()-dFontDecrease)
             self.textSpanAcrossAxis(text, width, height, fig, ax)
