@@ -120,25 +120,7 @@ class FloPyAgent():
     """
 
     def getActionType(self, ENVTYPE):
-        """
-        Determine whether the environment has a discrete or continuous action type, based on its name.
-    
-        Args:
-          ENVTYPE (str) : Name of Environment
-    
-        Raises:
-            ValueError : If 'd' is not in the name and neither is 'c'.
-    
-        Returns:
-            str : Either "discrete" or "continuous".
-    
-        Examples:
-          >>> getActionType("CartPole-v1")
-              "discrete"
-          >>> getActionType("MountainCarContinuous-v0")
-              "continuous"
-    
-        """
+        """Retrieve action type from ENVTYPE variable."""
         
         if '-d' in ENVTYPE:
             actionType = 'discrete'
@@ -267,17 +249,13 @@ class FloPyAgent():
                     self.envSettings['MODELNAME'] + '_hyParams.p'))
 
     def initializeDQNAgent(self):
+        """Initialize agent to perform Deep Double Q-Learning.
+        Bug fix for predict function:
+        https://github.com/keras-team/keras/issues/6462
         """
-        Initializes a DQN agent's main and target models, and replay memory buffer.
-        Bug fix for predict function: https://github.com/keras-team/keras/issues/6462
-        
-        Parameters:
-            self (DQNAgent): An instance of the DQNAgent class that holds the neural network models used for training on the environment. 
-        
-        Returns: None
-        """
-        
+
         # actionType = self.envSettings
+
         actionType = FloPyEnv(initWithSolution=False).getActionType(self.envSettings['ENVTYPE'])
         
         # initializing main predictive and target model
@@ -295,14 +273,7 @@ class FloPyAgent():
         self.targetUpdateCount = 0
 
     def initializeGeneticAgents(self):
-        """
-        Initializes an ensemble of genetic agents with their associated models and history of mutations.
-        
-        Parameters:
-            self (GeneticAgent): An instance of the GeneticAgent class that holds the neural network models used for training on the environment.
-        
-        Returns: None
-        """
+        """Initialize genetic ensemble of agents."""
 
         if self.envSettings['KEEPMODELHISTORY']:
             chunksTotal = self.yieldChunks(arange(self.hyParams['NAGENTS']),
@@ -318,19 +289,7 @@ class FloPyAgent():
                 self.mutationHistory = self.updateMutationHistory(self.mutationHistory, agentNumber, creationSeed, mutationSeeds=[], mutationSeed=None)
 
     def setSeeds(self):
-        """
-        Set seeds.
-        
-        Parameters
-        ----------
-        envSettings : dict, required 
-            A dictionary containing environment settings for this agent. This should include a SEEDAGENT key which will be used to set numpy seed and random state of the agent.
-        
-        Returns
-        -------
-        None
-        """
-        
+        """Set seeds."""
         self.SEED = self.envSettings['SEEDAGENT']
         numpySeed(self.SEED)
         randomSeed(self.SEED)
@@ -339,46 +298,8 @@ class FloPyAgent():
     def runDQN(self, env):
         """
         Run main pipeline for Deep Q-Learning optimisation.
-
-        Inspiration and larger parts of code modified after sentdex:
-        https://pythonprogramming.net/deep-q-learning-dqn-reinforcement-learning-python-tutorial/
-
-    
-        Parameters:
-            self (agent object) - agent instance with all attributes and methods
-                - actionType attribute is used to determine which type of action
-                    to perform in the game, whether it be random or from policy
-                - envSettings dictionary contains settings for model name, seed 
-                    number, reward threshold minimum, and epsilon decay parameters
-            env (environment object) - environment instance with all attributes
-                and methods; this is used to run games on an agent. It is called 
-                    to reset the game, to determine if a game was successful or not,
-                        and also contains information about the reward earned from the game.
-    
-        Returns:
-            None - does not return anything but updates self attributes with results
-                of each game played by the agent. These include rewards (gameReward),
-                    min/max/average cross-validated scores, and epsilon decay parameters.
-    
-        Raises:
-            None - does not raise any exceptions but will print errors if 
-                something goes wrong with running the agent
-    
-        Example usage of runDQN function:
-            # initialize a DQN agent object instance; this is where the actionType,
-                    epsilon decay parameters, and other attributes are set for the agent.
-            agent = DQNAgent(envSettings)
-    
-            # initialize an environment object instance to be used by the agent.
-                This could also be a different environment than what was originally 
-                used when training the model weights loaded into the network model of this agent,
-                    if you want to test how well it can generalize to new environments.
-            env = Environment()
-    
-            # run games with agent and update results each game played until done playing
-                This function is where actionType, epsilon decay parameters, and other 
-                attributes are used for the agent during training.
-            agent.runDQN(env)
+        # Inspiration and larger parts of code modified after sentdex
+        # https://pythonprogramming.net/deep-q-learning-dqn-reinforcement-learning-python-tutorial/
         """
 
         self.actionType = env.actionType
@@ -437,20 +358,12 @@ class FloPyAgent():
             pass
 
     def runGenetic(self, env, searchNovelty=False):
+        """Run main pipeline for genetic agent optimisation.
+        # Inspiration and larger parts of code modified after and inspired by:
+        # https://github.com/paraschopra/deepneuroevolution
+        # https://arxiv.org/abs/1712.06567
         """
-        Runs main pipeline for genetic agent optimisation with given hyperparameters.
-        
-        Inspiration and larger parts of code modified after and inspired by:
-        https://github.com/paraschopra/deepneuroevolution
-        https://arxiv.org/abs/1712.06567
-    
-        Args:
-            env (FloPyEnv) : Flopy model class instance representing the groundwater flow problem to be solved via RL agent.
-    
-        Returns:
-            None, all outputs are saved directly as pickle files and stored in the directory defined by 'self'.
-        """
-        
+
         self.actionType = env.actionType
 
         # if self.hyParams['NOVELTYSEARCH'] and not self.envSettings['KEEPMODELHISTORY']:
@@ -758,19 +671,7 @@ class FloPyAgent():
             print('')
 
     def loadActions(self, agents=None):
-        """
-        Load actions from a given agent and returns them as an array.
-    
-        Parameters:
-            self (NoveltyArchive) : A novelty archive class object.
-    
-            agents (list of ints or noneType) : The list of integers that represent the indices for each unique agent in the archive. 
-                If no list is provided, then use all the unique agents as defined by the instance variable `agentsUnique`.
-    
-        Returns:
-            sharedArrayActions (np.ndarray) : An array containing all of the actions from each agent that was loaded into the function.
-            """
-        
+
         if agents == None:
             agents = self.agentsUnique
 
@@ -863,36 +764,9 @@ class FloPyAgent():
         return sharedArrayActions
 
     def calculateNoveltyNeighborBounds(self, iAgent):
-        """
-        Calculates the upper and lower bounds of novelty neighbors to consider.
-        This function calculates the index range for calculating the novelty score.
-        In other words: Checks if half of NNOVELTYNEIGHBORS are available surrounding the given index,
-        if not agents are selected until the index boundary and more from the other end.
-    
-        Parameters
-        ----------
-            self: Self object instance used by this method
-                agent_list : List[Agent]
-                    The list of agents.
-                hyParams : Dict[str, Any]
-                     A dictionary of hyperparameters
-    
-        Returns
-        -------
-        Tuple[int]
-            4-tuple indicating the range to consider for calculating novelty neighbors as well as whether or not it needs updating
-    
-        Raises:
-            Exceptions
-                If the agent index is out of bounds.
-    
-        Examples
-        --------
-        >>> # 10 agents, 5th agent in list has a value of 2348932 (novelty)
-        >>> calculateNoveltyNeighborBounds(self, iAgent=5):
-            (1, 7, 6, True)
-        """
-        
+        """Check if half of NNOVELTYNEIGHBORS are available surrounding the given index,
+        if not agents are selected until the index boundary and more from the other end."""
+
         nAgentsUnique = len(self.agentsUnique)
 
         # defining how many neighbors to consider below and above
@@ -944,38 +818,7 @@ class FloPyAgent():
         return rangeLower, rangeHigher, iAgentInCroppedArray, needsUpdate
 
     def createNNModel(self, actionType, seed=None):
-
-        """
-        Creates a multi-layer perceptron (MLP) neural network model.
-    
-        The type of MLP is determined by the NNTYPE parameter in hyParams dictionary, 
-        either 'perceptron' or 'convolution'.
-            - If 'perceptron', then fully-connected feed-forward multi-layer neural 
-              network.
-                * Applies architecture (variable number of nodes per hidden layer).
-    
-            - elif 'convolutional', then convolutional feed-forward neural network, with
-              2D convolutional layers and a flattened dense output layer for action space outputs.
-    
-        The initializer used is determined by the ACTIVATION parameter in hyParams 
-        dictionary. It can be one of 'glorot_normal', 'glorot_uniform', 'random_uniform' or 'random_normal'. 
-            - If not specified, then use glorot normal initialization.
-    
-        Parameters:
-            1) actionType (str): the type of agent action space being used, either 'discrete' or 'continuous':
-                * If 'discrete', then the model output layer has a linear activation function and uses softmax for 
-                  predicting probabilities.
-    
-                * elif 'continuous', then the model output layer has sigmoid activation function.
-            2) seed (int, optional): numpy random state/seed to use when generating initializer objects. Defaults to None.
-    
-        Returns:
-            keras Model object: uncompiled neural network model architecture.
-    
-        Raises:
-            ValueError: if the NNTYPE parameter in hyParams dictionary is not 'perceptron' or 'convolution'.
-        """
-            
+        """Create neural network."""
         if seed is None:
             seed = self.SEED
         model = Sequential()
@@ -1058,24 +901,7 @@ class FloPyAgent():
         return model
 
     def checkParameterMean(self, agent):
-
-        """
-        Calculates the average weight value per parameter for an agent.
-    
-        Parameters
-        ----------
-        self : object
-            An instance of a class with weights attribute containing 2D list or numpy array of floats.
-    
-        agent : object
-            An instance of a class with get_weights() method that returns a 1D list, where each value is the weight to be averaged.
-    
-        Returns
-        -------
-        float
-           The mean average per parameter across all weights in an agent's parameters.
-        """
-       
+        
         weights, means = agent.get_weights(), []
         for iParam, parameters in enumerate(weights):
             means.append(mean(weights[iParam]))
@@ -1084,24 +910,6 @@ class FloPyAgent():
 
     def loadModelFromMutationHistory(self, creationSeed, mutationSeeds):
 
-        """
-        Load a model from its mutations history.
-    
-        The model is created by first creating the base NN model with `createNNModel` 
-        and then applying a series of `mutateGenetic` operations in sequence on top of it.
-    
-        Parameters:
-            creationSeed : Seed used for generating the base NN model.
-            mutationSeeds : List of seeds to use when sequentially calling `mutateGenetic`. 
-                            Each seed corresponds to a single call to `mutateGenetic`, with each successive element in the list being applied on top of the result from previous elements.
-    
-        Returns:
-            The final model generated by applying all mutation seeds sequentially to the base NN model created using creationSeed.
-    
-        Examples:
-            >>> agent = loadModelFromMutationHistory(1, [2]) # This returns a model that is equivalent to `createNNModel(...).mutateGenetic(...)`.
-        """
-        
         agent = self.createNNModel(self.actionType, seed=creationSeed)
 
         for mutationSeed in mutationSeeds:
@@ -1110,37 +918,7 @@ class FloPyAgent():
         return agent
 
     def updateMutationHistory(self, mutationHistory, agentNumber, creationSeed, mutationSeeds=[], mutationSeed=None):
-        """
-        Update a dict that stores the mutations history.
-    
-        Parameters
-        ----------
-            mutationHistory : Dict[str, int]
-                A dictionary to store the mutations history of an agent
-    
-            agentNumber : str
-                The index assigned for this agent
-    
-            creationSeed : int
-               Seed used when creating this agent's genome.
-    
-        Returns
-        -------
-            Dict[str, int]
-              A dictionary to store the mutations history of an agent 
-    
-        Raises
-        ------
-           ValueError: The `agentNumber` parameter should be a string!
-               Please check your input.
-    
-        Examples
-        --------
-            >>> from collections import OrderedDict
-            >>> updateMutationHistory(OrderedDict([('agent0', {'creationSeed': 1, 'mutationSeeds': [2]})]), 'agent3', 4) == OrderedDict([('agent0', {'creationSeed': 1, 'mutationSeeds': [2]}), ('agent3', {'creationSeed': 4, 'mutationSeeds': []})])
-            True
-        """
-        
+
         mutationHistory['agent' + str(agentNumber)] = {}
         mutationHistory['agent' + str(agentNumber)]['creationSeed'] = creationSeed
         mutationHistory['agent' + str(agentNumber)]['mutationSeeds'] = mutationSeeds
@@ -1151,25 +929,6 @@ class FloPyAgent():
 
     def createMutationRecord(self, creationSeed, mutationSeeds=[], mutationSeed=None):
 
-        """
-        This function returns a dictionary containing the information about the mutation.
-        If `mutationSeed` is not None, then it is appended to `mutationSeeds`.
-        
-        Parameters
-        ----------
-        creationSeed : int
-            The seed used for creating this record.
-        mutationSeeds: List[int]
-            A list of seeds that were used in mutations applied to the original seed.
-        mutationSeed: Optional(int)
-            If not None, then append `mutationSeed` to `mutationSeeds`.
-        
-        Returns
-        -------
-        Dict
-            A dictionary containing information about this record.
-        """
-        
         record = {}
         record['creationSeed'] = creationSeed
         record['mutationSeeds'] = mutationSeeds
@@ -1179,67 +938,21 @@ class FloPyAgent():
         return record
 
     def updateReplayMemory(self, transition):
-        """
-        Update replay memory by adding a given step's data to a memory
+        """Update replay memory by adding a given step's data to a memory
         replay array.
-        
-        Parameters
-        ----------
-        self : object
-            An instance of the class containing this function definition.
-        transition : tuple
-            A tuple (state, action, reward) representing a single update step for the agent.
-                state  = The current observation from the environment's state space.
-                    Type: numpy array of shape [4, 84, 84].
-                    Alias: "screen".
-                action = Action taken by the agent.
-                    Type: int in range [0, 17] (both included).
-                    Aliases: "action" or "a", e.g., state, action = env.step(action)
-                reward : The amount of reward returned after previous action.
-                    Type: float.
-            Example: (np.array([4,84,84]), 0, 1.)
         """
-        
         self.replayMemory.append(transition)
 
     def updateReplayMemoryZeroReward(self, steps):
+        """Update replay memory rewards to zero in case game ended up with zero
+        reward.
         """
-        Update replay memory rewards to zero in case game ended up with zero reward.
-    
-        Parameters
-        ----------
-            self : The current state of the environment.
-                replayMemory : A list that contains (state, action, reward, next_state) tuples.
-    
-            steps : int
-    
-        Returns:
-            None
-    
-        Examples
-        --------
-        >>> updateReplayMemoryZeroReward(self, 10) # If there is no change to rewards in the last 10 states
-        """
-        
         for i in range(steps):
             self.replayMemory[-i][2] = 0.0
 
     def train(self, terminal_state, step):
-        """
-         Trains main network every step during a game using randomized batches from memory replay table to update Q-values.
-    
-        Args:
-            - self is the class instance of this method, which contains all attributes needed for training.
-                This includes:
-                    - `replayMemory`: list of tuples that holds memories of states, actions and reward over time;
-                                   each tuple represents a single transition or "step" in an episode
-            - terminal_state (bool): Boolean indicating if we are at the end of the game
-            - step (int): current timestep within episode.
-            
-        Returns:
-             None
-        """
-        
+        """Trains main network every step during a game."""
+
         # training only if certain number of samples is already saved
         if len(self.replayMemory) < self.hyParams['REPLAYMEMORYSIZEMIN']:
             return
@@ -1303,27 +1016,8 @@ class FloPyAgent():
         Take an action and update as well as train the main network every
         step during a game. Acts as the main operating body of the runDQN
         function.
-    
-        Parameters:
-            self (object) : The current instance of the class that contains this function object; allows for access to other objects within the same instance.
-            env (class instance) : An environment class instance with functions that can be called on from inside this function, e.g. env.observationsVectorNormalized() and env.step(action).
-    
-        Returns:
-            No return value. Instead, updates attributes of the `self` object such as self.gameReward and self.gameStep. Also updates replay memory through a call to updateReplayMemory(). Finally, trains main network on every step by calling train() function.
-    
-        Raises:
-            ValueError : If any of the following is not True then raise an error. Please note that if all these conditions are met, no errors will be raised and training will proceed as normal.:
-                - self.epsilon > 0;
-                - self.gameReward >= 0 ;
-    
-        Examples:
-            >>> takeActionsUpdateAndTrainDQN(self, env) # doctest: +SKIP
-            >>> pass
-    
-        Todo:
-            * Use an epsilon-greedy approach to choosing actions based on the current state of the agent model. This is already done in this function so it need not be implemented again.
         """
-        
+
         # retrieving initial state
         current_state = env.observationsVectorNormalized
 
@@ -1376,21 +1070,8 @@ class FloPyAgent():
                 break
 
     def crossvalidateDQN(self, env):
-        """
-        Simulate a given number of games and cross-validate current DQN
+        """Simulate a given number of games and cross-validate current DQN
         success.
-    
-        Parameters
-            self (object): The object instance of this class.
-            env (environment object): the environment we want to use for testing our model.
-    
-        Returns: None, but updates the attributes `gameRewardsCV`, `average_rewardCV`, 
-                `min_rewardCV` and `max_rewardCV`.
-    
-        Examples
-            >>> crossvalidateDQN(self=mySelfObject, env=myEnvObject)
-            # This will update the attributes of mySelfObject with the results of
-            # running this function.
         """
 
         # loop to cross-validate on unique set of models
@@ -1434,32 +1115,7 @@ class FloPyAgent():
         self.max_rewardCV = max(self.gameRewardsCV)
 
     def runAgentsGenetic(self, agentCounts, env):
-        """
-        Run genetic agent optimisation, if opted for with multiprocessing.
-        
-        Args:
-        self (object): An instance of the object that holds this method as an attribute.
-        
-          * The `envSettings` field should be a dictionary with keys `'NAGENTSPARALLEL'`,`'SURROGATESIMULATOR'` and values which are integers or strings respectively. 
-        
-            - If the value corresponding to key `'SURROGATESIMULATOR'` is not None, then it should be a string that corresponds to some valid Python code that can be executed within the namespace of `FloPyArcade` when imported as a module (or whatever other name your module has been given).
-        
-          * The `'NGENERATIONS'` field should also correspond to an integer value.
-        
-        agentCounts (List[int]): An array-like object containing integers representing the number of agents being trained in each generation.
-        
-        Returns:
-        reward_agents (list): A list containing floating point numbers. The nth element should be interpreted as the average reward that was attained by the best agent during training for the nth generation.
-        
-        Raises:
-        ValueError: If `agentCounts` contains values less than zero, then this function will raise a value error.
-        
-          * Please make sure to use non-negative integer values only.
-        
-        Warns:
-        UserWarning: If the length of agentCounts is greater than one and any two adjacent integers are equal, then this function will warn that the results may be misleading.
-        
-          * For best results please ensure that no two consecutive generations have an identical number of agents being trained in each generation, as training for different numbers of agents can take varying amounts of time.
+        """Run genetic agent optimisation, if opted for with multiprocessing.
         """
 
         # running in parallel if specified
@@ -1530,27 +1186,7 @@ class FloPyAgent():
         return reward_agents
 
     def runAgentsGeneticSingleRun(self, agentCount):
-        """
-        Run single game within genetic agent optimisation.
-    
-        Parameters:
-            - self (object)
-                Class object for this function to be called from.
-    
-            - agent_count (int)
-                0-indexed integer indicating the index of the 
-                agent being run in the current generation.
-    
-        Returns:
-            - None
-    
-        Raises:
-            - ValueError if `agentCount` is not an integer or less than zero.
-    
-        Example:
-            self.runAgentsGeneticSingleRun(5)
-                would run the 6th agent in the current generation, and return None.
-        """
+        """Run single game within genetic agent optimisation."""
 
         # print('debug running agentCount', agentCount)
         # import os
@@ -1694,23 +1330,8 @@ class FloPyAgent():
         return r
 
     def runAgentsRepeatedlyGenetic(self, agentCounts, n, env):
-        """
-        This method runs agents repeatedly.
-    
-        Parameters:
-            self (object) : This is the object that we're operating on.
-                It doesn't need to be here but I think it makes sense because this function is part of a class.
-             agentCounts(int): The number of agents that are being run at once.
-                 Must be positive, and can not exceed the maximum size allowed by `env`.
-            n (int) : The total number of times to run an individual set of agents before moving on.
-                This is akin to a batchsize in machine learning. It must be greater than 0.
-             env(str): The environment that will be used when running the game. Must be specified by `agentCounts` as well.
-        Returns:
-            reward_agentsMean (array) : A numpy array of shape `len(agentCounts)` which contains the mean rewards for each agent.
-                This is a float because it's an average over all runs, and can have non-integer values.
-    
-         Raises:
-             ValueError: If any parameter value is not within its specified range of allowed values, throw this error.
+        """Run all agents within genetic optimisation for a defined number of
+        games.
         """
 
         reward_agentsMin = zeros(len(agentCounts))
@@ -1736,32 +1357,10 @@ class FloPyAgent():
         return reward_agentsMean
 
     def randomAgentGenetic(self, agentIdx, generation=1):
+        """Creates an agent for genetic optimisation and saves
+        it to disk individually.
         """
-        Randomly generate an agent for genetic optimisation
-        and save to a temporary model path with unique id.
-        
-        Parameters:
-            self : Agent class instance
-                Instance of the Agent class that can create a neural network (NN).
-        
-            agentIdx : int or float-like
-                The index of the agent being generated, e.g., 1 for first agent.
-        
-            generation : int or float-like
-                Generation number, which is used to determine how many generations have been run.
-        
-        Returns:
-            None
-        
-        Raises:
-            ValueError - if the `agentIdx` parameter is not a positive integer or zero.
-            TypeError - if the `self` parameter has no `.envSettings`, `.tempModelpth`, and/or `.zFill`.
-        
-        Todo:
-            * Use type hints for parameters instead of docstrings, when possible. (https://stackoverflow.com/questions/15806349)
-            * Add more tests to check if the agent is saved with unique pathname and that the `agentIdx` is positive integer or zero.
-        """
-        
+
         # t0 = time()
         actionType = FloPyEnv(initWithSolution=False).getActionType(self.envSettings['ENVTYPE'])
         agent = self.createNNModel(actionType, seed=self.envSettings['SEEDAGENT']+agentIdx)
@@ -1771,28 +1370,8 @@ class FloPyAgent():
         # print(agentIdx, 'save', time()-t0)
 
     def returnChildrenGenetic(self, sortedParentIdxs):
-        """
-        Returns child agents by mutating parent agents and adds them to 
-        the history of training models. In other words: Mutate best parents,
-        keep elite child and save them to disk individually.
-    
-        Parameters
-        ----------
-        self : object instance
-    
-        sortedParentIdxs : list or array_like
-                Indices of top ranked agents (i.e. parents) for mutation.
-    
-        Returns
-        -------
-        None 
-            Saves results to file and attributes in `self`.
-    
-        Examples
-        --------
-        >>> self = object instance that holds environment settings, model 
-                parameters, etc.
-        >>> sortedParentIdxs : list or array_like
+        """Mutate best parents, keep elite child and save them to disk
+        individually.
         """
 
         if self.rereturnChildrenGenetic:
@@ -1878,20 +1457,6 @@ class FloPyAgent():
 
     def returnChildrenGeneticSingleRun(self, childIdx):
         """
-        Returns children agent by loading parent model and performing genetic mutations on it.
-        This function is only called if we are not using multiprocessing to evolve agents in parallel, 
-        which occurs when the number of agents being created at once is less than 2x the nCPUs used for evolution (or 10).
-    
-        Arguments:
-            self {[type]} -- [description]
-    
-        Raises:
-            Exception -- If an error occurs while loading the parent model, or in case of race conditions.
-                        This can occur if models are still being created when this function is called during training. 
-    
-        Returns:
-            str OR '' -- Returns a string containing mutation history info to be written to file, or an empty string.
-                If we are not saving the model history and creating agents using multiprocessing, then return ''.
         """
 
         len_ = len(self.candidateParentIdxs)
@@ -1965,46 +1530,8 @@ class FloPyAgent():
             return record
 
     def countParameters(self, agent):
-        """
-        Counts the total number of policy model parameter values in a given agent's current set of weights. 
-        This is useful when comparing different agents or policies for hyperparameter tuning.
-    
-        Parameters
-        ----------
-        self : object
-            A reference to an instance of the class containing this function definition,
-                which will be used as a parameter for the agent.get_weights() call. 
-    
-        agent: keras.engine.training.Model
-            An instantiated Keras model that has been compiled and trained. The 
-               get_weights() method of this instance is called to obtain a list 
-                containing each parameter tensor in the graph.
-    
-        Returns
-        -------
-        nParameters : int
-           A count of all parameters (i.e., values) in agent's weight tensors, which is equal to the sum of the number of elements per tensor.
-    
-    
-        Examples 
-        --------
-        >>> # Create two agents using Keras Sequential API and add layers:
-        ... model1 = keras.Sequential()
-        ... model2 = keras.Sequential()
-    
-        >>> # Add first layer to both models (both models will have the same input dimensions)
-        ... model1.add(keras.layers.Dense(4, activation='relu',input_dim=5)) 
-        ... model2.add(keras.layers.Dense(4, activation='relu',input_dim=5))
-    
-        >>> # Add second layer to both models (but these layers will have different dimensions)
-        ... model1.add(keras.layers.Dense(6,activation='sigmoid')) 
-        ... model2.add(keras.layers.Dense(3))
-    
-        >>> # Compile the models using binary cross entropy as their loss function:
-        ... model1.compile(loss="binary_crossentropy",optimizer=tf.train.AdamOptimizer()) 
-        ... model2.compile(loss="binary_crossentropy",optimizer=tf.train.AdamOptimizer())
-        """
-        
+        """Count number of policy model parameters."""
+
         parameters = agent.get_weights()
         nParameters = 0
         for iParam, parameters in enumerate(parameters):
@@ -2013,22 +1540,9 @@ class FloPyAgent():
         return nParameters
 
     def mutateGenetic(self, agent, seed):
-        """
-        Generates a new genetic mutant based on the current agent's weight values trough mutation
-        and returns it as an updated agent object.
+        """Mutate single agent model.
         Mutation power is a hyperparameter. Find example values at:
         https://arxiv.org/pdf/1712.06567.pdf
-     
-        Parameters:
-            - self : The instance of the class that called this function
-            - agent (object) : A trained neural network with assigned weights to be modified by this function
-            - seed : An integer used for random number generation, passed into numpy.random.seed(seed) for reproducibility
-    
-        Returns:
-            agent (object): The mutated agent object that is returned to the genetic algorithm function.
-    
-        Raises:
-            None
         """
 
         numpySeed(seed)
@@ -2046,66 +1560,18 @@ class FloPyAgent():
         return agent
 
     def mutateDecision(self, probability):
-        """
-        Returns a boolean value that describes whether or not the individual should be subject to mutation.
-        
-        Parameters:
-          - self : (Individual) An Individual object containing information about an individuals genotype and phenotypes
-          - probability : (float) The likelihood of an individual being selected for mutation
-        
-        Results:
-          Returns a boolean value that describes whether or not the individual should be subject to mutation.
-        
-        Todo:
-        - [ ] Ensure that the type of "probability" is checked and that it is a float between 0.0 and 1.0. If so, raise an error.
-        
-        Examples:
-          >>> individual = Individual() # Assume this creates some kind of object for our purposes.
-          >>> mutateDecision(individual, .2) # A 20% chance that the individual will be subject to a mutation
-          1
-        """
+        """Return boolean defining whether to mutate or not."""
 
         return random() < probability
 
     def mutateDecisions(self, probability, shape):
-        """
-        Returns an array of boolean values that describes whether or not each individual should be subject to a mutation operation.
-        
-        Parameters:
-        - self : (Individual) An Individual object containing information about an individuals genotype and phenotypes
-        - probability : (float) The likelihood of an individual being selected for mutation
-        - shape : (tuple) A tuple that describes the dimensions of the array to be created, e.g., (100, 2).
-        
-        Results:
-          Returns a boolean value that describes whether or not the individual should be subject to mutation.
-        
-        Todo:
-        - [ ] Ensure that both "probability" and "shape" are of type float/tuple respectively. If so, raise an error.
-        
-        Examples:
-          >>> individual = Individual() # Assume this creates some kind of object for our purposes.
-          >>> mutateDecision(individual, .2) # A 20% chance that the individual will be subject to a mutation
-          [1., 0.]
-        """
-        
+        """Return boolean defining whether to mutate or not."""
+
         return random(shape) < probability
 
     def getqsGivenAgentModel(self, agentModel, state):
+        """ Query given model for Q values given observations of state
         """
-        Return the action/actions and predicted Q value(s), given a state.
-        
-        Parameters
-        ----------
-            agentModel (tf model) : A TensorFlow keras model of type DQN.
-                The model should be trained beforehand to have any useful predictions.
-    
-            state (np array) : A numpy ndarray containing the game board or environment state.
-    
-        Returns
-        -------
-            prediction (list, tuple) : Containing the action(s), and the predicted Q value for each of them.
-            """
-    
         # predict_on_batch robust in parallel operation?
 
         # t0 = time()
@@ -2118,26 +1584,7 @@ class FloPyAgent():
         return prediction
 
     def loadAgentModel(self, modelNameLoad=None, compiled=False):
-        """
-        Load an Agent Model from a given path in HDF5 or JSON format (depending on availability).
-        If available, also loads the weights of the agent.
-        
-        Parameters
-        ----------
-        modelNameLoad : string
-            Name of the model to load from disk; if not provided, defaults to None
-        compiled: bool
-            Whether to compile the loaded model in Keras or not (defaults to False)
-        
-        Returns
-        -------
-        agentModel: keras Model object 
-                The agent model that was loaded
-        
-        Examples
-        ---------
-        >>> loadAgentModel(self, "mymodel") # Load a model named 'mymodel' from disk if it exists.
-        """
+        """Load an agent model."""
 
         # Note: change model load and save as json mode is faster
         # this is a temporary quickfix
@@ -2160,56 +1607,14 @@ class FloPyAgent():
 
     def getAction(self, mode='random', keyPressed=None, agent=None,
             modelNameLoad=None, state=None, actionType='discrete'):
-        """
-        Gets the action to take from a given agent model or randomly generated.
-        In other words: Determine an action given an agent model.
-        
+        """Determine an action given an agent model.
         Either the action is determined from the player pressing a button or
         chosen randomly. If the player does not press a key within the given
         timeframe for a game, the action remains unchanged.
         Note: mode 'modelNameLoad' can massively throttleneck in loops from
         recurring model loading overhead.
-       
-        Parameters
-        ----------
-        mode : str (default='random')
-            The type of input to use for determining actions.
-                'manual': Uses keyboard inputs, currently only supports discrete action spaces.
-                'random' : Generates a random value from the given action space.
-                'modelNameLoad' : Loads an agent model and uses that as the source for generating actions in this environment
-                                  Note: Currently requires state input to be provided.
-                'model': Uses the current models (self) to determine the best possible course of action.
-        keyPressed : str or None, optional
-            Required if mode == 'manual' otherwise it is ignored and can safely remain as None.
-        agent : Agent-like or None, optional
-            Can be any object that has a `getqs` method. It is required when using the modes: modelNameLoad, model but can 
-            safely remain None if mode == 'random'. It is used to generate actions based on its own models.
-        modelNameLoad : str or None, optional
-            The path and filename of a saved agent model. If given will load the model when using the `modelNameLoad` mode.
-        
-        state : numpy ndarray (optional)
-            A collection of values for each action that are used to predict future rewards based on past experiences.
-            Required if using the modes: 'model', and 'modelNameLoad'. Otherwise it is ignored.
-        
-        actionType : str, optional
-            The type of actions allowed by this environment (discrete/continuous). If not given defaults to discrete.
-        
-        Returns
-        -------
-        self.action
-            A randomly selected or determined value from the current model(s) that is used as an input for determining future 
-            rewards and experiences.
-        
-        Raises
-        ------
-        ValueError
-            If mode == 'manual' AND keyPressed not given OR if actionType = continuous AND mode='random'.
-        
-        Notes:
-          This code is currently only supported for discrete actions spaces. Continuous support will be added in a future 
-        release.
         """
-    
+
         if actionType == 'discrete':
             if mode == 'manual':
                 if keyPressed in self.actionSpace:
@@ -2245,39 +1650,6 @@ class FloPyAgent():
         return self.action
 
     def resumeGenetic(self):
-        """
-        Resumes a genetic algorithm training session.
-        
-        Checks if the best agent of the current generation exists. If so, then it'll 
-        skip any further calculations in order to resume at a later stage. Otherwise, 
-        regenerate all children for this generation and return them as well as some 
-        metadata about the agents and their history (novelty).
-        
-        Args:
-            self - A class object.
-        
-        Returns:
-            sortedParentIdxs(list): Sorted indexes of which parents to keep for next gen.
-            continueFlag(bool)   : Whether or not a new generation should be started.
-            breakFlag(bool)      : Whether or not this method has failed and must abort.
-        
-        Example:
-        
-            # Resume training from an existing model:
-            >>> self = agent_trainer()
-            >>> sortedParentIdxs, continueFlag, breakFlag = resumeGenetic(self)
-        
-                [0] : --
-                    The method has not been executed.
-        
-            >>> self = agent_trainer('./models/2019-10-31')
-            >>> sortedParentIdxs, continueFlag, breakFlag = resumeGenetic(self)
-        
-                [1] : --
-                    The method has not been executed.
-        
-        """
-        
         # checking if bestModel already exists for current generation
         # skipping calculations then to to resume at a later stage
         continueFlag, breakFlag = False, False
@@ -2329,35 +1701,6 @@ class FloPyAgent():
         return self.sortedParentIdxs, continueFlag, breakFlag
 
     def actionNoveltyMetric(self, actions1, actions2, actionType):
-        """
-        Calculates the novelty metric between two sets of actions.
-        
-        Parameters
-        ----------
-        self : object
-        An instance of a class containing this method.
-        
-        actions1 : list or numpy array
-        A set of actions, either discrete (integers) or continuous (floats).
-        
-        actions2 : list or numpy array
-          Another set of actions with which to compare the first action set.
-        
-        actionType: string
-        The type of action space in use; must be one of 'discrete' or
-        'continuous'.
-        
-        Returns
-        -------
-        novelty : float
-        A number between zero and one, where higher values represent a greater 
-        difference between the two sets of actions.
-        
-        Examples
-        --------
-        >>> actionNoveltyMetric(None, [1., 2., 3.], [4., 5., 6.], 'continuous')
-        """
-        
         # finding largest object, or determining equal length
         # do this conversion while loading or saving?
         actions1 = array(actions1)
@@ -2406,30 +1749,6 @@ class FloPyAgent():
         return novelty
 
     def calculateNoveltyPerPair(self, args):
-        """
-        Calculate the average novelty between two agent action sets.
-        
-        Parameters
-        ----------
-        self : object
-          An instance of a class containing this method.
-        
-        args: list or tuple
-        A set of arguments that contain (in order):
-          1) actions, an array or list of agent actions; and
-          2) action2, another such array or list of agent actions.
-        
-        Returns
-        -------
-        novelty : float
-          The average novelty between the two sets of agent actions.
-        
-        Examples:
-        ----------
-        >>> calculateNoveltyPerPair(None, ([1., 2., 3], [4., 5., 6]))
-        0.75
-        """
-        
         # agentStr = 'agent' + str(args[0]+1)
         # agentStr2 = 'agent' + str(args[1]+1)
         # actionsDict = args[2]
@@ -2461,29 +1780,7 @@ class FloPyAgent():
         return novelty
 
     def calculateNoveltyPerAgent(self, iAgent, actionsDict=None):
-        """
-        Calculate the average novelty between a given agent and all other agents. 
-        
-        Parameters
-        ----------
-            self : object (class)
-                An instance of the class containing this method.
-        
-            iAgent : int
-               The index of the agent for which we want to calculate the average novelty between it 
-                     and all other agents within its neighborhood.
-        
-            actionsDict: dictionary, optional
-                    A key-value pairing of an integer representing an agent's ID with their respective action sequence.
-        
-        Returns
-        -------
-           float :   The average novelty between a given agent and each agent in it's neighbourhood. 
-                     If the neighborhood limit has been reached, this will be the mean novelty only for agents within its neighborhoud.
-        
-            TODO: This method may need to load actions from disk if we are calculating novelty outside of an iteration (i.e., outside of the main process).
-        """
-        
+
         # args.append([iAgent, sharedArrayActions[rangeLower:rangeHigher], rangeLower, rangeHigher, iAgentInCroppedArray])
         iAgentOriginal, arr, rangeLower, rangeHigher, iAgentInCroppedArray = iAgent[0], iAgent[1], iAgent[2], iAgent[3], iAgent[4]
 
@@ -2589,31 +1886,7 @@ class FloPyAgent():
         return novelty
 
     def saveBestAgent(self, MODELNAME):
-        '''
-        This function saves the best agent of a given generation. It will also update the name 
-        of that agent with information about the generation number and it's average reward score.
-        
-        Parameters
-        ----------
-            self : This is used to refer to the current object (i.e this class)
-        
-            MODELNAME: str <br>
-                A string containing the name of the model. 
-        
-        Returns
-        -------
-            bestAgentFileName : str <br>
-                The file name that is used for saving and loading the agent
-        
-        Examples
-        --------
-           # >>> saveBestAgent(self, 'MyModel')
-        
-        Todo: 
-          * Add in a parameter to set whether or not this function should be called <br>
-            `save = False` by default. This way we can skip saving if the user doesn't want it (or needs more space).      
-        '''    
-        
+        # saving best agent of the current generation
         bestAgent = load_model(join(self.tempModelPrefix + '_agentBest.h5'),
                 compile=False)
         self.bestAgentFileName = (f'{MODELNAME}' + '_gen' +
@@ -2623,73 +1896,7 @@ class FloPyAgent():
 
     def saveBestAgentAnimation(self, env, bestAgentFileName, MODELNAMEGENCOUNT,
         MODELNAME):
-
-        """
-        Plays a single episode with the best agent, saving plots of the
-        results to 'animationFolder' for visualization of progress.
-        
-        Parameters
-        ----------
-        self : object (the class object that contains this method)
-            Instance of the game environment used to play an animation using
-            a pretrained agent model. 
-        
-        env : object (environmental settings for the game environment)
-            Contains information such as 'ENVTYPE' and 'SEEDENV', which are
-            then passed into FloPyArcade in order to run the simulation that is
-            used to create an animation of a single episode. 
-        
-        bestAgentFileName : str (file name for pretrained agent model)
-           Name of the saved pre-trained agent model file, which will be
-           loaded by FloPyArcade. 
-        
-        MODELNAMEGENCOUNT: int or list (information on generation count)
-            Used to create a unique identifier in order to save each new 
-            trained agent model and its related information. Is appended onto
-            the end of 'modelName' in order to formulate the final name for a
-            given agent file. If a list is provided, then only the first element
-            will be used (i.e., MODELNAMEGENCOUNT[0]). 
-        
-        modelName: str (name of the agent)
-           The root name that will be combined with other information to formulate
-           the final name for a given agent file, including 'modelType' and an
-           optional generation count. This is used as part of a filename for saving
-           training data in a .csv format, and for saving any plots generated 
-           during training (either by TensorBoard or custom code). If not provided,
-           then this defaults to 'currentModel'. 
-        
-        Returns
-        -------
-            None. Only generates an animation of the simulation results.
-        
-        Examples
-        --------
-        >>> game = FloPyArcade(modelNameLoad=bestAgentFileName,
-                               ENVTYPE = env.ENVTYPE,
-                               modelName=MODELNAMEGENCOUNT,
-                               animationFolder=MODELNAME,
-                               NAGENTSTEPS=self.hyParams['NAGENTSTEPS'],
-                               PATHMF2005=self.envSettings['PATHMF2005'],
-                               PATHMP6=self.envSettings['PATHMP6'],
-                               flagSavePlot=True,
-                               flagManualControl=False,
-                               flagRender=False,
-                               nLay=env.nLay, 
-                               nRow=env.nRow, 
-                               nCol=env.nCol,
-                               OBSPREP=self.hyParams['NNTYPE'])
-        >>> game.play(ENVTYPE=self.envSettings['ENVTYPE'], seed=self.envSettings['SEEDENV'] + self.currentGame-1)
-            Sets up the simulation environment and plays a single episode in order 
-            to generate an animation of the results for visualization purposes. This
-            is done using information provided from 'env' as well as the other passed
-            parameters, such as 'bestAgentFileName', 'modelNameLoad', and others.  
-        
-        Todo
-        ----
-        * Improve documentation for this method in future versions of FloPyArcade.
-        """
-            
-            # playing a game with best agent to visualize progress
+        # playing a game with best agent to visualize progress
 
         game = FloPyArcade(modelNameLoad=bestAgentFileName,
             ENVTYPE = env.ENVTYPE,
@@ -2709,34 +1916,6 @@ class FloPyAgent():
             seed=self.envSettings['SEEDENV'] + self.currentGame-1)
 
     def generatePathPrefixes(self):
-        """
-        Generates path prefixes for the temp model, next gen and prev gen models
-        
-        Parameters
-        ----------
-            self : object (GeneticTrainer)
-                GeneticTrainer class instance
-        
-        Returns
-        -------
-           None : NoneType 
-               Nothing. Sets values of prefixes as attributes on the input parameter
-        
-        Raises:
-        ------
-            None : NoneType 
-                No errors raised by this function if run in accordance with its intended purpose.
-        
-        Example
-        -------
-        >>> generatePathPrefixes(self)
-           Sets values of the following attributes on self (class instance): tempModelPrefix, 
-           tempNextModelPrefix and tempPrevModelPrefix to:
-           1. [temp model path + env settings['MODELNAME']]_gen[genetic generation + 1].zfill(self.zFill)]
-           2. [temp model path + env settings['MODELNAME']]_gen[genetic generation + 2].zfill(self.zFill)]
-           3. [temp model path + env settings['MODELNAME']]_gen[genetic generation].zfill(self.zFill)]
-        """
-        
         self.tempModelPrefix = join(self.tempModelpth,
             self.envSettings['MODELNAME'] + '_gen' +
             str(self.geneticGeneration + 1).zfill(self.zFill))
@@ -2748,100 +1927,42 @@ class FloPyAgent():
             str(self.geneticGeneration).zfill(self.zFill))
 
     def yieldChunks(self, lst, n):
-        """
-        Yield successive n-sized chunks from the list.
+        """Yield successive n-sized chunks from a given list.
         Taken from: https://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks
-        
-        Args:
-             self (object): An object instance of a class that contains this method
-             lst (list): The original iterable to be chunked into smaller lists/chunks
-             n (int): Size of each new chunk
-        
-        Returns:
-            A generator object which is an iterator.
-        
-         Todo:
-           * Add type hints for parameters and return types.
-           * Ensure that the size of chunks to be created are not larger than 2048 bytes in memory
-               - this can cause a performance hit on your system if too big!
         """
-        
         for i in range(0, len(lst), n):
             yield lst[i:i + n]
 
     def init_arr(self, arr, arr_lock=None, shape=None):
-          """
-          Initialize an array.
-        
-          Parameters:
-              self (object) -- a class object
-              arr (array-like) -- array to initialize with
-              arr_lock -- lock for threading safety (default is None)
-              shape (tuple of ints) -- dimensions of arr, e.g., (3, 2) (default is None)
-        
-          Returns:
-              a new instance of this class
-        
-          Examples:
-            init_arr(self, [1, 2], arr_lock=None, shape=(4))
-        
-          Todo:
-            * fix threading safety issues (i.e., lock acquisition)
-          """
-        
         arr = array(list(arr))
         globals()['arr'] = frombuffer(arr, dtype='float64').reshape(shape)
         globals()['arr_lock'] = arr_lock
 
+    # def multiprocessChunks(self, function, chunk, parallelProcesses=None, wait=False):
+    #     """Process function in parallel given a chunk of arguments."""
+
+    #     # Pool object from pathos instead of multiprocessing library necessary
+    #     # as tensor.keras models are currently not pickleable
+    #     # https://github.com/tensorflow/tensorflow/issues/32159
+    #     if parallelProcesses == None:
+    #         parallelProcesses = self.envSettings['NAGENTSPARALLEL']
+    #     p = Pool(processes=parallelProcesses)
+    #     pasync = p.map_async(function, chunk)
+    #     # waiting is important to order results correctly when running
+    #     # -- really?
+    #     # in asynchronous mode (correct reward order is validated)
+    #     pasync = pasync.get()
+    #     if wait:
+    #         pasync.wait()
+    #     p.close()
+    #     p.join()
+    #     p.terminate()
+
+    #     return pasync
+
     def multiprocessChunks(self, function, chunk, parallelProcesses=None, wait=False, async_=True, sharedArr=None, sharedDict=None):
-        """
-        Multiprocesses the given chunks and returns a list of results.  If `sharedDict` is provided as an input argument, then it will be passed to each individual chunk in parallel as well.
-        
-        Parameters:
-            self (self) - An object that has at least two attributes: envSettings, which contains the number of agents to run in parallel; and init_arr(), which initializes a shared array for multiprocessing purposes.
-        
-            function ([function]) - The function to be executed on each chunk.  It should expect either one argument (the chunk) or two arguments (the chunk, then the `sharedDict` object).  This can take any form: e.g., it could be a lambda expression.
-        
-                Example of a simple function:
-                    >>> def add_one(chunk): return [i + 1 for i in chunk]
-        
-            chunk ([list]) - A list containing the chunks to be executed on.
-        
-            parallelProcesses (int) - The number of agents that should run in parallel at any given time.  If none is provided, it will default to `self.envSettings['NAGENTSPARALLEL']`.  This value must be positive.
-        
-                Example:
-                    >>> parallelProcesses = self.envSettings["NAGENTSPARALLEL"] # this would return a number like 4
-        
-            wait (bool) - Whether or not to wait for the result of each process before continuing on with execution, which is useful if you want results in order when running asynchronously.  Defaults to False.  If True, then it will also force `async_` to be set to True.
-        
-                Example:
-                    >>> wait = True # This would ensure that the next line of code only gets executed after all chunks have finished processing and their results returned.
-        
-            async_ (bool) - Whether or not to run asynchronously, which is useful if you don't care about order and/or want performance gains from parallelization at any given moment in time.  Defaults to True.  If `wait` is set to True, then this value will be ignored.
-        
-                Example:
-                    >>> async_ = False # This would force the code to wait until all chunks have finished processing and their results returned before continuing on with execution.
-        
-            sharedArr (np.ndarray) - An optional array that can be used in place of a `sharedDict` object if you want to use NumPy arrays instead.  This would be passed along with the chunk data, which will then become accessible inside your function call without being copied between processes each time it is called.
-        
-                Example:
-                    >>> sharedArr = np.zeros([100]) # This could then be used in place of `sharedDict` and accessed like a list within any calls to the provided function.
-        
-            sharedDict (dict) - An optional dictionary that can be passed along with the chunk data, which will become accessible inside your function call without being copied between processes each time it is called.  This should only contain data types that are pickleable: https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled
-        
-                Example:
-                    >>> sharedDict = {"key": [1,2], "foo": 5} # This could then be used within any calls to the provided function and accessed like a dictionary (e.g., `sharedDict["key"]`).
-        
-        Returns:
-            list - The results of each parallel process in order if run synchronously, or an unordered array-like object otherwise that can be converted into a list.
-        
-                Example for asynchronous running with the same inputs as above and using the provided add_one() function:
-                    >>> multiprocessChunks(self=None, function=add_one, chunk=[1,2,3], parallelProcesses=4, wait=False) # this would return an unordered array-like object containing [2, 3, 4] in some order.
-        
-                Example for synchronous running with the same inputs as above and using the provided add_one() function:
-                    >>> multiprocessChunks(self=None, function=add_one, chunk=[1,2,3], parallelProcesses=4) # this would return [2, 3, 4] in order.
-        """
-        
+        """Process function in parallel given a chunk of arguments."""
+
         # Pool object from pathos instead of multiprocessing library necessary
         # as tensor.keras models are currently not pickleable
         # https://github.com/tensorflow/tensorflow/issues/32159
@@ -2912,34 +2033,7 @@ class FloPyAgent():
 
     def multiprocessChunks_OLD(self, function, chunk, parallelProcesses=None,
         wait=False, async_=True, sharedArr=None, sharedDict=None, threadPool=False):
-        """
-        Executes a function on all elements in the chunk. The size of the 
-        chunks is determined by the number of processes to run it in parallel.
-        
-        Parameters:
-            self (class)                   : A class object. Required for passing as an argument to the function.
-            function (function):           : An arbitrary function that takes a single item from the chunk as its first argument,
-                                             and returns some result of processing it.
-            chunk ([any])                  : List with items to process in parallel.
-        
-        Keyword Arguments:
-            parallelProcesses (int)       : Number of processes to run in parallel. Defaults to None which uses the settings from the environment file.
-            wait (bool)                    : Whether or not to wait for all results before returning them. Defaults to False.
-            async_ (bool)                  : Whether or not to process items asynchronously. Defaults to True. 
-            sharedArr (array-like object)  : A NumPy array to be shared across processes that is passed into the function argument. If this option is used, a dictionary should also be passed to share data between processes in memory without using file I/O. Defaults to None which does not use a shared array or dict.
-            sharedDict (dict)              : A Python dict object to be shared across processes that is passed into the function argument. If this option is used, an array should also be passed to share data between processes in memory without using file I/O. Defaults to None which does not use a shared array or dict.
-            threadPool (bool)              : Whether or not to run in threads instead of subprocesses for parallel processing. Defaults to False. 
-        
-        Returns:
-            pasync ([any])                : List with results from the function, ordered as they were passed in the chunk parameter.
-        
-        
-        Todo:
-           * Improve docstring formatting.
-           * Use sharedArr and sharedDict together instead of separately.
-           * Find way to pass manager object between processes so that data is not lost when Pool() closes.
-            - https://stackoverflow.com/questions/10415028/how-can-i-recover-the-return-value-of-a-function-passed-to-multiprocessing-proce
-        """
+        """Process function in parallel given a chunk of arguments."""
 
         # Pool object from pathos instead of multiprocessing library necessary
         # as tensor.keras models are currently not pickleable
@@ -3019,22 +2113,7 @@ class FloPyAgent():
         return pasync
 
     def pickleLoad(self, path, compressed=None):
-        """
-        Load a previously saved pickled Python object from file and 
-        returns it to the caller. The function will automatically use the best
-        method available for loading based on the compression type specified in
-        parameter `compressed`. If no value is provided, then the raw pickle module
-        is used. Otherwise, joblib will be used.
-    
-        Parameters:
-          path (str): The path to the object file.
-          compressed (str|None): Compression method used when saving the object. 
-                                 None or 'lz4' and 'lzma' are supported.
-                                 
-        Returns:
-            An unpickled Python object of any type.
-        """
-        
+        """Load pickled object from file."""
         if compressed == None:
             with open(path, 'rb') as f:
                 objectLoaded = load(f)
@@ -3047,32 +2126,6 @@ class FloPyAgent():
 
     def pickleDump(self, path, objectToDump, compress=None, compressLevel=3):
         """Store object to file using pickle."""
-
-        """
-        Store an arbitrary Python object to file using `pickle`.
-
-        Parameters
-        ----------
-            path : str or Path
-                Filepath.
-            objectToDump : any picklable python object
-            compress : {None, 'lz4', 'lzma'}, default None
-                Compression algorithm to use for output file.
-        
-        Returns
-        -------
-            None
-        
-        Examples
-        --------
-            >>> from pathlib import Path
-            >>> pickleDump(Path('testfile.pickl'), 'hello world!')
-        
-        Todo
-        ----
-        1) Add compression option for `gzip` (and maybe `bz2`?).
-        """
-        
         if compress == None:
             with open(path, 'wb') as f:
                 dump(objectToDump, f)
@@ -3086,47 +2139,15 @@ class FloPyAgent():
             print('Unknown compression algorithm specified.')
 
     def GPUAllowMemoryGrowth(self):
-
-def GPUAllowMemoryGrowth(self):
-        """
-        This function allows the memory growth of a tensorflow session if you are using a GPU as hardware. This will prevent any further 
-        errors regarding the lack or inability to use your gpu. 
-        
-        Parameters:
-          self - The class that this method is called on, which should always be an instance of the K object imported from keras.backend module
-        
-        Returns:
-          None (but does set the session config to allow growth)
-        
-        Examples:
-          GPUAllowMemoryGrowth(K) # where K is some instance of a Keras backend class
-        """
-        
+        """Allow GPU memory to grow to enable parallelism on a GPU."""
         config = ConfigProto()
         config.gpu_options.allow_growth = True
         sess = TFSession(config=config)
         K.set_session(sess)
 
     def suppressTensorFlowWarnings(self):
-        """
-        Suppresses the Tensorflow warnings on import, except fatal errors.
-        From: https://stackoverflow.com/questions/40426502/is-there-a-way-to-suppress-the-messages-tensorflow-prints
-        
-        Parameters
-        ----------
-        None
-        
-        Results
-        -------
-        Supressing all warning messages in tensorflow.
-        
-        Examples
-        ---------
-        >>> from logging import getLogger, FATAL
-        >>> environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-        >>> getLogger('tensorflow').setLevel(FATAL)
-        """
-        
+        # suppressing TensorFlow output on import, except fatal errors
+        # https://stackoverflow.com/questions/40426502/is-there-a-way-to-suppress-the-messages-tensorflow-prints
         from logging import getLogger, FATAL
         environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
         getLogger('tensorflow').setLevel(FATAL)
@@ -3159,66 +2180,6 @@ class FloPyEnv(gym.Env):
                  nLay=1, nRow=100, nCol=100, OBSPREP='perceptron',
                  initWithSolution=True, PATHMF6DLL=None,
                  env_config={}):
-
-        """
-        Initialize a new environment for the FloPy arcade learning toolkit.
-        
-        Parameters
-        ----------
-            ENVTYPE : str (default: '1s-d') 
-                The type of environment that will be used in the simulation. See below for possible values and their meaning.
-        
-            PATHMF2005 : str (default: None)
-                Path to MF2005 executable file. This should only need to be defined if you have not added MF2005 to your PATH. 
-        
-            PATHMP6 : str (default: None)
-                Path to MP6 executable file. Only necessary for '1s-c' and '6s-c' environments; see below for details on these environment types. This should only need to be defined if you have not added MF2005 to your PATH. 
-        
-            MODELNAME : str (default: FloPyArcade)
-                The name of the model that will be generated by flopyarcade during simulation. This is used for naming output files and directories, so it should be changed if you want to run multiple models in parallel without having them overwrite each other. 
-        
-            ANIMATIONFOLDER : str (default: FloPyArcade)
-                If flagSavePlot is True, this will determine the name of the directory where plots are stored for animation purposes. 
-        
-            _seed : int or NoneType (default: None)
-                The seed to use when initializing a random number sequence in numpy and flopyarcade. This can be used to replicate results by ensuring that this seed is always constant between runs, but will only work if the same system resources are available every time you run it. 
-        
-            flagSavePlot : bool (default: False)
-                If true, plot files of all model states during a simulation are stored in `ANIMATIONFOLDER`. This can be used to create animations or movies from your simulations. 
-        
-            flagManualControl : bool (default: False)
-                If True, flopyarcade will pause at each timestep and allow you to manually control the well head position. Useful for debugging purposes but is not compatible with an environment that returns a reward. See `manualControlTime` below if you want more fine-grained control over how quickly this pauses. 
-        
-            manualControlTime : float (default: 0.1)
-                The amount of time to pause for at each timestep when in manual control mode. 
-        
-            flagRender : bool (default: False)
-                If true, the flopyarcade will render a plot every timestep using matplotlib. Not recommended if you are trying to run many simulations as this can slow things down considerably. 
-        
-            NAGENTSTEPS : int (default: 200)
-                The number of steps that the agent is allowed to take before the simulation ends automatically. This should be a large value, and it only matters if you are trying to run many simulations as this helps ensure that they all end after approximately the same amount of time. If your environment does not have an intrinsic ending point (i.e., for 1s-d), then your agent may never learn how to stop taking actions on its own, and it will always require NAGENTSTEPS number of steps before stopping. 
-        
-            nLay : int (default: 1)
-                The number of layers in the model grid. If not equal to one, the environment type must be '3s-d', '4r-c' or '5r-c'. 
-        
-            nRow : int (default: 200)
-                The number of rows in the model grid. This will determine how fine your spatial resolution is; smaller values like 100 are recommended for most applications, but you can make this larger if you want to reduce the amount of time it takes to run a simulation. Note that your system may not have enough memory to support nRow > ~500 and nCol > ~200. 
-        
-            nCol : int (default: 1)
-                The number of columns in the model grid. If not equal to one, the environment type must be '3s-d', '4r-c' or '5r-c'. 
-        
-            OBSPREP : str (default: 'perceptron')
-                This determines how observations are prepared for consumption by your agent. If set to 'perceptron', the observation will be a single array of length nRow*nCol, where each value represents the pressure head at that location in the model grid. The first layer is removed from this preparation because it is not informative; if you want access to all layers, set OBSPREP='all'. This may be useful for convolutional neural network architectures, but note that they are generally less well-tested than MLPs in the current release of flopyarcade. 
-        
-            initWithSolution : bool (default: True)
-                If True, then the simulation will begin with a preexisting solution to the MODFLOW problem. This is useful because it ensures that the model begins at a valid state and can help speed up simulations by reducing the number of iterations required before convergence; see `FloPyArcade.utils.get_initial_state` for more details on how this initial state is calculated. 
-        
-            PATHMF6DLL : str (default: None)
-                This determines where your MF6 DLLs are located and is only required if you want to run the '0s-c' environment type. You will need a compiled version of MODFLOW6, which can be downloaded from [here](https://www.usgs.gov/software/modflow-6-usgs-modular-hydrologic-model). 
-        
-            env_config : dict (default: {})
-                This is used to pass custom arguments into the environment class and override default values, which may be useful for testing new environments that are not yet officially supported by flopyarcade. For example, if you want to add a '7s-c' type environment where the agent controls 7 well locations instead of just one, you could set env_config = {'ENVTYPE': '7s-d'} and then create a custom action space using `FloPyArcade.setActionSpace`. See [here](https://github.com/GorgonMeducer/gym_flopyarcade#creating-a-custom-environment) for an example of how to do this. 
-        """
 
     # def __init__(self, env_config={}, initWithSolution=True):
 
@@ -3410,28 +2371,14 @@ class FloPyEnv(gym.Env):
             elif self.actionType == 'continuous':
                 self.action_space = gym.spaces.Box(0.0, 1.0, shape=(len(self.actionSpace),), dtype=np.float32)
 
+    # def seed(self, seed=None):
+    #     from numpy.random import random
+    #     random.seed(seed)
+
     def teardown(self):
         """
         Remove the example folder
-        
-        Parameters
-        ----------
-        exdir : str, optional 
-          Path to the example directory that will be removed. Default is None which removes all files in the present working directory.
-        
-        Returns
-        -------
-        teardownSuccess: Boolean (True or False)
-            True if successful and False otherwise.
-        
-        Examples
-        --------
-        >>> # Remove example folder 01_fhenry
-        >>> import flopy.utils as fupy
-        >>> tst = fupy.mftest()
-        >>> tst.teardown(exdir='01_fhenry')
         """
-        
         chdir(self.wrkspc)
 
         if self.delFiles:
@@ -3460,25 +2407,7 @@ class FloPyEnv(gym.Env):
 
     def bmi_return(self, success, model_ws, modelname):
         """
-        Returns the status of a run and stdout contents to screen.
-        Or: Parses libmf6.so and libmf6.dll stdout file.
-        
-        Parameters
-        ----------
-        self : flopy object
-                    A FloPy object for which to return the BMI status.
-        success : boolean
-            True or False value denoting if the model run was successful.
-        model_ws : str, optional
-            Path to output workspace of the model.  Default is None, in which case
-            flopy uses self.model_ws.
-        modelname: str, optional
-            Name of FloPy object for which to return BMI status.  Default is None, in which
-                case flopy returns the status of all models.
-        
-        Returns
-        -------
-            A string with stdout contents.  If a failure has occurred, an Exception will be raised.
+        parse libmf6.so and libmf6.dll stdout file
         """
 
         fpth = join(model_ws, modelname + '.stdout')
@@ -3486,24 +2415,12 @@ class FloPyEnv(gym.Env):
         return success, open(fpth).readlines()
 
     def stepInitial(self):
-        """
-        Initialize with the steady-state solution.
+        """Initialize with the steady-state solution.
         
         Note: If just initializing environments without intention of solving,
         or intentions of solving later, this can be a massive throttleneck.
-
-        Parameters:
-            None: 
-    
-        Returns:
-            self.observationsVectorNormalized : numpy array of type float64
-                Normalized observation vector for initial conditions of the model run.
-    
-        Raises:
-            TypeError:
-               Error if model initialization fails due to invalid configuration file or other input files. 
         """
-        
+
         if self.ENVTYPE in ['0s-c']:
 
             self.model_ws = join(self.wrkspc, 'models', self.exdir)
@@ -3808,30 +2725,9 @@ class FloPyEnv(gym.Env):
 
     # def step(self, observations, action, rewardCurrent, teardownOnFinish=False):
     def step(self, action, teardownOnFinish=True):
-        """
-        The agent takes a step in the environment through forward simulation.
-    
-        Parameters
-        ----------
-        action : int or array of floats
-            The action taken by the model indexed by action type [0, 1] -> action.
-    
-        Returns
-        -------
-        observation: np.array
-            Observations that are returned after taking a step in the environment.
-    
-        reward: float
-            Reward that is returned from the environment after taking a step.
-    
-        done: bool
-            Whether or not the episode is complete.
-    
-        info : dict
-            Diagnostic information useful for debugging. 
-    
-        """
-        
+
+        """Perform a single step of forwards simulation."""
+
         if self.actionType == 'discrete':
             # if actions are given in integers
             if action not in self.actionSpace:
@@ -4323,17 +3219,8 @@ class FloPyEnv(gym.Env):
             return self.observations, self.reward, self.done, self.info
 
     def defineEnvironment(self, seed=None):
-        """
-        Defines the environment (spatial domain and recharge rates) for a given ENVTYPE.
+        """Define environmental variables."""
 
-        Args:
-            seed : int or NoneType
-                The random seed used to create the numpyRandomState instance which is then 
-                used throughout this function when sampling values from uniform distributions. If
-                `seed` is not provided, then no seeding of the global state occurs and a random 
-                value will be used instead. 
-        """
-        
         numpySeed(self._SEED)
 
         if self.ENVTYPE in ['0s-c']:
@@ -4573,48 +3460,6 @@ class FloPyEnv(gym.Env):
         self.hclose, self.rclose, self.relax = 1e-8, 1e-8, 1.
 
     def initializeSimulators(self, PATHMF2005=None, PATHMP6=None, PATHMF6DLL=None):
-        """
-        Initialize the MODFLOW and MODPATH simulator executables.
-        
-        Parameters
-        ----------
-        PATHMF2005 : str, default None
-            Path to mf2005 executable. If not provided, then default path is assumed from
-                       self.wrkspc/simulators/{system}/{bits}
-       
-        PATHMP6 : str, default None
-             Path to mp6 executable. If not provided, then default path is assumed from
-                     self.wrkspc/simulators/{system}/{bits}.
-        
-        PATHMF6DLL : str, default None
-            Path to libmf6 dll file. If not provided, then default path is assumed from
-                         self.wrkspc/simulators/{system}/{bits}
-        
-        Returns
-        -------
-        exe_name : str
-             Full path of mf2005 executable to be used in simulation
-        
-        exe_mp : str
-            Full path of mp6 executable to be used in simulation.
-        
-        PATHMF6DLL: str
-           Full path of libmf6 dll file to be used in simulation.
-        
-        Notes
-        -----
-        1. If platform system is unknown, then it prints an error message and exits without returning anything.
-        2. It assumes that self.wrkspc exists as a valid directory where the simulators are located or will be downloaded to.
-            If not provided (as None) for any of PATHMF2005, PATHMP6 or PATHMF6DLL, then default paths in self.wrkspace
-                with respective subfolders {system}/{bits} is assumed. Here system can take values 'win32', 'win64' etc., and bits='32', '64'.
-            If provided as a valid path (i.e. the executable exists in that location), then it uses this information to initialize the simulators, else it exits with error message.
-        3. It assumes self.wrkspc is defined and is a valid directory where the simulator executables will be located or downloaded to. If not provided (as None) for any of PATHMF2005, PATHMP6 or PATHMF6DLL, then default paths in self.wrkspace
-                with respective subfolders {system}/{bits} is assumed. Here system can take values 'win32', 'win64' etc., and bits='32', '64'.
-            If provided as a valid path (i.e. the executable exists in that location), then it uses this information to initialize the simulators, else it exits with error message.
-        4. It assumes self.versionMODFLOW is set and can be read from there, if not found, it sets version to 'mf2005'
-        5. It assumes self.versionMODPATH is set and can be read from there, if not found, it sets the version to 'mp6'
-        """
-        
         """Initialize simulators depending on operating system.
         Executables have to be specified or located in simulators subfolder.
         """
@@ -4688,16 +3533,7 @@ class FloPyEnv(gym.Env):
         self.versionMODPATH = 'mp6'
 
     def initializeAction(self):
-        """
-        Initialize the actions with random values.
-    
-            Args:
-              None
-    
-            Returns:
-                None
-        """
-        
+        """Initialize actions randomly."""
         if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
             self.actionValueNorth = uniform(self.minH, self.maxH)
             self.actionValueSouth = uniform(self.minH, self.maxH)
@@ -4723,30 +3559,10 @@ class FloPyEnv(gym.Env):
                 self.helperWells['actionValueQ'+w] = self.helperWells['wellQ'+w]
 
     def initializeParticle(self):
-        """
-        This function initializes a particle at the top of the domain. 
-        It sets x-position to be slightly off left wall (to prevent overlap with boundary conditions).
-        The y position is randomly assigned between 0 and extentY, with an additional buffer above and below
-        the centerline to avoid particles too close to the walls or the centerline. Finally it assigns z as maximum height of the domain.
-        
-        In other words: Initialize spawn of particle randomly. 
-        The particle will be placed on the Western border just east of the
-        Western stream with with buffer to boundaries.
-        
-        Parameters:
-            self - a ParticleSimulation object initialized in main()
-        
-        Returns: 
-            None
-        
-        Todo: 
-            * This could be improved by allowing for initializing particles with random x, y and z positions within specified bounds 
-              as well as initializing the particle velocity.
-        
-        Example(s):
-            >>> initializeParticle() # if in main() function
-            >>> initializeParticle(self) # if not in main() function (i.e. within ParticleSimulation class)
-        """
+        """Initialize spawn of particle randomly.
+         The particle will be placed on the Western border just east of the
+         Western stream with with buffer to boundaries.
+         """
 
         self.particleSpawnBufferY = 20.0
         self.particleX = self.extentX - 1.1 * self.dCol
@@ -4757,56 +3573,12 @@ class FloPyEnv(gym.Env):
         self.particleCoords = [self.particleX, self.particleY, self.particleZ]
 
     def initializeModel(self):
-        """
-        Initialize groundwater flow model.
-        
-        Parameters:
-            None
-        
-        Returns:
-            1) A constructed Model object
-        
-        Todo:
-          * Implement a check to ensure the model is properly created
-        
-        Example:
-            >>> myModel = initializeModel()
-            >>> type(myModel)
-                <class 'flopy.mbase.model'>
-        """
-        
+        """Initialize groundwater flow model."""
+
         self.constructModel()
 
     def initializeWellRate(self, minQ, maxQ):
-        """
-        Initialize the coordinates of a new well randomly in the aquifer domain within margins..
-        
-        Args:
-            self (object) : an instantiated object defined by class <NameOfClass>
-                            containing at least xmin,xmax, ymin,ymax as attributes.
-        
-            minQ (float): minimum flow rate to be assigned for the new well.
-        
-            maxQ (float): maximum flow rate to be assigned for the new well.
-        
-        Returns:
-            wellX : float, x-coordinate of the new well's position.
-                Note that this is a 2D simulation with z=0 being ground level.
-        
-            wellY : float, y-coordinate of the new well's position.
-        
-            wellZ : float, z-coordinate of the new well's position.
-        
-            wellCoords: list(float), [x,y] coordinates of the new well as a pair in 2D space (z=0).
-        
-            wellQ : float, flow rate to be assigned for the new well.
-        
-        Todo:
-           - check if we want to set the z-coordinate to something other than self.zTop.
-        
-        Examples:
-            >>> wellX,wellY,wellZ,wellCoords,wellQ = initializeWellRate(self=my_class, minQ=-1e6, maxQ=+1e6)
-        """
+        """Initialize well randomly in the aquifer domain within margins."""
 
         xmin = 0.0 + self.wellSpawnBufferXWest
         xmax = self.extentX - self.wellSpawnBufferXEast
@@ -4821,32 +3593,7 @@ class FloPyEnv(gym.Env):
         return wellX, wellY, wellZ, wellCoords, wellQ
 
     def initializeWell(self):
-        """
-        Initialise the well at a given position in the world as a model feature.
-    
-        Parameters
-        ----------
-            self : object instance of Well class
-    
-        Raises 
-        ------
-           No errors are raised by this function, but the following warnings may be shown:
-               * A warning is raised if no helper wells were defined and ENVTYPE requires them.
-    
-        Todo
-        ----
-            * Add input checks to ensure that the coordinates of all wells (well + helper) exist in the world grid. 
-    
-        Examples
-        --------
-          See docstrings for `Well` class and `World` class, respectively.
-    
-        Returns
-        -------
-            None : no value is returned by this function; it updates attributes of a Well instance only. 
-    
-        """
-            
+        """Implement initialized well as model feature."""
         l, c, r = self.cellInfoFromCoordinates([self.wellX,
                                                 self.wellY,
                                                 self.wellZ]
@@ -4870,44 +3617,12 @@ class FloPyEnv(gym.Env):
         self.wel = ModflowWel(self.mf, stress_period_data=lrcq)
 
     def initializeState(self, state):
-        """
-        Initializes the headsPrev attribute to store current head states in.
-        In other words: Initialize aquifer hydraulic head with state from previous step.
-    
-        Parameters:
-            state (dict): The game's state dictionary.
-    
-        Returns:
-          None
-    
-        Todo: 
-            Add an example of how this would be used later on for other functions that change the state.
-        """
-        
+        """Initialize aquifer hydraulic head with state from previous step."""
+
         self.headsPrev = copy(self.state['heads'])
 
     def getActionType(self, ENVTYPE):
-        """
-        Return the environment type for a given string `ENVTYPE`. 
-    
-        Parameters
-        ----------
-        self : object
-            An instance of the main class.
-    
-        ENVTYPE: str
-            The name of an environment
-    
-        Returns
-        -------
-        actionType : str
-            Either "discrete" or "continuous".
-    
-        Examples 
-        --------
-        >>> getActionType('CartPole-v0') 
-        'discrete'
-        """
+        """Retrieve action type from ENVTYPE variable."""
         
         if '-d' in ENVTYPE:
             actionType = 'discrete'
@@ -4920,42 +3635,13 @@ class FloPyEnv(gym.Env):
         return actionType
 
     def updateModel(self):
-        """
-        Update model domain for transient simulation.
+        """Update model domain for transient simulation."""
 
-        Parameters
-        ----------
-        self : object
-            Instantiated class of type `ModelUpdater`.
-
-        Returns
-        -------
-        None
-
-        Example
-        -------
-        >>> from ModelUpdater import ModelUpdater as mu
-        >>> m = mu()
-        >>> m.updateModel(1)  # Update model domain
-        """
-        
         self.constructModel()
 
     def updateWellRate(self):
-        """
-        Updates the pumping rate in order for it to not surpass the constraints of maximum or minimum allowed rates. 
-        Randomly generates a fluctuation value between -1 and +1, then adds this change factor times maxQChange to the current pumping rate (wellQ).
-    
-        Parameters:
-            self : the object that calls upon updateWellRate()
-    
-        Returns:
-            None : only updates wellQ attribute of model object. Does not return any value or variable.
-    
-        Todo:
-            * add error handling for instances where ENVTYPE does not correspond to any of the expected values
-        """
-        
+        """Update model to continue using well."""
+
         if self.ENVTYPE in ['1r-d', '1r-c', '2r-d', '2r-c', '3r-d', '3r-c', '4r-d', '4r-c', '5r-d', '5r-c', '6r-d', '6r-c']:
             # generating random well rate fluctuations
             dQ = uniform(low=-1.0, high=1.0)*self.maxQChange
@@ -4970,24 +3656,7 @@ class FloPyEnv(gym.Env):
                 self.wellQ = self.minQ
 
     def updateWell(self):
-        """
-        Update the location of wells and add WEL package to MODFLOW model.
-        
-        Parameters
-        ----------
-        self : Modflow object
-            The current instance of the ModFlow class.
-        
-        Returns
-        -------
-        None if ENVTYPE in ['1r', '2r','3r'] else a dictionary containing the following keys/values:
-        lrcq = {0: [[layer, row, col, flux] ...]}
-        
-        Examples
-        --------
-        >>> updateWell(self)
-        """
-        
+
         if self.ENVTYPE in ['1r-d', '1r-c', '2r-d', '2r-c', '4r-d', '4r-c', '5r-d', '5r-c', '6r-d', '6r-c']:
             # generating random well location fluctuations
             dwellX = uniform(low=-1.0, high=1.0)*self.maxCoordChange
@@ -5047,29 +3716,15 @@ class FloPyEnv(gym.Env):
         self.wel = ModflowWel(self.mf, stress_period_data=lrcq, options=['NOPRINT'])
 
     def constructModel(self):
-        """
-        Constructs the MODFLOW model object and all of its packages, as well as other objects needed to run a simulation. 
-        In other words: Construct the groundwater flow model used for the arcade game.
+        """Construct the groundwater flow model used for the arcade game.
         Flopy is used as a MODFLOW wrapper for input file construction.
         A specified head boundary condition is situated on the western, eastern
         and southern boundary. The southern boundary condition can be modified
         during the game. Generally, the western and eastern boundaries promote
         groundwater to flow towards the west. To simplify, all model parameters
         and aquifer thickness is homogeneous throughout.
-    
-        Parameters
-        ----------
-            N/A
-    
-        Returns
-        -------
-            N/A
-    
-        Raises
-        ------
-            ValueError: if the number of periods is not equal to 1, as this model assumes a steady state simulation. Also raises an error if no executable path was given for MODFLOW and MT3D.
         """
-        
+
         if self.ENVTYPE in ['0s-c']:
 
             self.sim = MFSimulation(sim_name=self.name, version='mf6',
@@ -5324,25 +3979,8 @@ class FloPyEnv(gym.Env):
             # self.mf_pcg = ModflowNwt(self.mf)
 
     def get_cellID(self, x, y):
-        """
-        Get the cell ID for a specific location in the model grid - to get correct cell for use in BMI call.
-    
-        Parameters: 
-            self (object) -- BMI object containing relevant information about the model
-                delc (int or float) -- size of cells along columns of model area
-                    nrow (int or float) -- number of rows
-                        delr (int or float) -- size of cells along row of model area
-            x (float, unit=m) -- location to find cell ID in the x-direction 
-                y (float, unit=m) -- location to find cell ID in the y-direction
-    
-        Returns:
-            cellID (int or float) -- cell index corresponding to a specific location within the model area.
-    
-        Examples:
-            >>> get_cellID(self, 4056, 1893)
-            27645
-        """
-        
+        # function to get correct cell for use in BMI call
+
         iCol = int(x/self.delc)
         iRow = self.nrow-1 - int(y/self.delr)
         cellID = (iRow*self.ncol)+iCol+1
@@ -5350,65 +3988,14 @@ class FloPyEnv(gym.Env):
         return cellID
 
     def get_cellColRow(self, x, y):
-        """
-        This function takes a point as input and returns the column and row indices for that point.
-    
-            Parameters
-             ----------
-                 self : Object to be used in conjunction with other functions to extract data from .wdb files (specifically flopy).
-                 x : The value of the X coordinate.
-                 y : The value of the Y coordinate.
-    
-              Returns 
-               -------
-                   A tuple containing two integer values: iCol and iRow, which is the column and row index for that point respectively.
-    
-             Examples
-              --------
-                  >>> import <module_name> as mn # Import module
-                  >>> colrow = get_cellColRow(object, 3045968, 27131) # Call function
-                  (33, 25) # The returned tuple.
-        """
-        
+        # function to get correct cell for use in BMI call
+
         iCol = int(x/self.delc)
         iRow = self.nrow-1 - int(y/self.delr)
 
         return iCol, iRow
 
     def changeActionDict(self, actionsDict, action):
-        """
-        Change the action dictionary according to given parameters.
-    
-        Parameters
-        ----------
-        self : {Class}
-            Instance of the Class where this function is defined in.
-    
-        actionsDict : dict[str,int]
-            Dictionary containing all the action values (default or not) for each key 'wellXactionY' with X the number
-            of helper well and Y one between dxRight/dxLeft/dyUp/dyDown/dQUp/dQDown.
-    
-        action : ndarray[int]
-            An array containing all the new values to be used in actionsDict.
-    
-        Returns
-        -------
-        dict[str, int]
-            Dictionary updated with the given action vector.
-    
-        Todo
-        ----
-        Check if offset can be calculated once and for all or needs to change every iteration of this function is called.
-    
-        Examples
-        --------
-        >>> self = {Class}() # Create a Class instance where this method belongs in, with default attributes values.
-        >>> actionsDict = {'well0actiondxRight' : 25, 'well1actiondQDown': 36, ...} # Dictionnary containing all the action values (default or not) for each key wellXactionY with X the number of helper well and Y one between dxRight/dxLeft/dyUp/dyDown/dQUp/dQDown.
-        >>> action = np.array([1,2,3,4,...,60]) # An array containing all the new values to be used in actionsDict.
-        >>> changeActionDict(self, actionsDict, action)
-            {'well0actiondxRight' : 1, 'well1actiondQDown': 7, ...} # Dictionary updated with the given action vector.
-        """
-        
         iOffset = 0
         offset = 6
         for iHelper in range(self.nHelperWells):
@@ -5423,58 +4010,9 @@ class FloPyEnv(gym.Env):
         return actionsDict
 
     def getActionSpaceSize(self, actionsDict):
-        """
-        This function calculates the size of an action space based on a dictionary containing 
-        actions as keys. The length of the key set is used to determine the number of unique actions.
-        
-        Parameters:
-        - actionsDict (dict): A dictionary where each entry represents an action and its associated value
-        
-        Returns:
-        - int: Size of the action space
-
-        Example:
-        actions_dict = {"move_forward": 0, "turn_left": 1}
-        print(getActionSpaceSize(actions_dict))
-        >>> 2
-
-        todo:
-        Implement a more efficient method to calculate the action space size if needed.
-        """
-        
         return len(actionsDict.keys())
 
     def getActionValues(self, actionsDict):
-        """
-        This function calculates the updated values for each action in a given well.
-    
-        Parameters
-        ----------
-        actionsDict : dict
-            A dictionary containing all necessary information about the wells and their corresponding actions.
-    
-        Returns
-        -------
-        actionsDict : dict
-            The input `actionsDict` with updated values after applying the changes to x, y, cellID, and Q for each well.
-    
-        Todo:
-        - Implement error handling if any of the parameters are not in the correct format or range
-    
-        Examples
-        --------
-        >>> from docstring_examples import getActionValues_example_1
-        >>> actionsDict = {'well0actiondxRight': 2.5, 'well0x': 3., 'maxQ': -4}
-        >>> print(getActionValues(actionsDict))
-            # Output: {'well0actiondxRight': 2.5,
-                      'well0x': 1.9875,
-                      'cellID': 6,
-                      'well0Q': -4}
-    
-        Notes
-        -----
-        The function works by iterating over each well and updating the values for x, y, cellID, and Q based on their corresponding actions.
-        """
 
         for iHelper in range(self.nHelperWells):
             dxRight = self.well_dxMax*actionsDict['well' + str(iHelper) + 'actiondxRight']
@@ -5509,46 +4047,24 @@ class FloPyEnv(gym.Env):
         return actionsDict
 
     def add_lib_dependencies(self, lib_dependencies):
-        """
-        Adds library dependencies to the system's PATH or LD_LIBRARY_PATH environment variable.
+        # for an example, see:
+        # https://github.com/JoerivanEngelen/wflow_modflow6_bmi
+        # on Windows, install: http://mingw-w64.org/doku.php
+        # http://win-builds.org/doku.php/download_and_installation_from_windows
+        # print('lib_dependencies DEBUG IN XMIPYWRAPPER', lib_dependencies)
+        # print('lib_path DEBUG IN XMIPYWRAPPER', lib_path)
 
-        for an example, see: https://github.com/JoerivanEngelen/wflow_modflow6_bmi
-        on Windows, install: http://mingw-w64.org/doku.php
-        http://win-builds.org/doku.php/download_and_installation_from_windows
+        # bmi installation linux
+        # https://github.com/MODFLOW-USGS/executables/releases/download/5.0/linux.zip
+        # maybe replace locally:
+        # or force to install current xmipy
+        # https://github.com/Deltares/xmipy/blob/develop/xmipy/xmiwrapper.py
+        # sudo install libifport
+        # https://software.intel.com/content/www/us/en/develop/articles/redistributable-libraries-for-intel-c-and-fortran-2020-compilers-for-linux.html
 
-        bmi installation linux
-        https://github.com/MODFLOW-USGS/executables/releases/download/5.0/linux.zip
-        maybe replace locally:
-        or force to install current xmipy
-        https://github.com/Deltares/xmipy/blob/develop/xmipy/xmiwrapper.py
-        sudo install libifport
-        https://software.intel.com/content/www/us/en/develop/articles/redistributable-libraries-for-intel-c-and-fortran-2020-compilers-for-linux.html
+        # use nightly builds
+        # https://github.com/MODFLOW-USGS/modflow6-nightly-build/releases
 
-        use nightly builds
-        https://github.com/MODFLOW-USGS/modflow6-nightly-build/releases
-    
-        Args:
-            lib_dependencies: A list of paths containing libraries that need to be added.
-                If not provided, no changes will be made to the environment variables.
-    
-        Todo:
-            * Implement support for adding dependencies on non-Windows platforms.
-                - Determine if there is an equivalent of 'pathsep' in these environments,
-                  e.g., ':' (Unix) or ';' (Windows)
-                - Update the function to handle LD_LIBRARY_PATH instead of PATH
-                    when appropriate
-    
-        Examples:
-    
-        Windows:
-            >>> add_LIB_dependencies(['C:\\Libraries\\lib1.dll', 'C:\\Libraries\\lib2.lib'])
-    
-        Unix-like system:
-            $ export LIBRARY="path/to/lib1.so path/to/lib2.a"
-            >>>
-            >>> add_LIB_dependencies(['/usr/local/lib/', '/opt/software/libs/'])
-        """
-        
         if lib_dependencies:
             if system() == 'Windows':
                 for dep_path in lib_dependencies:
@@ -5562,25 +4078,7 @@ class FloPyEnv(gym.Env):
                         environ['PATH'] = (dep_path + pathsep + environ['PATH'])
 
     def runMODFLOW(self, check=False):
-        """
-        Runs the MODFLOW model in a forward groundwater simulation using MODFLOW
-        and writes input files.
-    
-        Parameters
-        ----------
-        check : bool (optional)
-            If True, checks if the model setup is valid. Default is False.
-    
-        Returns
-        -------
-        success_MODFLOW : boolean
-            Whether or not the MODFLOW simulation was successful. 
-        buff : str
-            Buffer containing output from the run_model function.
-    
-        Todo:
-        - Implement method to write only changes to input files instead of full rewrites.
-        """
+        """Execute forward groundwater flow simulation using MODFLOW."""
 
         # writing MODFLOW input files
         t0 = time()
@@ -5997,11 +4495,12 @@ class FloPyEnv(gym.Env):
                 self.extentY - self.dCol / 2.0, self.dCol / 2.0)
                 self.fig.canvas.draw()
 
-            self.modelmap = PlotMapView(model=(self.mf), layer=0)
+            self.modelmap = PlotMapView(model=(self.mf), layer=0, ax=self.ax)
             self.headsplot = self.modelmap.plot_array((self.heads), masked_values=[
              999.0],
               alpha=0.5,
               zorder=2,
+              ax=self.ax,
               cmap=(get_cmap('terrain')))
             self.quadmesh = self.modelmap.plot_ibound(zorder=3)
             self.renderWellSafetyZone(zorder=3)
@@ -6385,15 +4884,20 @@ class FloPyEnv(gym.Env):
             height (float): allowed height in data coordinates
         """
 
-        size = fig.get_size_inches()
+        # import matplotlib.pyplot as plt
+        # size = plt.gcf().get_size_inches()
+        size = self.fig.get_size_inches()
+        # size = fig.get_size_inches()
         whratio = size[0]/size[1]
 
         # get text bounding box in figure coordinates
         # bbox_text = text.get_window_extent().inverse_transformed(self.fig.gca().transData)
         # https://stackoverflow.com/questions/23032847/matplotlib-image-get-window-extentrenderer-produces-all-zeros
-        renderer = fig.canvas.renderer
+        renderer = self.fig.canvas.renderer
+        # renderer = fig.canvas.renderer
         text.draw(renderer)
-        bbox_text = text.get_window_extent().transformed(ax.transData.inverted())
+        bbox_text = text.get_window_extent().transformed(self.ax.transData.inverted())
+        # bbox_text = text.get_window_extent().transformed(ax.transData.inverted())
         # transformed(transform.inverted())
 
         # evaluate fit and recursively decrease fontsize until text fits
@@ -6404,18 +4908,20 @@ class FloPyEnv(gym.Env):
             text.set_fontsize(text.get_fontsize()-dFontDecrease)
             self.textSpanAcrossAxis(text, width, height, fig, ax)
 
-        # re-expanding (in finer increments)
-        expandFinished = False
-        while not expandFinished:
-            text.draw(renderer)
-            bbox_text = text.get_window_extent().transformed(ax.transData.inverted())
-            fits_width = bbox_text.width*whratio >= width if width else True
-            fits_height = bbox_text.height/whratio < height if height else True
-            if not all((fits_width, fits_height)):
-                dFontIncrease = 0.1
-                text.set_fontsize(text.get_fontsize()+dFontIncrease)
-            else:
-                expandFinished = True
+        # # re-expanding (in finer increments)
+        # expandFinished = False
+        # while not expandFinished:
+        #     text.draw(renderer)
+        #     bbox_text = text.get_window_extent().transformed(ax.transData.inverted())
+        #     fits_width = bbox_text.width*whratio >= width if width else True
+        #     fits_height = bbox_text.height/whratio < height if height else True
+        #     print('EXPANDING', bbox_text.width*whratio, width, bbox_text.height/whratio, height)
+        #     if not all((fits_width, fits_height)):
+        #         dFontIncrease = 0.1
+        #         # dFontIncrease = 10.1
+        #         text.set_fontsize(text.get_fontsize()+dFontIncrease)
+        #     else:
+        #         expandFinished = True
 
     def renderTextOnCanvasTimeAndScore(self, zorder=10):
         """Plot final game outcome on figure."""
@@ -6586,29 +5092,6 @@ class FloPyEnv(gym.Env):
                 pass
 
     def writeGIFtodisk(self, pathGIF, ims, fps=2, optimizeSize=False):
-        """
-        Write image frames to disk as a GIF file.
-        
-        Parameters
-        ----------
-            pathGIF : str
-                Path of the GIF file created.
-        
-            ims : list
-                List containing images as numpy arrays.
-        
-            fps : int, optional
-                Frames per second used for creating animated GIF (default is 2).
-
-        Returns
-        -------
-            None
-        
-        Todo
-        -----
-           Optimize GIF size by using pygifsicle and/or imageio.get_writer().
-        """
-        
         with get_writer(pathGIF, mode='I', fps=fps) as writer:
             for image in ims:
                 writer.append_data(image)
@@ -6624,25 +5107,7 @@ class FloPyEnv(gym.Env):
                     optimizeGIF(pathGIF)
 
     def cellInfoFromCoordinates(self, coords):
-        """
-        Determine layer, row and column corresponding to model location.
-    
-        Parameters
-        ----------
-            coords : tuple 
-                Tuple containing X-, Y- and Z-coordinates (in m).
-    
-        Returns
-        -------
-            l, c, r : int
-                Layer, row and column numbers.
-    
-        Notes
-        -----
-           Model domain is assumed to be regular, i.e., the grid spacing 
-           does not change within a layer/row/column.
-        """
-    
+        """Determine layer, row and column corresponding to model location."""
         x, y, z = coords[0], coords[1], coords[2]
         layer = int(ceil((z + self.zBot) / self.dVer))
         column = int(ceil((x + self.minX) / self.dCol))
