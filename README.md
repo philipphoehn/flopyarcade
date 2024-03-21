@@ -12,7 +12,7 @@ FloPyArcade provides simple [MODFLOW](https://www.usgs.gov/mission-areas/water-r
 
 ## Installation
 
-Install in Python 3.7+ using pip:
+Install in Python (3.7 or 3.8) using pip:
 
 ```bash
 python -m pip install flopyarcade
