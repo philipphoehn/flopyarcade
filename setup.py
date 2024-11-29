@@ -53,7 +53,7 @@ setup(
 					  'matplotlib==3.5.3', # 3.6.2 on newer Python versions
 					  # https://stackoverflow.com/questions/73929564/entrypoints-object-has-no-attribute-get-digital-ocean
 					  'importlib-metadata==4.13.0', # update breaks
-					  'numpy==1.21.6', # 1.22.0 on newer Python versions
+					  'numpy==1.22.0', # 1.22.0 on newer Python versions
 					  'pandas==1.3.5', # 1.5.2 on newer Python versions
 					  'pathos==0.3.0',
 					  'pillow==9.3.0',
