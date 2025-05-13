@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools >= 64", "wheel"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "flopyarcade"
+version = "0.6.9"
+description="Simulated groundwater flow environments for reinforcement learning."
+readme = "README.md"
+urls = {Homepage = "https://github.com/philipphoehn/flopyarcade", Documentation = "https://flopyarcade.readthedocs.io"}
+authors = [
+  { name = "Philipp Hoehn", email = "philipp.hoehn@yahoo.com" }
+]
+requires-python = ">=3.7, <=3.12"
+license={text = "GNU GPLv3"}
+dependencies = [
+	"coverage",
+	"flopy >= 3.9.2", # 3.3.5
+	"gymnasium >= 0.29.1",
+	"imageio >= 2.22.4",
+	"ipython >= 7.34.0",
+	"joblib >= 1.2.0",
+	"lz4 >= 4.0.2",
+	'matplotlib >= 3.6.2',
+	'importlib-metadata >= 4.13.0',
+	'numpy >= 2.1.3',
+	'pandas >= 1.5.2',
+	'pathos >= 0.3.0',
+	'pillow >= 9.3.0',
+	'pygame >= 2.1.2',
+	'ray[all] >= 2.43.0', # benchmark on legacy 1.9.2 # 2.1.0 requires new checkpoints
+	'ray[tune] >= 2.43.0', # benchmark on legacy 1.9.2 # 2.1.0 requires new checkpoints
+	'ray[rllib] >= 2.43.0', # benchmark on legacy 1.9.2 # 2.1.0 requires new checkpoints
+	'scikit-image >= 0.19.3',
+	'tensorflow >= 2.11.0',
+	'tqdm >= 4.64.1',
+	'xmipy == 1.3.0', # updating breaks value_get_ptr
+]
+classifiers = [
+	'Development Status :: 3 - Alpha',
+	'Intended Audience :: Science/Research',
+	'Intended Audience :: Education',
+	'Intended Audience :: Developers',
+	'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+	'Natural Language :: English',
+	'Operating System :: POSIX :: Linux',
+	'Operating System :: Microsoft :: Windows',
+	'Programming Language :: Python :: 3',
+	'Programming Language :: Python :: 3 :: Only',
+	'Topic :: Scientific/Engineering',
+	'Topic :: Scientific/Engineering :: Hydrology',
+	'Topic :: Scientific/Engineering :: Artificial Intelligence',
+	'Topic :: Education',
+]
