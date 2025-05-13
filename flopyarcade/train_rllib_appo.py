@@ -38,19 +38,22 @@ warnings.filterwarnings('ignore', 'SelectableGroups dict interface')
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 
 
-'''
-# ENVTYPE = '3s-c'
+global ENVTYPE
+
+
+# '''
+ENVTYPE = '0s-c'
 env_config = {}
-env_config['ENVTYPE'] = '3s-c'
+env_config['ENVTYPE'] = '0s-c'
 env = FloPyEnv(env_config=env_config)
-from ray.rllib.env.wrappers.multi_agent_env_compatibility import MultiAgentEnvCompatibility
-env = MultiAgentEnvCompatibility(env)
+# from ray.rllib.env.wrappers.multi_agent_env_compatibility import MultiAgentEnvCompatibility
+# env = MultiAgentEnvCompatibility(env)
 from ray import rllib
 # import ray
-rllib.utils.check_env([env])
+# rllib.utils.check_env([env])
 # ray.rllib.utils.check_env([env])
-exit()
-'''
+# exit()
+# '''
 
 
 def str_to_bool(value):
@@ -81,7 +84,6 @@ if args.playbenchmark:
     if args.external:
         print('Starting benchmark visualization. Note that loading might take a moment.')
 
-global ENVTYPE
 ENVTYPE = args.envtype
 
 config_model = {
@@ -201,7 +203,9 @@ if __name__ == "__main__":
 
     if not args.playbenchmark:
 
-        from ray.rllib.algorithms.appo import APPOConfig
+        # from ray.rllib.algorithms.appo import APPOConfig
+        from ray.rllib.agents.appo import APPOTrainer
+
         from ray import air
         from ray import train, tune
 
@@ -229,9 +233,9 @@ if __name__ == "__main__":
         config.num_rollout_workers = 15 # 15 maximum
         config = config.training(lr=tune.grid_search([0.0002])) # 0.001
         config = config.framework('tf')
-        config = config.environment(env="MountainCarContinuous")
+        # config = config.environment(env="MountainCarContinuous")
         # config = config.environment(env="Pendulum-v1")
-        # config = config.environment(env=ENVTYPE + args.suffix)
+        config = config.environment(env=ENVTYPE + args.suffix)
         # # print(config.sample_async)
         # # print(config.to_dict())
         tune.Tuner(
@@ -241,9 +245,9 @@ if __name__ == "__main__":
             # run_config=air.RunConfig(stop={"episode_reward_mean": 900},
                 local_dir="D:\\ray_results_temp",
                 checkpoint_config=train.CheckpointConfig(checkpoint_frequency=5, checkpoint_at_end=True),
-                name="MountainCarContinuous-v0_APPO"
+                # name="MountainCarContinuous-v0_APPO"
                 # name="Pendulum-v1_APPO"
-                # name="3s-c_APPO"
+                name="0s-c_APPO"
                 ),
             param_space=config.to_dict(),
         ).fit()
