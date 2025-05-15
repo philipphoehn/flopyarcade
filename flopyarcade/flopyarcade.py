@@ -66,10 +66,11 @@ from numpy import sum as numpySum
 from numpy import abs as numpyAbs
 from numpy.random import randint, random, randn, uniform
 from numpy.random import seed as numpySeed
-from os import chdir, chmod, environ, listdir, makedirs, pathsep, remove, rmdir
+from os import chdir, chmod, environ, listdir, makedirs, pathsep, remove, rmdir, unlink
 from os.path import abspath, dirname, exists, join, sep
 from platform import system as platformSystem
 from shutil import rmtree
+from shutil import copy2
 from sys import modules
 if 'ipykernel' in modules:
     from IPython import display
@@ -123,6 +124,7 @@ from tqdm import tqdm
 from uuid import uuid4
 
 from tempfile import TemporaryDirectory
+from tempfile import NamedTemporaryFile
 
 # avoiding freeze issues on Linux when loading Tensorflow model
 # https://github.com/keras-team/keras/issues/9964
@@ -276,11 +278,7 @@ class FloPyEnv(gym.Env):
         self.modelpth = str(self.tempDir.name)
 
         # Generate or truncate MODELNAME if needed
-        if not self.MODELNAME:
-            self.MODELNAME = f'FloPyArcade{str(uuid4())[:5]}'
-        if self.ENVTYPE == '0s-c':
-            self.MODELNAMEGENCOUNT = self.MODELNAME
-            self.MODELNAME = self.MODELNAME[:15]
+        self.MODELNAME = f'{str(uuid4())[:15]}'
 
     def _init_env_vars(self, seed):
         """Initialize runtime variables and flags.
@@ -341,10 +339,43 @@ class FloPyEnv(gym.Env):
         self.simpath = None
         makedirs(self.model_ws, exist_ok=True)
         self.actionSpaceSize = self.getActionSpaceSize(self.actionsDict)
+
+        # self.mf6dll_orig = deepcopy(self.mf6dll)
+        # self.mf6dll = self.load_temporary_dll(self.mf6dll_orig)
+
         if platformSystem() == 'Windows':
             win_lib_path = join(self.wrkspc, 'simulators', 'win64', 'win-builds', 'bin')
             self.add_lib_dependencies([win_lib_path])
+
         self.constructModel()
+
+    def load_temporary_dll(self, original_dll_path):
+        """Copy a DLL to a temporary file and return its path.
+
+        Creates a temporary file with a `.dll` suffix, copies the content of the
+        original DLL into it, and returns the temporary file's path. The temporary
+        file is not deleted automatically and requires manual cleanup.
+
+        Currently unused, but keeping it in case different thread safety may be
+        required later.
+
+        Args:
+            self (object): The instance calling this method.
+            original_dll_path (str): Path to the original DLL file.
+
+        Returns:
+            str: Path to the temporary DLL file.
+        
+        """
+
+        # Create a temporary file with .dll suffix, delete=False to keep it until manual cleanup
+        temp_file = tempfile.NamedTemporaryFile(suffix=".dll", delete=False)
+        temp_file.close()  # Close so we can write to it
+
+        # Copy the original DLL content to the temporary file
+        shutil.copy2(original_dll_path, temp_file.name)
+
+        return temp_file.name
 
     def _init_env_other(self):
         """Initialize environment for ENVTYPEs other than '0s-c'.
@@ -388,7 +419,6 @@ class FloPyEnv(gym.Env):
         obs_array = np.array(self.observations)
 
         self.observation_space = gymnasium.spaces.Box(
-        # self.observation_space = gym.spaces.Box(
             low=-25.0,
             high=25.0,
             shape=obs_array.shape,
@@ -397,7 +427,6 @@ class FloPyEnv(gym.Env):
 
         if self.actionType == 'discrete':
             self.action_space = gymnasium.spaces.Discrete(len(self.actionSpace))
-            # self.action_space = gym.spaces.Discrete(len(self.actionSpace))
         elif self.actionType == 'continuous':
             if self.ENVTYPE == '3s-c':
                 self.actionSpaceSize = 4
@@ -457,7 +486,8 @@ class FloPyEnv(gym.Env):
             print("Retaining files")
             return
 
-        self._finalize_model()
+        # self._finalize_model()
+        self.finalize_simulation
         self._remove_model_workspace()
         assert self.teardownSuccess, f"Failed to remove directory {self.model_ws}"
 
@@ -469,21 +499,6 @@ class FloPyEnv(gym.Env):
         
         """
         chdir(self.wrkspc)
-
-    def _finalize_model(self):
-        """Finalize the model instance, ignoring any exceptions.
-
-        Calls the `finalize` method on the model (`mf6`) to clean up resources.
-        Any exceptions during finalization are caught and ignored.
-
-        Args:
-            self (object): The instance of the class.
-        
-        """
-        try:
-            self.mf6.finalize()
-        except Exception:
-            pass  # Ignore finalize errors
 
     def _remove_model_workspace(self):
         """Remove the model workspace directory if it exists.
@@ -500,7 +515,8 @@ class FloPyEnv(gym.Env):
             return
 
         try:
-            rmtree(self.model_ws)
+            self.tempDir.cleanup()
+            # rmtree(self.model_ws)
             self.teardownSuccess = True
         except Exception as e:
             print(f"Could not remove test {self.model_ws}\nError: {e}")
@@ -597,8 +613,8 @@ class FloPyEnv(gym.Env):
         else:
             self._setup_general_env()
         self._setup_action_space()
-        self.rewardMax = 1000
-        self.distanceMax = 98
+
+        # only specific ens
         self.nouter = self.ninner = 100
         self.hclose = self.rclose = 1e-8
         self.relax = 1.0
@@ -754,6 +770,8 @@ class FloPyEnv(gym.Env):
             None
         
         """
+        self.rewardMax = 1000
+        self.distanceMax = 98
         self.minX = self.minY = 0.0
         self.extentX = self.extentY = 100.0
         self.zBot, self.zTop = 0.0, 50.0
@@ -1368,7 +1386,7 @@ class FloPyEnv(gym.Env):
                 pass
 
         reward = 0.0
-        info = None
+        info = {}
 
         if self.timeStep == 0 and self.initWithSolution:
             return self._first_step(reward, info)
@@ -1439,7 +1457,7 @@ class FloPyEnv(gym.Env):
         if self.timeStep == self.nstp:
             self.done = True
 
-        self.prepare_time_step()
+        self._prepare_time_step()
         self.get_simulated_heads()
         new_recharge = self.get_recharge()
         self.update_well_cells()
@@ -1475,13 +1493,7 @@ class FloPyEnv(gym.Env):
         self.update_envhash()
         self.handle_done(teardownOnFinish)
 
-        return (
-            self.observationsVectorNormalized,
-            self.reward,
-            self.done,
-            self.truncated,
-            self.info,
-        )
+        return self.observationsVectorNormalized, self.reward, self.done, self.truncated, self.info
 
     def _handle_other_environments(self, action, reward, info, teardownOnFinish):
         """Handle environment types other than '0s-c'.
@@ -1541,13 +1553,7 @@ class FloPyEnv(gym.Env):
         if self.done and teardownOnFinish:
             self.tempDir.cleanup()
 
-        return (
-            self.observations,
-            self.reward,
-            self.done,
-            self.truncated,
-            self.info,
-        )
+        return self.observations, self.reward, self.done, self.truncated, self.info
 
     def get_well_cells(self):
         """Retrieve well cell IDs as a numpy array.
@@ -2183,8 +2189,9 @@ class FloPyEnv(gym.Env):
 
         """
         mf6_config_file = join(self.model_ws, modelname + '.nam')
+
         try:
-            self.mf6 = XmiWrapper(exe)
+            self.mf6 = deepcopy(XmiWrapper(exe))
             return self.mf6
         except Exception as e:
             print(f"Failed to load {exe}")
@@ -2211,7 +2218,7 @@ class FloPyEnv(gym.Env):
             self.mf6.initialize(modelname + '.nam')
         except Exception as e:
             # Optionally, log the exception e here
-            return self.bmi_return(self.success, self.model_ws)
+            return self.bmi_return(self.success, self.model_ws, modelname)
 
     def setup_workspace_and_model(self):
         """
@@ -2444,7 +2451,7 @@ class FloPyEnv(gym.Env):
 
         return obs
 
-    def prepare_time_step(self):
+    def _prepare_time_step(self):
         """Prepare the model for the current time step.
 
         Args:
@@ -2584,11 +2591,13 @@ class FloPyEnv(gym.Env):
             self (object): Instance containing MF6 model and success flag.
         
         """
+        self.success = True
         try:
             self.mf6.finalize()
-            self.success = True
-        except Exception:
-            _ = self.bmi_return(self.success, self.model_ws)
+        except Exception as e:
+            pass
+        # except Exception:
+        #     _ = self.bmi_return(self.success, self.model_ws, self.name)
 
     def post_simulation_teardown(self, teardownOnFinish):
         """Perform post-simulation cleanup and teardown if requested.
@@ -2622,6 +2631,12 @@ class FloPyEnv(gym.Env):
         self.cleanup_temp_dir()
         self.finalize_simulation()
         self.post_simulation_teardown(teardownOnFinish)
+
+        # try:
+        #     unlink(self.mf6dll)
+        #     remove(self.mf6dll)
+        # except Exception as e:
+        #     print('dll not removed or not removable?')
 
     def getActionType(self, ENVTYPE):
         """
@@ -4073,7 +4088,7 @@ class FloPyEnv(gym.Env):
         """
         return -pump * self.costQm3dPump - recharge * self.costQm3dRecharge
 
-    def reset(self, _seed=None, MODELNAME=None, initWithSolution=None):
+    def reset(self, seed=None, MODELNAME=None, initWithSolution=None, options=None):
         """Reset environment with same settings and optional new seed.
 
         Args:
@@ -4088,9 +4103,9 @@ class FloPyEnv(gym.Env):
         initWithSolution = self._get_init_solution(initWithSolution)
 
         if self.ENVTYPE == '0s-c':
-            self._reset_0s_c(_seed)
+            self._reset_0s_c(seed)
         else:
-            self._reset_other(_seed, MODELNAME, initWithSolution)
+            self._reset_other(seed, MODELNAME, initWithSolution)
 
         return array(self.observationsVectorNormalized), {}
 
@@ -4114,6 +4129,13 @@ class FloPyEnv(gym.Env):
 
         """
         self.model_ws = join(self.wrkspc, 'models', self.exdir)
+
+        self._setup_workspace()
+        self._init_env_vars(_seed)
+        self._init_env_specific()
+
+        # self.mf6dll = self.load_temporary_dll(self.mf6dll_orig)
+
         self.defineEnvironment(_seed)
         self.constructModel()
 
@@ -7059,163 +7081,116 @@ class FloPyArcade:
         self.runtime = (time() - t0) / 60.
 
 
-class FloPyAgent():
-    """Agent to navigate a spawned particle advectively through one of the
-    aquifer environments, collecting reward along the way.
-    """
-
+class FloPyAgent:
     def __init__(self, observationsVector=None, actionSpace=['keep'],
                  hyParams=None, envSettings=None, mode='random',
                  maxTasksPerWorker=1000, maxTasksPerWorkerMutate=1000,
                  maxTasksPerWorkerNoveltySearch=10000, zFill=6):
-        """Constructor"""
-
-        self.wrkspc = dirname(abspath(__file__))
-        if 'library.zip' in self.wrkspc:
-            # changing workspace in case of call from compiled executable
-            self.wrkspc = dirname(dirname(self.wrkspc))
-
-        # initializing arguments
+        self.wrkspc = self._get_workspace()
         self.observationsVector = observationsVector
         self.hyParams, self.envSettings = hyParams, envSettings
         self.actionSpace = actionSpace
-        self.actionSpaceSize = len(self.actionSpace)
-
-        if self.envSettings:
-            self.actionType = self.getActionType(self.envSettings['ENVTYPE'])
-            # self.actionType = FloPyEnv(initWithSolution=False).getActionType(self.envSettings['ENVTYPE'])
+        self.actionSpaceSize = len(actionSpace)
         self.agentMode = mode
         self.maxTasksPerWorker = maxTasksPerWorker
         self.maxTasksPerWorkerMutate = maxTasksPerWorkerMutate
         self.maxTasksPerWorkerNoveltySearch = maxTasksPerWorkerNoveltySearch
         self.zFill = zFill
 
-        # setting seeds
-        if self.envSettings is not None:
+        # print(envSettings)
+
+        if envSettings:
+            self.actionType = self.getActionType(envSettings['ENVTYPE'])
             self.setSeeds()
 
-        # creating required folders if inexistent
-        self.modelpth = join(self.wrkspc, 'models')
-        if not exists(self.modelpth):
-            makedirs(self.modelpth)
+        self._create_folder(join(self.wrkspc, 'models'), assign_attr='modelpth')
 
         if self.agentMode == 'DQN':
-            # initializing DQN agent
             self.initializeDQNAgent()
+        elif self.agentMode == 'genetic':
+            self._setup_genetic_agent()
 
-        if self.agentMode == 'genetic':
-            if self.envSettings['NAGENTSPARALLEL'] == None:
-                self.envSettings['NAGENTSPARALLEL'] = cpu_count()
+    def _get_workspace(self):
+        wrkspc = dirname(abspath(__file__))
+        if 'library.zip' in wrkspc:
+            wrkspc = dirname(dirname(wrkspc))
+        return wrkspc
 
-            # creating required folders if inexistent
-            self.tempModelpth = join(self.wrkspc, 'temp', 
-                self.envSettings['MODELNAME'])
+    def _create_folder(self, path, assign_attr=None):
+        if not exists(path):
+            makedirs(path)
+        if assign_attr:
+            setattr(self, assign_attr, path)
 
-            if not self.envSettings['RESUME']:
-                # removing previous models if existing to avoid loading outdated models
-                modelFiles = glob(join(self.modelpth, self.envSettings['MODELNAME'] + '_' + '*'))
-                for item in modelFiles:
-                    try:
-                        remove(item)
-                    except:
-                        files = glob(join(item, '*'))
-                        for f in files:
-                            remove(f)
-                try:
-                    rmtree(self.tempModelpth)
-                except:
-                    pass
+    def _setup_genetic_agent(self):
+        if self.envSettings['NAGENTSPARALLEL'] is None:
+            self.envSettings['NAGENTSPARALLEL'] = cpu_count()
 
-            if not exists(self.tempModelpth):
-                makedirs(self.tempModelpth)
-            if self.envSettings['BESTAGENTANIMATION']:
-                runModelpth = join(self.wrkspc, 'runs',
-                    self.envSettings['MODELNAME'])
-                if not exists(runModelpth):
-                    makedirs(runModelpth)
-            if self.hyParams is not None:
-                if self.hyParams['NOVELTYSEARCH']:
-                    self.tempNoveltypth = join(self.tempModelpth, 'novelties')
-                    if not exists(self.tempNoveltypth):
-                        makedirs(self.tempNoveltypth)
-                    else:
-                        if self.envSettings is not None:
-                            if not self.envSettings['RESUME']:
-                                if exists(self.tempNoveltypth):
-                                    for f in listdir(self.tempNoveltypth):
-                                        remove(join(self.tempNoveltypth, f))
+        self.tempModelpth = join(self.wrkspc, 'temp', self.envSettings['MODELNAME'])
 
-            # initializing seeds for mutation
-            self.mutationSeeds = []
-            for iGen in range(self.hyParams['NGENERATIONS']):
-                seedsInnerGeneration = list(randint(
-                    low=1, high=10000000, size=self.hyParams['NAGENTS']))
-                self.mutationSeeds.append(seedsInnerGeneration)
-                self.setSeeds()
+        if not self.envSettings['RESUME']:
+            self._cleanup_old_models()
 
-            # initializing seeds for games
-            if self.envSettings['SEEDSRANDOM']:
-                self.gamesSeeds = []
-                self.bestRewards = []
-                for iGen in range(self.hyParams['NGENERATIONS']):
-                    seedsInnerGeneration = list(randint(
-                        low=1, high=10000000, size=self.hyParams['NGAMESAVERAGED']))
-                    self.gamesSeeds.append(seedsInnerGeneration)
-                self.setSeeds()
+        self._create_folder(self.tempModelpth)
 
-            # initializing genetic agents and saving hyperparameters and
-            # environment settings or loading them if resuming
-            if not self.envSettings['RESUME']:
-                self.geneticGeneration = 0
-                print('Initializing genetic agents.')
-                self.initializeGeneticAgents()
-                self.pickleDump(join(self.tempModelpth,
-                    self.envSettings['MODELNAME'] + '_hyParams.p'),
-                    self.hyParams)
-                self.pickleDump(join(self.tempModelpth,
-                    self.envSettings['MODELNAME'] + '_envSettings.p'),
-                    self.envSettings)
-            elif self.envSettings['RESUME']:
-                self.hyParams = self.pickleLoad(join(self.tempModelpth,
-                    self.envSettings['MODELNAME'] + '_hyParams.p'))
+        if self.envSettings['BESTAGENTANIMATION']:
+            self._create_folder(join(self.wrkspc, 'runs', self.envSettings['MODELNAME']))
+
+        if self.hyParams and self.hyParams.get('NOVELTYSEARCH', False):
+            self._setup_novelty_path()
+
+        self._initialize_seeds()
+
+        if not self.envSettings['RESUME']:
+            self.geneticGeneration = 0
+            print('Initializing genetic agents.')
+            self.initializeGeneticAgents()
+            self.pickleDump(join(self.tempModelpth, f"{self.envSettings['MODELNAME']}_hyParams.p"), self.hyParams)
+            self.pickleDump(join(self.tempModelpth, f"{self.envSettings['MODELNAME']}_envSettings.p"), self.envSettings)
+        else:
+            self.hyParams = self.pickleLoad(join(self.tempModelpth, f"{self.envSettings['MODELNAME']}_hyParams.p"))
+
+    def _cleanup_old_models(self):
+        pattern = join(self.modelpth, f"{self.envSettings['MODELNAME']}_*")
+        for item in glob(pattern):
+            try:
+                remove(item)
+            except:
+                for f in glob(join(item, '*')):
+                    remove(f)
+        try:
+            rmtree(self.tempModelpth)
+        except:
+            pass
+
+    def _setup_novelty_path(self):
+        self.tempNoveltypth = join(self.tempModelpth, 'novelties')
+        if not exists(self.tempNoveltypth):
+            makedirs(self.tempNoveltypth)
+        elif not self.envSettings['RESUME']:
+            for f in listdir(self.tempNoveltypth):
+                remove(join(self.tempNoveltypth, f))
+
+    def _initialize_seeds(self):
+        # self.setSeeds()
+        self.mutationSeeds = [list(np.random.randint(1, 10_000_000, self.hyParams['NAGENTS']))
+                              for _ in range(self.hyParams['NGENERATIONS'])]
+
+        if self.envSettings['SEEDSRANDOM']:
+            self.gamesSeeds = [list(np.random.randint(1, 10_000_000, self.hyParams['NGAMESAVERAGED']))
+                               for _ in range(self.hyParams['NGENERATIONS'])]
+            self.bestRewards = []
+            # self.setSeeds()
 
     def initializeDQNAgent(self):
+        self._init_seeds()
         actionType = FloPyEnv(initWithSolution=False).getActionType(self.envSettings['ENVTYPE'])
-        
-        # initializing main predictive and target model
         self.mainModel = self.createNNModel(actionType)
         self.targetModel = self.createNNModel(actionType)
         self.targetModel.set_weights(self.mainModel.get_weights())
-
-        # initializing array with last training data of specified length
         self.replayMemory = deque(maxlen=self.hyParams['REPLAYMEMORYSIZE'])
         self.epsilon = self.hyParams['EPSILONINITIAL']
-
-        # initializing counter for updates on target network
         self.targetUpdateCount = 0
-
-    # def initializeGeneticAgents(self):
-    #     if self.envSettings['KEEPMODELHISTORY']:
-    #         chunksTotal = self.yieldChunks(
-    #             arange(self.hyParams['NAGENTS']),
-    #             self.envSettings['NAGENTSPARALLEL'] * self.maxTasksPerWorkerMutate
-    #         )
-    #         for chunk in chunksTotal:
-    #             # Sequentially process each index in the chunk
-    #             for agent_idx in chunk:
-    #                 self.randomAgentGenetic(agent_idx)
-    #     else:
-    #         self.mutationHistory = {}
-    #         for iAgent in range(self.hyParams['NAGENTS']):
-    #             creationSeed = iAgent + 1
-    #             agentNumber = iAgent + 1
-    #             self.mutationHistory = self.updateMutationHistory(
-    #                 self.mutationHistory,
-    #                 agentNumber,
-    #                 creationSeed,
-    #                 mutationSeeds=[],
-    #                 mutationSeed=None
-    #             )
 
     def initializeGeneticAgents(self):
         if self.envSettings['KEEPMODELHISTORY']:
@@ -7231,6 +7206,7 @@ class FloPyAgent():
                 self.mutationHistory = self.updateMutationHistory(self.mutationHistory, agentNumber, creationSeed, mutationSeeds=[], mutationSeed=None)
 
     def setSeeds(self):
+        print('Setting SEEDAGENT seed', self.envSettings['SEEDAGENT'])
         self.SEED = self.envSettings['SEEDAGENT']
         numpySeed(self.SEED)
         randomSeed(self.SEED)
@@ -7248,295 +7224,62 @@ class FloPyAgent():
         return actionType
 
     def runDQN(self, env):
-        """
-        Run main pipeline for Deep Q-Learning optimisation.
-        # Inspiration and larger parts of code modified after sentdex
-        # https://pythonprogramming.net/deep-q-learning-dqn-reinforcement-learning-python-tutorial/
-        """
-
+        """Run main Deep Q-Learning optimization pipeline."""
         self.actionType = env.actionType
-
-        # generating seeds to generate reproducible cross-validation data
-        # note: avoids variability from averaged new games
-        numpySeed(self.envSettings['SEEDAGENT'])
-        self.seedsCV = randint(self.envSettings['SEEDAGENT'],
-            size=self.hyParams['NGAMESCROSSVALIDATED']
-            )
-
+        # self._init_seeds()
+        self.gameSeeds = [randint(low=np.iinfo(np.int32).min, high=np.iinfo(np.int32).max) for iGame in range(self.hyParams['NGAMES'] + 1)]
+        self.seedsCV = randint(low=np.iinfo(np.int32).min, high=np.iinfo(np.int32).max, size=self.hyParams['NGAMESCROSSVALIDATED'])
+        # print('DEBUG self.gameSeeds', self.gameSeeds)
         gameRewards = []
-        # iterating over games being played
-        for iGame in tqdm(range(1, self.hyParams['NGAMES']+1), ascii=True,
-            unit='games'):
-            env.reset(MODELNAME=env.MODELNAME) # no need for seed?
-            # MODELNAME=MODELNAMETEMP, _seed=SEEDTEMP
-
-
-            # simulating, updating replay memory and training main network
-            self.takeActionsUpdateAndTrainDQN(env)
-            if env.success:
-                self.gameReward = self.gameReward
-            elif env.success == False:
-                # overwriting simulation memory to zero if no success
-                # to test: is it better to give reward an not reset to 0?
-                # self.gameReward = 0.0
-                self.updateReplayMemoryZeroReward(self.gameStep) # is this better on or off?
+        for iGame in tqdm(range(1, self.hyParams['NGAMES'] + 1), ascii=True, unit='games'):
+            env.reset(seed=self.gameSeeds[iGame], MODELNAME=env.MODELNAME) # _seed=
+            self._play_one_game(env)
             gameRewards.append(self.gameReward)
 
-            # cross validation, after every given number of games
-            if not iGame % self.hyParams['CROSSVALIDATEEVERY'] or iGame == 1:
-                self.crossvalidateDQN(env)
-    
-                MODELNAME = self.envSettings['MODELNAME']
-                DQNfstring = f'{MODELNAME}{iGame:_>7.0f}ep'\
-                    f'{self.max_rewardCV:_>7.1f}max'\
-                    f'{self.average_rewardCV:_>7.1f}avg'\
-                    f'{self.min_rewardCV:_>7.1f}min'\
-                    f'{datetime.now().strftime("%Y%m%d%H%M%S")}datetime.keras'
-                if self.average_rewardCV >= self.envSettings['REWARDMINTOSAVE']:
-                    # saving model if larger than a specified reward threshold
-                    self.mainModel.save(join(self.wrkspc, 'models', DQNfstring))
+            if iGame == 1 or iGame % self.hyParams['CROSSVALIDATEEVERY'] == 0:
+                self._crossvalidate_and_save(env, iGame)
 
-            # decaying epsilon
-            if self.epsilon > self.hyParams['EPSILONMIN']:
-                self.epsilon *= self.hyParams['EPSILONDECAY']
-                self.epsilon = max([self.hyParams['EPSILONMIN'], self.epsilon])
+            self._decay_epsilon()
 
     def runGenetic(self, env, searchNovelty=False):
-        """Run main pipeline for genetic agent optimisation.
-        # Inspiration and larger parts of code modified after and inspired by:
-        # https://github.com/paraschopra/deepneuroevolution
-        # https://arxiv.org/abs/1712.06567
-        """
+        """Run main pipeline for genetic agent optimization."""
+        self._validate_hyperparams()
+        self._initialize_environment(env, searchNovelty)
+        self._initialize_parallel_settings()
+        self._generate_unique_pid()
 
-        self.actionType = env.actionType
-        if self.hyParams['NAGENTS'] <= self.hyParams['NNOVELTYELITES']:
-            raise ValueError('Settings and hyperparameters require changes: ' + \
-                             'The number of novelty elites considered during novelty search ' + \
-                             'should be lower than the number of agents considered ' + \
-                             'to evolve.')
+        # Further genetic algorithm steps would follow here...
+        # e.g. population initialization, evaluation, selection, mutation, etc.
 
-        # setting environment and number of games
-        self.env, n = env, self.hyParams['NGAMESAVERAGED']
-        if searchNovelty:
-            self.searchNovelty, self.noveltyArchive = searchNovelty, {}
-            self.noveltyItemCount = 0
-            self.agentsUnique, self.agentsUniqueIDs = [], []
-            self.agentsDuplicate, self.agentsDuplicateID = [], []
-            if env.actionType == 'discrete':
-                self.actionsUniqueIDMapping = defaultdict(count().__next__)
-        cores = self.envSettings['NAGENTSPARALLEL']
-        # generating unique process ID from system time
-        self.pid = str(uuid4())
-        self.pidList = list(self.pid)
-        shuffle(self.pidList)
-        self.pid = ''.join(self.pidList)
+        n = self.n
 
-        agentCounts = [iAgent for iAgent in range(self.hyParams['NAGENTS'])]
+        agentCounts = list(range(self.hyParams['NAGENTS']))
         self.rereturnChildrenGenetic = False
+
         for self.geneticGeneration in range(self.hyParams['NGENERATIONS']):
             self.flagSkipGeneration = False
             self.generatePathPrefixes()
 
             if self.envSettings['RESUME']:
-                if self.searchNovelty:
-                    if self.geneticGeneration > 0:
-                        self.noveltyArchive = self.pickleLoad(join(
-                            self.tempPrevModelPrefix + '_noveltyArchive.p'))
-                        if not self.envSettings['KEEPMODELHISTORY']:
-                            self.mutationHistory = self.pickleLoad(join(
-                                self.tempPrevModelPrefix + '_mutationHistory.p'))
-                        self.noveltyItemCount = len(self.noveltyArchive.keys())
+                if self.searchNovelty and self.geneticGeneration > 0:
+                    self._load_novelty_archive()
                 sortedParentIdxs, continueFlag, breakFlag = self.resumeGenetic()
-                if continueFlag: continue
-                if breakFlag: break
-
+                if continueFlag:
+                    continue
+                if breakFlag:
+                    break
                 if self.searchNovelty:
-                    # regenerating list of unique and duplicate agents
-                    # in case of resume
-                    for iAgent in range(self.noveltyItemCount):
-                        agentStr = 'agent' + str(iAgent+1)
-                        # self.noveltyArchive[agentStr] = {}
-                        tempAgentPrefix = self.noveltyArchive[agentStr]['modelFile'].replace('.keras', '')
-                        pth = join(tempAgentPrefix + '_results.p')
-                        actions = self.pickleLoad(pth)['actions']
-                        if env.actionType == 'discrete':
-                            actionsAll = [action for actions_ in actions for action in actions_]
-                            actionsUniqueID = self.actionsUniqueIDMapping[tuple(actionsAll)]
-                            self.noveltyArchive[agentStr]['actionsUniqueID'] = actionsUniqueID
-                            if actionsUniqueID not in self.agentsUniqueIDs:
-                                # checking if unique ID from actions already exists
-                                self.agentsUnique.append(iAgent)
-                                self.agentsUniqueIDs.append(actionsUniqueID)
-                            else:
-                                self.agentsDuplicate.append(iAgent)
-                                # self.agentsDuplicateID.apppend()
+                    self._regenerate_unique_duplicate_lists(env)
 
-            print('########## started generation ' + str(self.geneticGeneration+1).zfill(self.zFill) + ' ##########')
+            print(f'########## started generation {str(self.geneticGeneration+1).zfill(self.zFill)} ##########')
 
-            # simulating agents in environment, returning average of n runs
-            self.rewards = self.runAgentsRepeatedlyGenetic(agentCounts, n, env)
-            print('lowest reward', min(self.rewards))
-            print('average reward', mean(self.rewards))
-            print('highest reward', max(self.rewards))
-            if self.envSettings['SEEDSRANDOM']:
-                self.bestRewards.append(max(self.rewards))
-                print('highest sliding reward (n=50)', mean(self.bestRewards[-50:]))
+            self.rewards = self.runAgentsRepeatedlyGenetic(agentCounts, self.n, env)
+            self._log_generation_rewards()
 
-            # sorting by rewards in reverse, starting with indices of top reward
-            # https://stackoverflow.com/questions/16486252/is-it-possible-to-use-argsort-in-descending-order
-            sortedParentIdxs = argsort(
-                self.rewards)[::-1][:self.hyParams['NAGENTELITES']]
+            sortedParentIdxs = self._sort_and_save_top_agents()
             self.bestAgentReward = self.rewards[sortedParentIdxs[0]]
-            self.pickleDump(join(self.tempModelPrefix +
-                '_agentsSortedParentIndexes.p'), sortedParentIdxs)
 
-            if self.searchNovelty:
-                print('Performing novelty search')
-                t0PreparingNoveltySearch = time()
-                # iterating through agents and storing with novelty in archive
-                # calculating average nearest-neighbor novelty score
-                for iAgent in range(self.hyParams['NAGENTS']):
-                    noveltiesAgent, actionsAll = [], []
-                    itemID = self.noveltyItemCount
-                    k = self.noveltyItemCount
-                    agentStr = 'agent' + str(k+1)
-                    self.noveltyArchive[agentStr] = {}
-                    # self.noveltyArchive[agentStr]['novelties'] = {}
-                    tempAgentPrefix = join(self.tempModelPrefix + '_agent'
-                        + str(iAgent + 1).zfill(self.zFill))
-                    modelFile = tempAgentPrefix + '.keras'
-                    resultsFile = tempAgentPrefix + '_results.p'
-
-                    if env.actionType == 'discrete':
-                        pth = join(tempAgentPrefix + '_results.p')
-                        actions = self.pickleLoad(pth)['actions']
-                        actionsAll = [action for actions_ in actions for action in actions_]
-                        actionsUniqueID = self.actionsUniqueIDMapping[tuple(actionsAll)]
-                        # https://stackoverflow.com/questions/38291372/assign-unique-id-to-list-of-lists-in-python-where-duplicates-get-the-same-id
-                        self.noveltyArchive[agentStr]['actionsUniqueID'] = actionsUniqueID
-                    self.noveltyArchive[agentStr]['itemID'] = itemID
-                    self.noveltyArchive[agentStr]['modelFile'] = modelFile
-                    self.noveltyArchive[agentStr]['resultsFile'] = resultsFile
-                    # self.noveltyArchive[agentStr]['actions'] = actions
-
-                    if env.actionType == 'discrete':
-                        # if not self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS']:
-                        # removing duplicate novelty calculation only in case neighbour limit is not reached
-                        # as otherwise the same novelty might not apply
-                        if actionsUniqueID not in self.agentsUniqueIDs:
-                            # checking if unique ID from actions already exists
-                            self.agentsUnique.append(k)
-                            self.agentsUniqueIDs.append(actionsUniqueID)
-                        else:
-                            self.agentsDuplicate.append(k)
-
-                        # is this necessary?
-
-                        # else:
-                        #     self.agentsUnique, self.agentsUniqueIDs, self.agentsDuplicate = [], [], []
-                        #     # otherwise computed as if unique to avoid assigning novelty
-                        #     # from duplicates with different nearest neighbours
-                        #     for iNov in range(self.noveltyItemCount+1):
-                        #         self.agentsUnique.append(iNov)
-                        #         self.noveltyArchive['agent' + str(iNov+1)]['actionsUniqueID'] = iNov
-                        #         # self.agentsUniqueIDs.append(iNov)
-                    elif env.actionType == 'continuous':
-                            self.agentsUnique, self.agentsUniqueIDs, self.agentsDuplicate = [], [], []
-                            for iNov in range(self.noveltyItemCount+1):
-                                self.agentsUnique.append(iNov)
-                                self.noveltyArchive['agent' + str(iNov+1)]['actionsUniqueID'] = iNov
-                    self.noveltyItemCount += 1
-                tPreparingNoveltySearch = time() - t0PreparingNoveltySearch
-                print('Preparing novelty search took', tPreparingNoveltySearch, 's')
-
-                if not self.noveltyItemCount > self.hyParams['NNOVELTYNEIGHBORS']:
-                    print('Novelty search:', len(self.agentsUnique), 'unique agents', len(self.agentsDuplicate), 'duplicate agents')
-                else:
-                    print('Novelty search (neighbor level reached):', len(self.agentsUnique), 'unique agents', len(self.agentsDuplicate), 'duplicate agents')
-                # updating novelty of unique agents
-                # Note: This can become a massive bottleneck with increasing
-                # number of stored agent information and generations
-                # despite parallelization
-                noveltiesUniqueAgents, updateFlagsUniqueAgents = [], []
-
-                # # loading all actions
-                # # this can be improved by loading only once and then saving to disk between generations
-                # t0LoadActionsOnce = time()
-                # sharedArrayActions = self.loadActions()
-                # tLoadActionsOnce = time() - t0LoadActionsOnce
-
-                t0NoveltySearch = time()
-                self.neighborLimitReached = (len(self.agentsUnique) > self.hyParams['NNOVELTYNEIGHBORS'])
-
-                t0CalcNoveltyArgs = time()
-                args = []
-
-                for iAgent in range(len(self.agentsUnique)):
-                    if self.neighborLimitReached:
-                        # includes identification of iAgents needing novelty update
-                        rangeLower, rangeHigher, iAgentInCroppedArray, needsUpdate = self.calculateNoveltyNeighborBounds(iAgent)
-
-                        # load only actions needing update here?
-                        # so replace sharedArrayActions with a load function
-                        # other approaches will still blow up memory
-
-                        # ranges were mapped these to indices considering uniques
-                        # arr = sharedArrayActions[rangeLower:rangeHigher]
-                    else:
-                        needsUpdate = True
-                        rangeLower, rangeHigher, iAgentInCroppedArray = 0, len(self.agentsUnique), iAgent
-
-                    # replace arr with generator reference?
-                    if needsUpdate:
-                        args.append([iAgent, None, rangeLower, rangeHigher, iAgentInCroppedArray])
-                    updateFlagsUniqueAgents.append(needsUpdate)
-                tCalcNoveltyArgs = time()-t0CalcNoveltyArgs
-                print('Calculated novelty search arguments, took', int(tCalcNoveltyArgs), 's')
-
-                chunksTotal = self.yieldChunks(args,
-                    cores*self.maxTasksPerWorkerNoveltySearch)
-
-                print('Started novelty search ...')
-                for chunk in chunksTotal:
-                    # sharing dictionary containing actions to avoid loading
-                    # those are only the updated novelties
-                    noveltiesPerAgent = self.multiprocessChunks(
-                        self.calculateNoveltyPerAgent, chunk)
-                    noveltiesUniqueAgents += noveltiesPerAgent
-
-                print('Finished novelty search, took', int(time()-t0NoveltySearch), 's')
-
-                # calculating novelty of unique agents
-                count_ = 0
-                for i, iUniqueAgent in enumerate(self.agentsUnique):
-                    agentStr = 'agent' + str(iUniqueAgent+1)
-                    if updateFlagsUniqueAgents[i]:
-                        # novelty = noveltiesUniqueAgents[actionsUniqueID]
-                        novelty = noveltiesUniqueAgents[count_]
-                        self.noveltyArchive[agentStr]['novelty'] = novelty
-                        count_ += 1
-
-                # updating novelty of duplicate agents from existing value
-                count_ = 0
-                for iDuplicateAgent in self.agentsDuplicate:
-                    # finding ID of agent representing duplicate agent's actions
-                    agentStr = 'agent' + str(iDuplicateAgent+1)
-                    actionsUniqueID = self.noveltyArchive[agentStr]['actionsUniqueID']
-                    itemID = self.noveltyArchive[agentStr]['itemID']
-                    # print(self.agentsUnique, actionsUniqueID)
-                    novelty = noveltiesUniqueAgents[actionsUniqueID]
-                    self.noveltyArchive[agentStr]['novelty'] = novelty
-
-                self.pickleDump(join(self.tempModelPrefix +
-                    '_noveltyArchive.p'), self.noveltyArchive)
-
-                self.novelties, self.noveltyFilenames = [], []
-                for k in range(self.noveltyItemCount):
-                    agentStr = 'agent' + str(k+1)
-                    self.novelties.append(
-                        self.noveltyArchive[agentStr]['novelty'])
-                    self.noveltyFilenames.append(
-                        self.noveltyArchive[agentStr]['modelFile'])
+            self.perform_novelty_search(env)
 
             if self.geneticGeneration+1 >= self.hyParams['ADDNOVELTYEVERY']:
                 print('lowest novelty', min(self.novelties))
@@ -7584,6 +7327,219 @@ class FloPyAgent():
                     PATHMF6DLL=None)
 
             print('########## finished generation ' + str(self.geneticGeneration+1).zfill(self.zFill) + ' ##########')
+
+    def _init_seeds(self):
+        """Initialize seeds for reproducible cross-validation."""
+        self.SEED = self.envSettings['SEEDAGENT']
+        numpySeed(self.envSettings['SEEDAGENT'])
+        randomSeed(self.envSettings['SEEDAGENT'])
+        set_random_seed(self.envSettings['SEEDAGENT'])
+
+    def _play_one_game(self, env):
+        """Simulate one game, update replay memory, and train."""
+        self.takeActionsUpdateAndTrainDQN(env)
+        if not env.success:
+            self.updateReplayMemoryZeroReward(self.gameStep)
+
+    def _crossvalidate_and_save(self, env, iGame):
+        """Run cross-validation and save model if performance threshold met."""
+        self.crossvalidateDQN(env)
+        MODELNAME = self.envSettings['MODELNAME']
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        filename = (
+            f"{MODELNAME}{iGame:7d}ep"
+            f"{self.max_rewardCV:7.1f}max"
+            f"{self.average_rewardCV:7.1f}avg"
+            f"{self.min_rewardCV:7.1f}min"
+            f"{timestamp}datetime.keras"
+        )
+        if self.average_rewardCV >= self.envSettings['REWARDMINTOSAVE']:
+            self.mainModel.save(join(self.wrkspc, 'models', filename))
+
+        print('DQN results', self.max_rewardCV, self.average_rewardCV, self.min_rewardCV)
+
+    def _decay_epsilon(self):
+        """Decay exploration rate epsilon."""
+        if self.epsilon > self.hyParams['EPSILONMIN']:
+            self.epsilon = py_max(self.hyParams['EPSILONMIN'], self.epsilon * self.hyParams['EPSILONDECAY'])
+
+    def _validate_hyperparams(self):
+        if self.hyParams['NAGENTS'] <= self.hyParams['NNOVELTYELITES']:
+            raise ValueError(
+                'The number of novelty elites must be less than the number of agents.'
+            )
+
+    def _initialize_environment(self, env, searchNovelty):
+        self.env = env
+        self.actionType = env.actionType
+        self.n = self.hyParams['NGAMESAVERAGED']
+
+        if searchNovelty:
+            self.searchNovelty = True
+            self.noveltyArchive = {}
+            self.noveltyItemCount = 0
+            self.agentsUnique = []
+            self.agentsUniqueIDs = []
+            self.agentsDuplicate = []
+            self.agentsDuplicateID = []
+            if env.actionType == 'discrete':
+                self.actionsUniqueIDMapping = defaultdict(count().__next__)
+
+    def _initialize_parallel_settings(self):
+        self.cores = self.envSettings.get('NAGENTSPARALLEL', 1)
+
+    def _generate_unique_pid(self):
+        pid = str(uuid4())
+        pid_list = list(pid)
+        shuffle(pid_list)
+        self.pid = ''.join(pid_list)
+
+    def _load_novelty_archive(self):
+        self.noveltyArchive = self.pickleLoad(join(self.tempPrevModelPrefix + '_noveltyArchive.p'))
+        if not self.envSettings['KEEPMODELHISTORY']:
+            self.mutationHistory = self.pickleLoad(join(self.tempPrevModelPrefix + '_mutationHistory.p'))
+        self.noveltyItemCount = len(self.noveltyArchive)
+
+    def _regenerate_unique_duplicate_lists(self, env):
+        self.agentsUnique, self.agentsUniqueIDs = [], []
+        self.agentsDuplicate = []
+        for iAgent in range(self.noveltyItemCount):
+            agentStr = f'agent{iAgent+1}'
+            tempAgentPrefix = self.noveltyArchive[agentStr]['modelFile'].replace('.keras', '')
+            resultsPath = join(tempAgentPrefix + '_results.p')
+            actions = self.pickleLoad(resultsPath)['actions']
+            if env.actionType == 'discrete':
+                actionsAll = [a for sublist in actions for a in sublist]
+                actionsUniqueID = self.actionsUniqueIDMapping[tuple(actionsAll)]
+                self.noveltyArchive[agentStr]['actionsUniqueID'] = actionsUniqueID
+                if actionsUniqueID not in self.agentsUniqueIDs:
+                    self.agentsUnique.append(iAgent)
+                    self.agentsUniqueIDs.append(actionsUniqueID)
+                else:
+                    self.agentsDuplicate.append(iAgent)
+
+    def _log_generation_rewards(self):
+        print('lowest reward', min(self.rewards))
+        print('average reward', mean(self.rewards))
+        print('highest reward', max(self.rewards))
+        if self.envSettings['SEEDSRANDOM']:
+            self.bestRewards.append(max(self.rewards))
+            print('highest sliding reward (n=50)', mean(self.bestRewards[-50:]))
+
+    def _sort_and_save_top_agents(self):
+        sortedParentIdxs = argsort(self.rewards)[::-1][:self.hyParams['NAGENTELITES']]
+        self.pickleDump(join(self.tempModelPrefix + '_agentsSortedParentIndexes.p'), sortedParentIdxs)
+        return sortedParentIdxs
+
+    def perform_novelty_search(self, env):
+        if not self.searchNovelty:
+            return
+
+        print('Performing novelty search')
+        t0 = time()
+        self._prepare_novelty_archive(env)
+        print('Preparing novelty search took', round(time() - t0, 2), 's')
+
+        self._print_novelty_stats()
+
+        t0 = time()
+        args, update_flags = self._build_novelty_args()
+        print('Calculated novelty search arguments, took', round(time() - t0, 2), 's')
+
+        print('Started novelty search ...')
+        t0 = time()
+        novelties = self._run_novelty_search(args)
+        print('Finished novelty search, took', round(time() - t0, 2), 's')
+
+        self._update_agent_novelties(novelties, update_flags)
+        self._save_novelties()
+
+    def _prepare_novelty_archive(self, env):
+        for i in range(self.hyParams['NAGENTS']):
+            agent_str = f'agent{self.noveltyItemCount+1}'
+            temp_prefix = join(self.tempModelPrefix + f'_agent{str(i+1).zfill(self.zFill)}')
+            model_file, results_file = temp_prefix + '.keras', temp_prefix + '_results.p'
+
+            self.noveltyArchive[agent_str] = {
+                'itemID': self.noveltyItemCount,
+                'modelFile': model_file,
+                'resultsFile': results_file
+            }
+
+            if env.actionType == 'discrete':
+                actions = self.pickleLoad(results_file)['actions']
+                flat_actions = [a for sub in actions for a in sub]
+                unique_id = self.actionsUniqueIDMapping[tuple(flat_actions)]
+                self.noveltyArchive[agent_str]['actionsUniqueID'] = unique_id
+                self._update_discrete_uniques(unique_id)
+            else:
+                self._reset_continuous_uniques()
+
+            self.noveltyItemCount += 1
+
+    def _update_discrete_uniques(self, unique_id):
+        k = self.noveltyItemCount
+        if unique_id not in self.agentsUniqueIDs:
+            self.agentsUnique.append(k)
+            self.agentsUniqueIDs.append(unique_id)
+        else:
+            self.agentsDuplicate.append(k)
+
+    def _reset_continuous_uniques(self):
+        self.agentsUnique, self.agentsUniqueIDs, self.agentsDuplicate = [], [], []
+        for i in range(self.noveltyItemCount + 1):
+            self.agentsUnique.append(i)
+            self.noveltyArchive[f'agent{i+1}']['actionsUniqueID'] = i
+
+    def _print_novelty_stats(self):
+        unique, duplicate = len(self.agentsUnique), len(self.agentsDuplicate)
+        n_neighbors = self.hyParams['NNOVELTYNEIGHBORS']
+        msg = 'Novelty search'
+        if self.noveltyItemCount > n_neighbors:
+            msg += ' (neighbor level reached):'
+        print(f'{msg} {unique} unique agents, {duplicate} duplicate agents')
+
+    def _build_novelty_args(self):
+        args, update_flags = [], []
+        self.neighborLimitReached = len(self.agentsUnique) > self.hyParams['NNOVELTYNEIGHBORS']
+        for i, _ in enumerate(self.agentsUnique):
+            if self.neighborLimitReached:
+                bounds = self.calculateNoveltyNeighborBounds(i)
+                needs_update = bounds[-1]
+                range_lower, range_higher, idx = bounds[:3]
+            else:
+                needs_update = True
+                range_lower, range_higher, idx = 0, len(self.agentsUnique), i
+            if needs_update:
+                args.append([i, None, range_lower, range_higher, idx])
+            update_flags.append(needs_update)
+        return args, update_flags
+
+    def _run_novelty_search(self, args):
+        novelties = []
+        for chunk in self.yieldChunks(args, self.cores * self.maxTasksPerWorkerNoveltySearch):
+            novelties += self.multiprocessChunks(self.calculateNoveltyPerAgent, chunk)
+        return novelties
+
+    def _update_agent_novelties(self, novelties, update_flags):
+        count = 0
+        for i, agent_idx in enumerate(self.agentsUnique):
+            agent_str = f'agent{agent_idx+1}'
+            if update_flags[i]:
+                self.noveltyArchive[agent_str]['novelty'] = novelties[count]
+                count += 1
+        for agent_idx in self.agentsDuplicate:
+            agent_str = f'agent{agent_idx+1}'
+            unique_id = self.noveltyArchive[agent_str]['actionsUniqueID']
+            self.noveltyArchive[agent_str]['novelty'] = novelties[unique_id]
+
+    def _save_novelties(self):
+        self.pickleDump(join(self.tempModelPrefix + '_noveltyArchive.p'), self.noveltyArchive)
+        self.novelties, self.noveltyFilenames = [], []
+        for k in range(self.noveltyItemCount):
+            agent_str = f'agent{k+1}'
+            self.novelties.append(self.noveltyArchive[agent_str]['novelty'])
+            self.noveltyFilenames.append(self.noveltyArchive[agent_str]['modelFile'])
 
     def loadActions(self, agents=None):
 
@@ -7706,7 +7662,6 @@ class FloPyAgent():
             iAgentInCroppedArray = iAgent
         elif topReached:
 
-
             # DO UNIT TESTING IF THIS YIELDS CORRECT NOVELTIES
 
             iAgentInCroppedArray = iAgent+1-nAgentsUnique + nHigher-1
@@ -7725,9 +7680,10 @@ class FloPyAgent():
 
     def createNNModel(self, actionType, seed=None):
         """Create neural network."""
-        seed_orig = deepcopy(seed)
         if seed is None:
             seed = self.SEED
+        seed_orig = deepcopy(seed)
+        print('DEBUG seed, seed_orig', seed, seed_orig)
         model = Sequential()
         seed = int(seed)  # force Python int
         seed = SeedGenerator(seed=seed)
@@ -7929,8 +7885,10 @@ class FloPyAgent():
         # resetting counters prior to restarting game
         self.gameReward, self.gameStep, done = 0, 1, False
         for game in range(self.hyParams['NAGENTSTEPS']):
+            rnd = random()
+            print('DEBUG rnd', rnd)
             # epsilon defines the fraction of random to queried actions
-            if random() > self.epsilon:
+            if rnd > self.epsilon:
                 # retrieving action from Q table
                 if env.actionType == 'discrete':
                     actionIdx = argmax(self.getqsGivenAgentModel(
@@ -7943,6 +7901,7 @@ class FloPyAgent():
                 # retrieving random action
                 if env.actionType == 'discrete':
                     actionIdx = randint(0, self.actionSpaceSize)
+                    print('DEBUG actionIdx', actionIdx)
                     action = self.actionSpace[actionIdx]
                 elif env.actionType == 'continuous':
                     action = list(uniform(low=0.0, high=1.0, size=self.actionSpaceSize))
@@ -7968,6 +7927,8 @@ class FloPyAgent():
             current_state = env.observationsVectorNormalized
             self.gameStep += 1
 
+            # print('DEBUG env._seed', env._seed)
+
             if done:
                 if env.ENVTYPE in ['0s-c']:
                     env.teardown()
@@ -7984,7 +7945,7 @@ class FloPyAgent():
             # resetting variables and environment
             self.gameReward, step, done = 0.0, 0, False
             seedCV = self.seedsCV[iGame]
-            env.reset(seedCV, initWithSolution=env.initWithSolution)
+            env.reset(seed=seedCV, initWithSolution=env.initWithSolution)
 
             current_state = env.observationsVectorNormalized
             # iterating until game ends
@@ -8151,7 +8112,7 @@ class FloPyAgent():
                 env = self.env
             # resetting to unique temporary folder to enable parallelism
             # Note: This will resimulate the initial environment state
-            env.reset(MODELNAME=MODELNAMETEMP, _seed=SEEDTEMP)
+            env.reset(MODELNAME=MODELNAMETEMP, seed=SEEDTEMP)
         elif self.envSettings['SURROGATESIMULATOR'] is not None:
             # this must be initialized here as surrogate TensorFlow models
             # cannot be pickled for use in parallel operation
