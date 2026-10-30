@@ -106,7 +106,7 @@ parser.add_argument('--nnoveltyelites', default=100, type=int,
     help='integer defining number of novelty elites')
 parser.add_argument('--nnoveltyneighbors', default=200, type=int,
     help='integer defining number of novelty neighbors considered')
-args = parser.parse_args()
+args, _ = parser.parse_known_args()
 
 
 # environment settings
