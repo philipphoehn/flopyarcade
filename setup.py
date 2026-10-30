@@ -47,7 +47,7 @@ setup(
 					  # https://stackoverflow.com/questions/71411045/how-to-solve-module-gym-wrappers-has-no-attribute-monitor
 					  'gym==0.22.0', # update breaks playbenchmark
 					  'imageio==2.22.4',
-					  'ipython==7.34.0', # 8.7.0 on newer Python versions
+					  'ipython==8.10.0', # 8.7.0 on newer Python versions
 					  'joblib==1.2.0',
 					  'lz4==4.0.2',
 					  'matplotlib==3.5.3', # 3.6.2 on newer Python versions
