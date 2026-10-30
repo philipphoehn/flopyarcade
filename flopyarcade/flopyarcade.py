@@ -2532,7 +2532,7 @@ class FloPyEnv(gym.Env):
 
         """
         mxit_tag = self.mf6.get_var_address("MXITER", "SLN_1")
-        self.max_iter = int(self.mf6.get_value(mxit_tag))
+        self.max_iter = int(self.mf6.get_value(mxit_tag).item())
 
     def run_convergence_loop(self):
         """Run solver iterations until convergence or max iterations reached.
@@ -7707,7 +7707,7 @@ class FloPyAgent:
                     nHiddenNodes[layerIdx] = randint(2, self.hyParams['NHIDDENNODES'][layerIdx]+1)
             for layerIdx in range(len(nHiddenNodes)):
                 inputShape = shape(self.observationsVector) if layerIdx == 0 else []
-                model.add(Dense(units=nHiddenNodes[layerIdx],
+                model.add(Dense(units=int(nHiddenNodes[layerIdx]),
                     input_shape=inputShape,
                     kernel_initializer=initializer,
                     bias_initializer=initializer,
@@ -8541,7 +8541,7 @@ class FloPyAgent:
                 shorterObj, longerObj = actions2, actions1[:len(actions2)]
             elif len(actions1) <= len(actions2):
                 shorterObj, longerObj = actions1, actions2[:len(actions1)]
-            diffsCount = len(shorterObj) - numpySum(1 for x, y in zip(longerObj, shorterObj) if x == y)
+            diffsCount = len(shorterObj) - sum(1 for x, y in zip(longerObj, shorterObj) if x == y)
 
             # enabling this might promote agents having acted longer but not
             # too different to begin with
