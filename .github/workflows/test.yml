@@ -29,5 +29,6 @@ jobs:
       - name: Run tests
         env:
           PYTHONWARNINGS: "ignore::ResourceWarning"
+          PYTHONPATH: "flopyarcade"
         run: |
           pytest flopyarcade/tests/ -v --timeout=1800
