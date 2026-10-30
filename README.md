@@ -213,7 +213,22 @@ docker run -p 81:81 flopyarcade python FloPyArcadePlay.py
 
 Modify settings for the environment and hyperparameters for the provided optimization algorithms at the top of the files. The underlying policy model can easily be exchanged with arbitrary [Keras](https://keras.io/)-based models by replacing the createNNModel function within the FloPyAgent class in FloPyArcade.py. A complete description of current variables and more documentation is planned.
 
-## Compiled game (for Windows)
+## Standalone executables
+
+Skip the Python install entirely — download a self-contained binary:
+
+### Linux x86-64
+
+[⬇ Download `FloPyArcadePlay` (1.6 GB)](https://github.com/philipphoehn/flopyarcade/releases/download/v0.3.34-exe/FloPyArcadePlay)
+
+```bash
+chmod +x FloPyArcadePlay
+./FloPyArcadePlay
+```
+
+Runs headless or with display (auto-detects). No Python, pip, or system dependencies required.
+
+### Windows
 
 Easily test yourself: Steer the existing environments on Windows. Skip installation by downloading these versions:
 
