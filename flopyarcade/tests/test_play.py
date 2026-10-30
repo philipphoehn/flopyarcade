@@ -9,6 +9,7 @@
 # set PYTHONWARNINGS=ignore::ResourceWarning
 # python -m coverage run --source=flopyarcade -m unittest
 
+import os
 import play
 
 from flopyarcade import FloPyArcade
