@@ -100,7 +100,7 @@ def main(
         help='integer defining number of games played in a row')
     parser.add_argument('--nagentsteps', default=200, type=int,
         help='integer defining the number of steps taken per game')
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     # print(has_arguments(parser, args))
 
