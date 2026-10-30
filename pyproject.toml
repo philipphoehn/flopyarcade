@@ -10,7 +10,7 @@ urls = {Homepage = "https://github.com/philipphoehn/flopyarcade", Documentation 
 authors = [
   { name = "Philipp Hoehn", email = "philipp.hoehn@yahoo.com" }
 ]
-requires-python = ">=3.7, <=3.12"
+requires-python = ">=3.7, <3.13"
 license={text = "GNU GPLv3"}
 dependencies = [
 	"coverage",
