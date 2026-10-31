@@ -152,7 +152,23 @@ class FloPyEnv(gym.Env):
         - Returns the new particle location as an observation.
         - Returns a flag indicating whether the particle has reached the operating well.
     """
-    
+    # dispatch maps for setActionValue (O(1) dict lookup vs 8-way if/elif)
+    _ACTION_SINGLE = {
+        '1s-d': 'update_action_1d',
+        '1r-d': 'update_action_1d',
+        '1s-c': 'update_action_1c',
+        '1r-c': 'update_action_1c',
+        '2s-d': 'update_action_2d',
+        '2r-d': 'update_action_2d',
+        '2s-c': 'update_action_2c',
+        '2r-c': 'update_action_2c',
+        '3s-d': 'update_action_3d',
+        '3r-d': 'update_action_3d',
+        '3s-c': 'update_action_3c',
+        '3r-c': 'update_action_3c',
+    }
+    _MULTI_C = frozenset(('4s-c', '4r-c', '5s-c', '5s-c-cost', '5r-c', '6s-c', '6r-c'))
+
     # necessary to render with rllib
     # https://discourse.aicrowd.com/t/how-to-save-rollout-video-render/3246/9
     metadata = {'render_modes': ['human', 'rgb_array']}
@@ -6476,12 +6492,23 @@ class FloPyEnv(gym.Env):
             action (list or np.ndarray): Action values for all wells.
         
         """
+        env = self.ENVTYPE
+        if env in ('5s-c', '5s-c-cost', '5r-c'):
+            dQ_idx_more, dQ_idx_less = 0, 1
+        elif env in ('6s-c', '6r-c'):
+            dQ_idx_more, dQ_idx_less = 4, 5
+        else:
+            dQ_idx_more, dQ_idx_less = -1, -1
+
+        hw = self.helperWells
         for i in range(self.nHelperWells):
             w = str(i + 1)
             offset = i * len(self.actionSpaceIndividual)
 
-            dQ_more, dQ_less = self._extract_dQ_values(action, offset)
-            dQ = dQ_less - dQ_more
+            if dQ_idx_more >= 0:
+                dQ = action[offset + dQ_idx_less] * self.actionRangeQ - action[offset + dQ_idx_more] * self.actionRangeQ
+            else:
+                dQ = 0
 
             self._update_helper_well_Q(w, dQ)
 
@@ -6530,27 +6557,15 @@ class FloPyEnv(gym.Env):
             action: Action to perform (type depends on ENVTYPE).
         
         """
-        if self.ENVTYPE in ['1s-d', '1r-d']:
-            self.update_action_1d(action)
-        elif self.ENVTYPE in ['1s-c', '1r-c']:
-            self.update_action_1c(action)
-        elif self.ENVTYPE in ['2s-d', '2r-d']:
-            self.update_action_2d(action)
-        elif self.ENVTYPE in ['2s-c', '2r-c']:
-            self.update_action_2c(action)
-        elif self.ENVTYPE in ['3s-d', '3r-d']:
-            self.update_action_3d(action)
-        elif self.ENVTYPE in ['3s-c', '3r-c']:
-            self.update_action_3c(action)
-        elif self.ENVTYPE in [
-            '4s-d', '4r-d', '5s-d', '5r-d', '6s-d', '6r-d'
-        ]:
-            self.update_action_multi_wells_d(action)
-        elif self.ENVTYPE in [
-            '4s-c', '4r-c', '5s-c', '5s-c-cost', '5r-c', '6s-c', '6r-c'
-        ]:
+        env = self.ENVTYPE
+        method = self._ACTION_SINGLE.get(env)
+        if method:
+            getattr(self, method)(action)
+        elif env in self._MULTI_C:
             self.update_action_multi_wells_c_position(action)
             self.update_action_multi_wells_c_rate(action)
+        else:
+            self.update_action_multi_wells_d(action)
 
     def _append_list(self, base_list, key, observationsDict):
         """Append items from observationsDict[key] to base_list if key exists.
@@ -6574,12 +6589,15 @@ class FloPyEnv(gym.Env):
             observationsDict (dict): Dictionary of observations.
         
         """
+        obsDict = observationsDict
         for i in range(self.nHelperWells):
             iStr = str(i)
-            if f'wellQ{iStr}' in observationsDict:
-                observationsVector.append(observationsDict[f'wellQ{iStr}'])
-            if f'wellCoords{iStr}' in observationsDict:
-                observationsVector.extend(observationsDict[f'wellCoords{iStr}'])
+            kQ = f'wellQ{iStr}'
+            if kQ in obsDict:
+                observationsVector.append(obsDict[kQ])
+            kC = f'wellCoords{iStr}'
+            if kC in obsDict:
+                observationsVector.extend(obsDict[kC])
 
     def _build_perceptron_vector(self, observationsDict):
         """Build observations vector for perceptron OBSPREP.
@@ -6639,11 +6657,12 @@ class FloPyEnv(gym.Env):
         if self.nHelperWells > 0:
             self._append_helper_wells_convolution(valsExtra, observationsDict)
 
-        for val in valsExtra:
-            add_ = np.zeros_like(observationsDict['heads'][0, :, :])
-            add_[0, 0] = val
-            add_ = np.expand_dims(add_, axis=0)
-            observationsVector = np.concatenate((observationsVector, add_), axis=0)
+        if valsExtra:
+            shape = observationsDict['heads'].shape[1:]
+            extra = np.zeros((len(valsExtra),) + shape, dtype=observationsVector.dtype)
+            for idx, val in enumerate(valsExtra):
+                extra[idx, 0, 0] = val
+            observationsVector = np.concatenate((observationsVector, extra), axis=0)
 
         return observationsVector
 
