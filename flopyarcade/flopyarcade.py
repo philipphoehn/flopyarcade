@@ -203,7 +203,7 @@ class FloPyEnv(gym.Env):
 
         self._init_env_config(locals(), env_config)
         self._setup_workspace()
-        self._init_env_vars(_seed)
+        self._init_env_vars(self.env_config.get('_seed', None))
         self._init_env_specific()
 
         if self.initWithSolution:
@@ -240,6 +240,7 @@ class FloPyEnv(gym.Env):
             'OBSPREP': local_vars['OBSPREP'],
             'initWithSolution': local_vars['initWithSolution'],
             'PATHMF6DLL': local_vars['PATHMF6DLL'],
+            '_seed': local_vars.get('_seed'),
         }
         # Merge overrides
         self.env_config = {**defaults, **env_config}
@@ -451,7 +452,18 @@ class FloPyEnv(gym.Env):
             seed (int, optional): The seed value. Defaults to None.
         
         """
-        np.random.seed(seed)
+        if seed is not None:
+            self._SEED = seed
+            np.random.seed(seed)
+            import random as _pyrandom
+            _pyrandom.seed(seed)
+            try:
+                import tensorflow as tf
+                tf.random.set_seed(seed)
+            except ImportError:
+                pass
+        else:
+            np.random.seed(seed)
         # Example: to seed other random generators, add here
         # import random
         # random.seed(seed)
@@ -4100,6 +4112,9 @@ class FloPyEnv(gym.Env):
             tuple: (observationsVectorNormalized as numpy array, empty dict)
 
         """
+        if seed is None:
+            seed = getattr(self, '_SEED', None)
+
         initWithSolution = self._get_init_solution(initWithSolution)
 
         if self.ENVTYPE == '0s-c':
@@ -7227,8 +7242,8 @@ class FloPyAgent:
         """Run main Deep Q-Learning optimization pipeline."""
         self.actionType = env.actionType
         # self._init_seeds()
-        self.gameSeeds = [randint(low=np.iinfo(np.int32).min, high=np.iinfo(np.int32).max) for iGame in range(self.hyParams['NGAMES'] + 1)]
-        self.seedsCV = randint(low=np.iinfo(np.int32).min, high=np.iinfo(np.int32).max, size=self.hyParams['NGAMESCROSSVALIDATED'])
+        self.gameSeeds = [randint(low=0, high=np.iinfo(np.int32).max) for iGame in range(self.hyParams['NGAMES'] + 1)]
+        self.seedsCV = randint(low=0, high=np.iinfo(np.int32).max, size=self.hyParams['NGAMESCROSSVALIDATED'])
         # print('DEBUG self.gameSeeds', self.gameSeeds)
         gameRewards = []
         for iGame in tqdm(range(1, self.hyParams['NGAMES'] + 1), ascii=True, unit='games'):

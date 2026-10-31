@@ -9,8 +9,7 @@
 # set PYTHONWARNINGS=ignore::ResourceWarning
 # python -m coverage run --source=flopyarcade -m unittest
 
-import train_neuroevolution
-
+import flopyarcade.train_neuroevolution as train_neuroevolution
 from flopyarcade import FloPyArcade
 from glob import glob
 from os import remove

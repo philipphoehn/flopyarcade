@@ -9,8 +9,7 @@
 # set PYTHONWARNINGS=ignore::ResourceWarning
 # python -m coverage run --source=flopyarcade -m unittest
 
-import train_dqn
-
+import flopyarcade.train_dqn as train_dqn
 from flopyarcade import FloPyArcade
 from glob import glob
 from os import remove
