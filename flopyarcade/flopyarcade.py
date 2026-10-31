@@ -1678,11 +1678,13 @@ class FloPyEnv(gym.Env):
             keys (list of str): List of keys to update the state with.
         
         """
+        hw = self.helperWells
+        state = self.state
         for i in range(self.nHelperWells):
             w = str(i + 1)
             for key in keys:
-                state_key = f'actionValue{key}{w}'
-                self.state[state_key] = self.helperWells[state_key]
+                sk = f'actionValue{key}{w}'
+                state[sk] = hw[sk]
 
     def _init_observations(self):
         """Initialize observation dictionaries.
@@ -1734,9 +1736,7 @@ class FloPyEnv(gym.Env):
                     self.headSpecNorth,
                     self.headSpecSouth,
                 ]
-            self.observations['heads'] += list(
-                np.array(self.observations['headsSampledField']).flatten()
-            )
+            self.observations['heads'] += self.observations['headsSampledField'].flatten().tolist()
         elif self.OBSPREP == 'convolution':
             self.observations['heads'] = self.heads
 
@@ -1926,15 +1926,12 @@ class FloPyEnv(gym.Env):
             list: Normalized values of wellQ, wellX, wellY, wellZ for all helper wells.
         
         """
+        hw = self.helperWells
         stresses = []
+        extend = stresses.extend
         for i in range(self.nHelperWells):
             idx = str(i + 1)
-            stresses.extend(self._normalize_well(
-                self.helperWells[f'wellQ{idx}'],
-                self.helperWells[f'wellX{idx}'],
-                self.helperWells[f'wellY{idx}'],
-                self.helperWells[f'wellZ{idx}'],
-            ))
+            extend(self._normalize_well(hw[f'wellQ{idx}'], hw[f'wellX{idx}'], hw[f'wellY{idx}'], hw[f'wellZ{idx}']))
         return stresses
 
     def get_normalized_stresses(self):
@@ -2455,13 +2452,15 @@ class FloPyEnv(gym.Env):
             list: Combined list of normalized, flattened, and extended observations.
         
         """
-        obs = []
-        obs.extend(self.normalize(self.head, self.chd_east, self.chd_diff).flatten())
-        obs.extend(self.normalize(new_recharge, self.avg_rch_min, self.rch_diff).flatten())
-        obs.extend(observations_wells)
-        obs.extend(observations_storms)
-
-        return obs
+        parts = [
+            self.normalize(self.head, self.chd_east, self.chd_diff).flatten(),
+            self.normalize(new_recharge, self.avg_rch_min, self.rch_diff).flatten(),
+        ]
+        if observations_wells:
+            parts.append(np.array(observations_wells))
+        if observations_storms:
+            parts.append(np.array(observations_storms))
+        return np.concatenate(parts).tolist()
 
     def _prepare_time_step(self):
         """Prepare the model for the current time step.
@@ -4057,9 +4056,7 @@ class FloPyEnv(gym.Env):
             float: Negative sum of absolute differences as reward.
 
         """
-        diff = targetField - realizedField
-        reward = -1.0 * numpySum(numpyAbs(diff))
-        return reward
+        return -np.sum(np.abs(targetField - realizedField))
 
     def calculateGameRewardOperationCost(self):
         """Calculate reward based on operation costs from pump and recharge flows.
@@ -4079,8 +4076,9 @@ class FloPyEnv(gym.Env):
 
         """
         pump = recharge = 0.0
+        hw = self.helperWells
         for i in range(self.nHelperWells):
-            Q = self.helperWells[f'wellQ{i + 1}']
+            Q = hw[f'wellQ{i + 1}']
             if Q <= 0:
                 pump += -Q
             else:
@@ -6642,8 +6640,8 @@ class FloPyEnv(gym.Env):
             self._append_helper_wells_convolution(valsExtra, observationsDict)
 
         for val in valsExtra:
-            add_ = np.multiply(observationsDict['heads'][0, :, :], 0.)
-            add_ = np.add(add_, val)
+            add_ = np.zeros_like(observationsDict['heads'][0, :, :])
+            add_[0, 0] = val
             add_ = np.expand_dims(add_, axis=0)
             observationsVector = np.concatenate((observationsVector, add_), axis=0)
 
@@ -6793,8 +6791,7 @@ class FloPyEnv(gym.Env):
             np.ndarray: Normalized array.
         
         """
-        array = divide(subtract(array, zerooffset), diff)
-        return array
+        return (array - zerooffset) / diff
 
     def _scale_data(self, data, key, scale_factor):
         """Scale data[key] by scale_factor if key exists in data.
