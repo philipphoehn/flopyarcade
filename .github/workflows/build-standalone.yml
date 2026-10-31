@@ -1,0 +1,208 @@
+name: Build Standalone Executables
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to attach binaries to'
+        required: true
+
+jobs:
+  build-macos-arm64:
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . pyinstaller
+
+      - name: Extract simulators
+        run: |
+          cd flopyarcade/simulators
+          unzip -o simulators_mac.zip 2>/dev/null || true
+          chmod +x mac/mf2005 mac/mf6 mac/mp6 2>/dev/null || true
+
+      - name: Create entry wrapper
+        run: |
+          cat > _entry.py << 'EOF'
+import sys
+from flopyarcade.play import main
+sys.exit(main())
+EOF
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --onefile --name FloPyArcadePlay \
+            --add-data "flopyarcade/simulators/mac:flopyarcade/simulators/mac" \
+            --hidden-import flopy --hidden-import flopy.modflow \
+            --hidden-import flopy.modpath --hidden-import flopy.plot \
+            --hidden-import tensorflow --hidden-import tensorflow.keras \
+            --hidden-import matplotlib.backends.backend_agg \
+            --exclude-module torch --exclude-module cupy \
+            --exclude-module sklearn --exclude-module pyarrow \
+            --exclude-module xarray --exclude-module numba \
+            --exclude-module jupyter --exclude-module IPython \
+            _entry.py
+
+      - name: Verify
+        run: |
+          ls -lh dist/FloPyArcadePlay
+          file dist/FloPyArcadePlay
+
+      - name: Upload to release
+        if: github.event_name == 'release' || inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name || inputs.release_tag }}"
+          gh release upload "$TAG" dist/FloPyArcadePlay \
+            --clobber --name "FloPyArcadePlay-macos-arm64"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flopyarcade-macos-arm64
+          path: dist/FloPyArcadePlay
+
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . pyinstaller
+
+      - name: Extract simulators
+        shell: pwsh
+        run: |
+          cd flopyarcade/simulators
+          Expand-Archive -Force -Path simulators_win64.zip -DestinationPath . 2>$null
+          # Ensure simulators are executable
+
+      - name: Create entry wrapper
+        shell: pwsh
+        run: |
+          $content = @"
+import sys
+from flopyarcade.play import main
+sys.exit(main())
+"@
+          Set-Content -Path _entry.py -Value $content
+
+      - name: Build with PyInstaller
+        shell: pwsh
+        run: |
+          pyinstaller --onefile --name FloPyArcadePlay.exe `
+            --add-data "flopyarcade/simulators/win64;flopyarcade/simulators/win64" `
+            --hidden-import flopy --hidden-import flopy.modflow `
+            --hidden-import flopy.modpath --hidden-import flopy.plot `
+            --hidden-import tensorflow --hidden-import tensorflow.keras `
+            --hidden-import matplotlib.backends.backend_agg `
+            --exclude-module torch --exclude-module cupy `
+            --exclude-module sklearn --exclude-module pyarrow `
+            --exclude-module xarray --exclude-module numba `
+            --exclude-module jupyter --exclude-module IPython `
+            _entry.py
+
+      - name: Verify
+        shell: pwsh
+        run: |
+          Get-Item dist/FloPyArcadePlay.exe | Select-Object Length
+
+      - name: Upload to release
+        if: github.event_name == 'release' || inputs.release_tag != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $TAG = ${{ github.event.release.tag_name || inputs.release_tag }}
+          gh release upload "$TAG" dist/FloPyArcadePlay.exe --clobber --name "FloPyArcadePlay-windows-x86_64.exe"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flopyarcade-windows-x86_64
+          path: dist/FloPyArcadePlay.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . pyinstaller
+
+      - name: Extract simulators
+        run: |
+          cd flopyarcade/simulators
+          unzip -o simulators_linux.zip
+          chmod +x linux/mf2005 linux/mf6 linux/mp6 2>/dev/null || true
+
+      - name: Create entry wrapper
+        run: |
+          cat > _entry.py << 'EOF'
+import sys
+from flopyarcade.play import main
+sys.exit(main())
+EOF
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --onefile --name FloPyArcadePlay \
+            --add-data "flopyarcade/simulators/linux:flopyarcade/simulators/linux" \
+            --hidden-import flopy --hidden-import flopy.modflow \
+            --hidden-import flopy.modpath --hidden-import flopy.plot \
+            --hidden-import tensorflow --hidden-import tensorflow.keras \
+            --hidden-import matplotlib.backends.backend_agg \
+            --exclude-module torch --exclude-module cupy \
+            --exclude-module sklearn --exclude-module pyarrow \
+            --exclude-module xarray --exclude-module numba \
+            --exclude-module jupyter --exclude-module IPython \
+            _entry.py
+
+      - name: Verify
+        run: |
+          ls -lh dist/FloPyArcadePlay
+          file dist/FloPyArcadePlay
+
+      - name: Upload to release
+        if: github.event_name == 'release' || inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name || inputs.release_tag }}"
+          gh release upload "$TAG" dist/FloPyArcadePlay \
+            --clobber --name "FloPyArcadePlay-linux-x86_64"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flopyarcade-linux-x86_64
+          path: dist/FloPyArcadePlay
