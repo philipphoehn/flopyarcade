@@ -19,6 +19,31 @@ jobs:
           ref: build
           fetch-depth: 1
 
+      - name: Fetch Mac simulators from master
+        run: |
+          # The build branch has Linux ELF simulators. We need macOS ARM64 ones.
+          # Fetch them from master's flopyarcade/simulators/mac/ directory.
+          git fetch origin master --depth=1
+          mkdir -p simulators/mac
+          git show origin/master:flopyarcade/simulators/mac/mp6 > simulators/mac/mp6 2>/dev/null || \
+            git archive --remote=origin master flopyarcade/simulators/mac/ | tar -x --strip-components=2 -C simulators/mac/ 2>/dev/null || \
+            echo "Falling back: will use pip-installed flopy simulators"
+          # If git show failed, try downloading from the GitHub raw URL
+          if [ ! -f simulators/mac/mp6 ]; then
+            echo "Downloading Mac simulators from GitHub raw..."
+            curl -sL -o simulators/mac/mp6 "https://raw.githubusercontent.com/philipphoehn/flopyarcade/master/flopyarcade/simulators/mac/mp6" || true
+            curl -sL -o simulators/mac/mf2005 "https://raw.githubusercontent.com/philipphoehn/flopyarcade/master/flopyarcade/simulators/mac/mf2005" || true
+            curl -sL -o simulators/mac/libmf6.so "https://raw.githubusercontent.com/philipphoehn/flopyarcade/master/flopyarcade/simulators/mac/libmf6.so" || true
+          fi
+          chmod +x simulators/mac/* 2>/dev/null || true
+          ls -la simulators/ simulators/mac/ 2>/dev/null || true
+          # Replace the Linux simulators with Mac ones for bundling
+          if [ -d simulators/mac ] && [ -f simulators/mac/mf2005 ]; then
+            cp simulators/mac/mf2005 simulators/mf2005
+            cp simulators/mac/mp6 simulators/mp6 2>/dev/null || true
+            echo "Mac simulators in place"
+          fi
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -37,22 +62,50 @@ jobs:
             tqdm>=4.60
           pip install pyinstaller
 
-      - name: Make simulators executable
+      - name: Verify environment
         run: |
-          chmod +x simulators/mp6 simulators/mf2005 2>/dev/null || true
+          python -c "import tensorflow as tf; print(f'TF {tf.__version__} OK')"
+          python -c "import flopy; print(f'flopy {flopy.__version__} OK')"
+          python -c "import matplotlib; print(f'matplotlib data: {matplotlib.get_data_path()}')"
+          file simulators/mf2005
+          file simulators/mp6 2>/dev/null || echo "mp6 not present"
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller FloPyArcadePlay.spec --clean --noconfirm
-
-      - name: Verify binary
-        run: |
+          pyinstaller FloPyArcadePlay.spec --clean --noconfirm 2>&1 | tee pyinstaller_build.log
+          echo "=== Build finished ==="
           ls -lh dist/FloPyArcadePlay
           file dist/FloPyArcadePlay
-          # Quick smoke test (will fail without display, but verifies it starts)
-          timeout 15 ./dist/FloPyArcadePlay 2>&1 | head -20 || true
+
+      - name: Smoke test (headless)
+        run: |
+          echo "=== Running FloPyArcade headless on macOS ARM64 ==="
+          echo "Binary: $(file dist/FloPyArcadePlay)"
+          echo "Size: $(ls -lh dist/FloPyArcadePlay | awk '{print $5}')"
+          echo ""
+          # Run with timeout, capture all output
+          timeout 180 ./dist/FloPyArcadePlay 2>&1 | tee mac_smoke_test.log || true
+          echo ""
+          echo "=== Smoke test output (last 30 lines) ==="
+          tail -30 mac_smoke_test.log
+          echo "=== Done ==="
+
+      - name: Upload smoke test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-smoke-test-log
+          path: mac_smoke_test.log
+
+      - name: Upload PyInstaller build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyinstaller-build-log
+          path: pyinstaller_build.log
 
       - name: Upload to release
+        if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -60,8 +113,9 @@ jobs:
             --repo philipphoehn/flopyarcade \
             --clobber \
             --name "FloPyArcadePlay-macos-arm64"
+          echo "Uploaded to release ${{ inputs.release_tag }}"
 
-      - name: Upload artifact
+      - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: flopyarcade-macos-arm64
