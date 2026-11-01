@@ -1,281 +1,275 @@
 # FloPyArcade — Roadmap
 
-> Canonical prioritised backlog. Supersedes `ideas.dev` (dev branch).
-> Last updated: 2026-11-01
+> Canonical prioritised backlog and development plan.
+> Last updated: 2026-11-01 (rebuilt after module-split audit)
+> Supersedes `ideas.dev` (dev branch) and previous ROADMAP revision.
 
 ---
 
-## P1 — Core Gameplay & Agent Quality
+## Architecture (current)
 
-| # | Idea | Impact | Notes |
-|---|------|--------|-------|
-| 1 | Couple ConvNet to **full flow-field observations** (all stresses, not just head) | Very High | Current agents see a tiny slice; full-field conv could match Atari-grade agents to groundwater |
-| 2 | **Novelty search overhaul**: weighted novelty score, stop below threshold, separate novelty-children vs novelty-elites | Very High | Current novelty metric is noisy (increases with action length); fixing it stabilises evolution |
-| 3 | **Reward redesign**: scale 0→1, don't zero all rewards on loss, add cost/money objective | High | Reward shape drives everything; current reset-to-0 loses signal |
-| 4 | **Multiple particles / particle swarm** per episode | High | More realistic, harder problem, richer training signal |
-| 5 | **K-regions** (multiple capture zones) | High | Turns single-well into multi-objective game |
-| 6 | **Avoid keep-winning**: cap max distance from well Y, add random boundary noise | High | Prevents degenerate trivial solutions |
-| 7 | **Target model for Q-predictions** (Double-DQN fix) | High | Current `get_qs()` uses main model → overestimation bias |
-| 8 | **Hyperparameter optimisation** (Bayesian / grid) + discount rationale | Med-High | Manual tuning is the bottleneck for reproducibility |
-| 9 | **Combine multiple initial runs** → high-variability seed set | Med-High | Better population diversity from gen 0 |
-| 10 | **Avoid protection-zone overlap** for multi-well envs | Med-High | Edge-case correctness in realistic scenarios |
+The monolithic `flopyarcade.py` has been **split into focused modules**:
 
----
-
-## P2 — Performance, UX & Visualisation
-
-| # | Idea | Impact | Notes |
-|---|------|--------|-------|
-| 11 | **Smooth trajectory** (interpolate in-between particle-tracking steps) | High UX | Jittery animation → fluid motion |
-| 12 | **Split-screen GUI**: 4 panels (random / inexperienced / experienced / agent) | High UX | Instant comparison, great for demos & papers |
-| 13 | **Actions bar at top**, colormap scaled by reward | Med UX | Makes policy behaviour legible at a glance |
-| 14 | **Store & plot all well trajectories** (not just last game) | Med UX | Enables ensemble visualisation |
-| 15 | **Generational trajectory ensemble plot** | Med UX | Shows evolution converging over generations |
-| 16 | **Matplotlib blitting** for 60+ FPS display | Med Perf | Eliminates full redraw per frame |
-| 17 | **Calculate / display FPS** in HUD | Med Perf | User sees performance live |
-| 18 | **HDF5 novelty archive** (lazy load, append-only) | Med Perf | Avoids full reload as archive grows |
-| 19 | **Functionalize `run()`** + convert models to JSON | Med Perf | Cleaner API, faster serialisation |
-| 20 | **Auto-profile runtimes** | Med Perf | Identify bottlenecks automatically |
-| 21 | **RAM-disk / in-memory filesystem** for MODFLOW work files | Med Perf | Avoids disk I/O on every step |
-| 22 | **Resume function** (DQN + neuroevolution) | Med UX | Long training runs crash → lose progress |
-| 23 | **Website: auto-update benchmark figures** from saved policy models | Med UX | Keeps README / docs current without manual regen |
-| 24 | **Website: animated GIF logo** (particle moving on load) | Low UX | Brand polish |
+| Module | Responsibility |
+|--------|----------------|
+| `env_base.py` | Environment setup, MODFLOW/MODPATH coupling, step loop |
+| `actions.py` | `ActionsMixin` — action initialisation, mutation, application |
+| `agent.py` | Agent logic, novelty search, DQN, neuroevolution, RLlib |
+| `reward.py` | `RewardMixin` — reward computation, fail/boundary checks |
+| `observations.py` | `ObservationsMixin` — head sampling, normalisation, field access |
+| `modflow_runner.py` | MODFLOW 6 simulation wrapper |
+| `modpath_runner.py` | MODPATH particle tracking wrapper |
+| `arcade.py` | Core game loop orchestration |
+| `render.py` | 2D matplotlib renderer |
+| `render3d.py` | 3D cyberpunk renderer (mplot3d) |
+| `play.py` / `play3d.py` | Interactive play + demo/animation |
+| `train_dqn.py` | DQN training entry point |
+| `train_neuroevolution.py` | Neuroevolution training entry point |
+| `train_rllib_*.py` | RLlib (APEX-DQN, APEX, IMPALA, PPO) entry points |
 
 ---
 
-## P3 — Research, Debugging & Polish
+## ✅ Already Implemented (verified in codebase)
 
-| # | Idea | Impact | Notes |
-|---|------|--------|-------|
-| 25 | **Surrogate model**: test sim-boost factor, genetic HP sampling, recall test | Med | Research — could 10× training speed |
-| 26 | **Why does novelty increase with action length?** (investigate) | High | Debugging — may reveal metric bug |
-| 27 | **Why is best-reward agent inconsistent?** (overwritten by novelty child?) | High | Bug-hunt |
-| 28 | **Duplicate agents after restart?** | Med | Bug-hunt |
-| 29 | **Check convergence / success flag** in MODFLOW | Med | Correctness |
-| 30 | **ENVTYPE 3 reward not fully reset on loss?** | Med | Bug-hunt |
-| 31 | **Is initialisation triggering limited action set?** (shuffle within layer) | Med | Agent quality |
-| 32 | **Debug: flexibility when changing mesh resolution** | Med | Robustness |
-| 33 | **Pruning + ensemble validation** with archived models | Med | Agent quality |
-| 34 | **Genetic algorithm**: HP search, syntax consistency, include arch in search | Low | Polish |
-| 35 | **Test averaging behaviour** with same model (reproducibility) | Low | QA |
-| 36 | **Save all models with ID** for visuals | Low | Dev convenience |
-| 37 | **Scale linewidth around well** with pumping rate magnitude | Low UX | Visual cue |
-| 38 | **Edit white line** (highest reward) + keep initial line transparent | Low UX | Visual polish |
-| 39 | **Generate GIFs of progress** during evolution | Low UX | Progress visibility |
-| 40 | **DOCS**: GIF/video for CLI installation | Low | Onboarding |
-| 41 | **DOCS**: complete docstrings + auto-doc | Low | Maintainability |
-| 42 | **Prognostic auxiliary particle** (longer MODPATH run) | Low | Research |
-| 43 | **Remove prints** from FloPy / TensorFlow (workspace cleanup) | Low | Cleanliness |
-| 44 | **BinderHub / Littlest JupyterHub** for reproducible demos | Low | Infra |
-| 45 | **Upload function** for an autograder | Low | Education / competition |
-| 46 | **Jupyter notebook** with pre-prepared solutions | Low | Onboarding |
-| 47 | **Save test game dataset** / check prediction dataset | Low | QA |
+| Original # | Feature | Status |
+|------------|---------|--------|
+| 1 (partial) | ConvNet architecture (3× Conv2D: 32→64→64) | ✅ `agent.py` NNTYPE='convolution' |
+| 3 (partial) | Cost/money reward objective | ✅ `reward.py` `5s-c-cost` envtype |
+| 3 (partial) | Don't zero reward on loss (cost mode) | ✅ `update_reward_on_fail` keeps running sum |
+| 7 (partial) | DQN training pipeline | ✅ `train_dqn.py` + `agent.runDQN()` |
+| 17 (partial) | FPS display | ✅ `play3d.py` calculates + prints FPS |
+| 19 | Functionalize `run()` into modules | ✅ Full module split |
+| 22 (partial) | Resume function (neuroevolution) | ✅ `train_neuroevolution.py --resume` |
+| 36 (partial) | Save models with ID | ✅ Novelty archive in `agent.py` |
+| — | RLlib trainers (APEX-DQN, APEX, IMPALA, PPO) | ✅ 4 `train_rllib_*.py` files |
+| — | Mac standalone build + CI | ✅ `build-standalone.yml`, `build-mac-prototype.yml` |
+| — | 3D cyberpunk renderer | ✅ `render3d.py` + `play3d.py` |
+| — | Code coverage (78%) + CodeCov | ✅ `coverage.xml`, `test_coverage_gaps.py` |
+| — | MODFLOW convergence backoff | ✅ `refactor-module-split` branch |
 
 ---
 
-## Top 5 — Recommended Next Actions
+## 🔴 P1 — Remaining Core Work (High Impact)
 
-| Rank | Idea(s) | Effort | Expected gain |
-|------|---------|--------|---------------|
-| 1 | Novelty metric fix (#2, #26, #27) | M | Stabilises evolution, unlocks reliable neuroevolution |
-| 2 | Reward redesign (#3) | S | Immediate agent-quality improvement across all algorithms |
-| 3 | Full-field ConvNet (#1) | L | Opens path to state-of-the-art RL agent |
-| 4 | Smooth trajectory + split-screen (#11, #12) | S | Dramatic UX improvement for demos & paper figures |
-| 5 | Matplotlib blitting + FPS (#16, #17) | S | 2–5× interactive speed, professional feel |
+| # | Task | Impact | Status |
+|---|------|--------|--------|
+| A1 | **Double-DQN**: target network for Q-predictions in `agent.py` | Very High | ❌ Not implemented — `get_qs()` uses main model |
+| A2 | **Novelty metric fix**: length-invariant score, stop below threshold, separate novelty-children vs elites | Very High | ❌ Bugs #26/#27/#28 still open |
+| A3 | **ConvNet → full field**: feed head + velocity + pressure 2D arrays (not just sampled points) into Conv2D layers | High | ⚠️ Architecture exists, input shape may be 1D |
+| A4 | **Multi-particle / particle swarm** per episode | High | ❌ Not implemented |
+| A5 | **K-regions** (multiple capture zones / helper wells) | High | ⚠️ Helper wells exist (ENVTYPE 4/5), but no formal K-region abstraction |
+| A6 | **Avoid keep-winning**: cap max distance, random boundary noise | High | ❌ Not implemented |
+| A7 | **Hyperparameter optimisation** (Bayesian / Optuna / grid) | Med-High | ❌ Manual only |
+| A8 | **Reward scaling 0→1** across all env types (unify with cost mode) | Med-High | ⚠️ Partial (cost mode yes, others no) |
+| A9 | **Combine multiple initial runs** → high-variability seed set | Med-High | ❌ Not implemented |
+| A10 | **Prevent protection-zone overlap** for multi-well envs | Med-High | ❌ Not implemented |
 
 ---
 
-## Development Branch Plan
+## 🟡 P2 — Performance, UX & Visualisation
 
-> 6 focused development streams, grouped by theme and ordered by dependency.
-> Each branch is independently shippable.
+| # | Task | Impact | Status |
+|---|------|--------|--------|
+| B1 | **Smooth trajectory** (interpolate in-between MODPATH steps) | High UX | ❌ Not implemented |
+| B2 | **Split-screen GUI**: 4 panels (random / inexperienced / experienced / agent) | High UX | ❌ Not implemented |
+| B3 | **Actions bar at top**, colormap scaled by reward | Med UX | ❌ Not implemented |
+| B4 | **Store & plot all well trajectories** (ensemble) | Med UX | ❌ Only last game stored |
+| B5 | **Generational trajectory ensemble plot** | Med UX | ❌ Not implemented |
+| B6 | **Matplotlib blitting** for 60+ FPS in `play.py` | Med Perf | ❌ Not implemented |
+| B7 | **FPS counter in 2D HUD** (`play.py`) | Med Perf | ❌ Only in 3D |
+| B8 | **HDF5 novelty archive** (lazy load, append-only) | Med Perf | ❌ Currently pickle/JSON |
+| B9 | **Auto-profile runtimes** (cProfile / line_profiler integration) | Med Perf | ❌ Not implemented |
+| B10 | **RAM-disk / in-memory filesystem** for MODFLOW work files | Med Perf | ❌ Not implemented |
+| B11 | **Resume function for DQN** (checkpoint save/load) | Med UX | ❌ Only neuroevolution has it |
+| B12 | **Website: auto-update benchmark figures** | Med UX | ❌ Manual |
+| B13 | **Website: animated GIF logo** | Low UX | ❌ Static |
+| B14 | **Scale linewidth around well** with pumping rate | Low UX | ❌ Not implemented |
+| B15 | **Edit white line** (highest reward) + transparent initial | Low UX | ❌ Not implemented |
+| B16 | **Generate GIFs of progress** during evolution | Low UX | ❌ Not implemented |
+
+---
+
+## 🟢 P3 — Research, Debugging & Polish
+
+| # | Task | Impact | Status |
+|---|------|--------|--------|
+| C1 | **Surrogate model**: test sim-boost factor, recall test | Med | ❌ Research |
+| C2 | **Why does novelty increase with action length?** | High | ❌ Open bug |
+| C3 | **Why is best-reward agent inconsistent?** | High | ❌ Open bug |
+| C4 | **Duplicate agents after restart?** | Med | ❌ Open bug |
+| C5 | **Check convergence / success flag** in MODFLOW | Med | ⚠️ Backoff added, flag check TBD |
+| C6 | **ENVTYPE 3 reward not fully reset on loss?** | Med | ❌ Investigate |
+| C7 | **Is initialisation triggering limited action set?** | Med | ❌ Investigate |
+| C8 | **Debug: flexibility when changing mesh resolution** | Med | ❌ Not tested |
+| C9 | **Pruning + ensemble validation** with archived models | Med | ❌ Not implemented |
+| C10 | **GA: include network architecture in search** | Low | ❌ Not implemented |
+| C11 | **Test averaging behaviour** with same model | Low | ❌ Not implemented |
+| C12 | **DOCS**: complete docstrings + Sphinx auto-doc | Low | ⚠️ Partial (modules have docstrings) |
+| C13 | **DOCS**: GIF/video for CLI installation | Low | ❌ Not done |
+| C14 | **Prognostic auxiliary particle** (longer MODPATH) | Low | ❌ Research |
+| C15 | **Remove prints** from FloPy / TF logging | Low | ⚠️ Partial |
+| C16 | **BinderHub / Littlest JupyterHub** | Low | ❌ Not set up |
+| C17 | **Upload function for autograder** | Low | ❌ Not implemented |
+| C18 | **Jupyter notebook with pre-prepared solutions** | Low | ❌ Not done |
+| C19 | **Save test game dataset** for evaluation | Low | ❌ Not done |
+| C20 | **Same model set for training + cross-validation** | Low | ❌ Not enforced |
+
+---
+
+## 🌿 Development Branch Plan (Revised)
 
 ### Dependency graph
 
 ```
-┌─────────────────────┐     ┌─────────────────────┐
-│  feat/novelty-fix   │     │  feat/reward-env    │
-│  (independent)      │     │  (independent)      │
-└────────┬────────────┘     └──────────┬──────────┘
-         │                             │
-         │         ┌───────────────────┘
-         ▼         ▼
-┌─────────────────────────────────────┐
-│  feat/dqn-improvements             │
-│  (needs stable reward + novelty)   │
-└─────────────────────────────────────┘
-
-┌─────────────────────┐     ┌─────────────────────┐
-│  feat/convnet       │     │  feat/perf          │
-│  (independent, big) │     │  (independent)      │
-└─────────────────────┘     └────────┬────────────┘
-                                     │
-                                     ▼
-                          ┌─────────────────────┐
-                          │  feat/gui-play      │
-                          │  (needs stable all) │
-                          └─────────────────────┘
+Phase 1 (parallel):
+  feat/double-dqn        feat/novelty-fix        feat/env-hardening
+        │                      │                      │
+        │                      │                      │
+        ▼                      ▼                      ▼
+Phase 2 (parallel):
+  feat/convnet-field     feat/perf-render       feat/rl-rlib-tune
+        │                      │                      │
+        └──────────────────────┼──────────────────────┘
+                               ▼
+Phase 3:
+  feat/gui-split-screen
 ```
 
 ---
 
-### Branch 1: `feat/novelty-fix`
-**Theme:** Stabilise neuroevolution · **Effort:** M (2–3 weeks) · **Independent:** ✅
+### Phase 1 — Independent, unblock everything
 
-| ROADMAP # | Task |
-|-----------|------|
-| 2 | Weighted novelty score, stop below threshold, separate novelty-children vs novelty-elites |
-| 26 | Debug: why does novelty increase with action length? |
-| 27 | Debug: why is best-reward agent inconsistent? (overwritten by novelty child?) |
-| 28 | Debug: duplicate agents after restart? |
-| 31 | Is initialisation triggering limited action set? (shuffle within layer) |
-| 33 | Pruning + ensemble validation with archived models |
-| 34 | Genetic algorithm: HP search, syntax consistency |
+#### `feat/double-dqn`
+| Task | Detail |
+|------|--------|
+| A1 | Add target network to `agent.py` DQN path; `get_qs()` uses target for bootstrapping |
+| A8 | Unify reward scaling 0→1 across all env types |
+| B11 | Add DQN checkpoint save/load (resume) |
 
-**Deliverable:** Neuroevolution produces stable, reproducible improvements per generation. Tests assert novelty metric is length-invariant and best-agent tracking is correct.
+**Deliverable:** Double-DQN matches or beats vanilla DQN on ENVTYPE 1 within N episodes. Resume works.
 
----
+#### `feat/novelty-fix`
+| Task | Detail |
+|------|--------|
+| A2 | Weighted novelty score, threshold stop, separate children vs elites |
+| C2 | Debug: novelty increases with action length |
+| C3 | Debug: best-reward agent overwritten |
+| C4 | Debug: duplicate agents after restart |
+| C7 | Check if init triggers limited action set |
+| C9 | Pruning + ensemble validation |
 
-### Branch 2: `feat/reward-env`
-**Theme:** Redesign the game (reward + environment rules) · **Effort:** M (2–3 weeks) · **Independent:** ✅
+**Deliverable:** Neuroevolution stable. Novelty metric length-invariant. Best-agent tracking correct.
 
-| ROADMAP # | Task |
-|-----------|------|
-| 3 | Reward redesign: scale 0→1, don't zero on loss, add cost/money objective |
-| 4 | Multiple particles / particle swarm per episode |
-| 5 | K-regions (multiple capture zones) |
-| 6 | Avoid keep-winning: cap max distance from well Y, random boundary noise |
-| 10 | Avoid protection-zone overlap for multi-well envs |
-| 29 | Check convergence / success flag in MODFLOW |
-| 30 | ENVTYPE 3 reward not fully reset on loss? |
-| 32 | Debug: flexibility when changing mesh resolution |
+#### `feat/env-hardening`
+| Task | Detail |
+|------|--------|
+| A4 | Multi-particle / particle swarm per episode |
+| A5 | K-region abstraction (generalise helper wells) |
+| A6 | Cap max distance, random boundary noise |
+| A10 | Prevent protection-zone overlap |
+| C5 | Verify MODFLOW convergence flag |
+| C6 | Fix ENVTYPE 3 reward reset |
+| C8 | Test mesh resolution flexibility |
 
-**Deliverable:** New `EnvType` enum values (multi-particle, k-region, cost-objective). All existing env types still pass tests. Reward function documented and bounded.
-
----
-
-### Branch 3: `feat/dqn-improvements`
-**Theme:** Make DQN/RL training reliable · **Effort:** M (2–3 weeks) · **Depends on:** Branch 2, Branch 1
-
-| ROADMAP # | Task |
-|-----------|------|
-| 7 | Target model for Q-predictions (Double-DQN) |
-| 8 | Hyperparameter optimisation (Bayesian / grid) + discount rationale |
-| 9 | Combine multiple initial runs → high-variability seed set |
-| 22 | Resume function (DQN + neuroevolution) |
-| 35 | Test averaging behaviour with same model (reproducibility) |
-| 47 | Save test game dataset / check prediction dataset |
-
-**Deliverable:** `train_dqn.py` with Double-DQN, HP search config, resume from checkpoint. Benchmark: DQN matches or beats neuroevolution on ENVTYPE 1 within N episodes.
+**Deliverable:** New env types (multi-particle, K-region). All existing types still pass tests.
 
 ---
 
-### Branch 4: `feat/convnet`
-**Theme:** Full-field ConvNet agent · **Effort:** L (4–6 weeks) · **Independent:** ✅
+### Phase 2 — Parallel, build on Phase 1
 
-| ROADMAP # | Task |
-|-----------|------|
-| 1 | Couple ConvNet to full flow-field observations (all stresses, not just head) |
-| 25 | Surrogate model: test sim-boost factor, genetic HP sampling, recall test |
-| 36 | Save all models with ID for visuals |
+#### `feat/convnet-field`
+| Task | Detail |
+|------|--------|
+| A3 | Feed 2D head + velocity + pressure arrays into Conv2D (reshape observations) |
+| A7 | Hyperparameter optimisation (Optuna) for ConvNet + DQN |
+| A9 | Multiple initial runs → high-variability seed set |
+| C1 | Surrogate model speedup test |
 
-**Deliverable:** `train_convnet.py` — ConvNet ingesting 2D head + velocity + pressure fields. Beats MLP-DQN on ENVTYPE 2/3. Surrogate speedup measured.
+**Deliverable:** ConvNet ingesting full 2D fields. Beats 1D-MLP on ENVTYPE 2/3. HP search config.
 
----
+#### `feat/perf-render`
+| Task | Detail |
+|------|--------|
+| B1 | Smooth trajectory (interpolate MODPATH steps) |
+| B6 | Matplotlib blitting in `play.py` |
+| B7 | FPS counter in 2D HUD |
+| B8 | HDF5 novelty archive |
+| B9 | Auto-profile runtimes |
+| B10 | In-memory filesystem for MODFLOW |
+| B16 | Progress GIFs during evolution |
 
-### Branch 5: `feat/perf`
-**Theme:** Performance & rendering speed · **Effort:** S–M (1–2 weeks) · **Independent:** ✅
+**Deliverable:** 2–5× faster play loop. FPS visible. Archive scales. 30+ FPS for 40×40.
 
-| ROADMAP # | Task |
-|-----------|------|
-| 16 | Matplotlib blitting for 60+ FPS display |
-| 17 | Calculate / display FPS in HUD |
-| 18 | HDF5 novelty archive (lazy load, append-only) |
-| 19 | Functionalize `run()` + convert models to JSON |
-| 20 | Auto-profile runtimes |
-| 21 | RAM-disk / in-memory filesystem for MODFLOW work files |
-| 11 | Smooth trajectory (interpolate in-between particle-tracking steps) |
-| 39 | Generate GIFs of progress during evolution |
+#### `feat/rl-rlib-tune`
+| Task | Detail |
+|------|--------|
+| A7 | Tune RLlib (APEX-DQN, IMPALA, PPO) hyperparameters |
+| A9 | Seed diversity for RLlib |
+| C11 | Test averaging / reproducibility |
+| C20 | Enforce same model set for train + CV |
+| C19 | Save test game dataset |
 
-**Deliverable:** 2–5× faster `play.py` loop. FPS counter visible. Archive grows without full-reload. `play3d.py` at 30+ FPS for 40×40 grid.
-
----
-
-### Branch 6: `feat/gui-play`
-**Theme:** Interactive GUI & presentation · **Effort:** M (2–3 weeks) · **Depends on:** Branches 1–5
-
-| ROADMAP # | Task |
-|-----------|------|
-| 12 | Split-screen GUI: 4 panels (random / inexperienced / experienced / agent) |
-| 13 | Actions bar at top, colormap scaled by reward |
-| 14 | Store & plot all well trajectories (not just last game) |
-| 15 | Generational trajectory ensemble plot |
-| 23 | Website: auto-update benchmark figures from saved policy models |
-| 24 | Website: animated GIF logo (particle moving on load) |
-| 37 | Scale linewidth around well with pumping rate magnitude |
-| 38 | Edit white line (highest reward) + keep initial line transparent |
-| 40 | DOCS: GIF/video for CLI installation |
-| 41 | DOCS: complete docstrings + auto-doc |
-| 44 | BinderHub / Littlest JupyterHub for reproducible demos |
-| 45 | Upload function for an autograder |
-| 46 | Jupyter notebook with pre-prepared solutions |
-
-**Deliverable:** `play_gui.py` — 4-panel split-screen with live FPS, action bar, trajectory history. Auto-generated benchmark figures. Binder-compatible notebook.
+**Deliverable:** Benchmark table: DQN vs APEX-DQN vs IMPALA vs PPO vs Neuroevolution per env type.
 
 ---
 
-### Suggested build order
+### Phase 3 — Presentation (needs Phase 1+2 stable)
 
-| Phase | Branch | Rationale |
-|-------|--------|-----------|
-| **1** (parallel) | `feat/novelty-fix` + `feat/reward-env` | Both independent, both unblock downstream work |
-| **2** (parallel) | `feat/dqn-improvements` + `feat/perf` + `feat/convnet` | DQN needs stable reward; perf is independent; convnet is the long-pole |
-| **3** | `feat/gui-play` | Needs everything stable to display meaningfully |
+#### `feat/gui-split-screen`
+| Task | Detail |
+|------|--------|
+| B2 | 4-panel split-screen (random / inexperienced / experienced / agent) |
+| B3 | Actions bar at top, reward-colourmap |
+| B4 | Store & plot all well trajectories |
+| B5 | Generational ensemble plot |
+| B12 | Auto-update benchmark figures |
+| B13 | Animated GIF logo |
+| B14 | Scale well linewidth with Q |
+| B15 | Edit white/transparent reward line |
+| C12 | Sphinx docs + auto-doc |
+| C13 | CLI install GIF/video |
+| C16 | BinderHub |
+| C17 | Autograder upload |
+| C18 | Jupyter solutions notebook |
+
+**Deliverable:** `play_gui.py` — 4-panel, live FPS, action bar, trajectory history. Auto benchmarks. Binder-ready.
 
 ---
 
-## Environment & Simulator Notes
+## Top 5 — Recommended Immediate Actions
 
-- Improved discretisation
-- Retrieved head in circles looking ahead a few metres, not directly at well
-- Runtime offset genetic current to all in print
-- Check how actions differ with given `mutationPower`
-- Add fully independent test dataset (i.e. seeds)
-- Is it not better to give reward and not reset all rewards to 0?
+| Rank | Task | Branch | Effort | Gain |
+|------|------|--------|--------|------|
+| 1 | Double-DQN + reward unification | `feat/double-dqn` | S | Immediate agent quality lift |
+| 2 | Novelty metric fix | `feat/novelty-fix` | M | Unlocks reliable neuroevolution |
+| 3 | Env hardening (multi-particle, K-region) | `feat/env-hardening` | M | Richer game, more realistic |
+| 4 | ConvNet full-field input | `feat/convnet-field` | M | State-of-the-art RL path |
+| 5 | Matplotlib blitting + smooth trajectory | `feat/perf-render` | S | 2–5× interactive speed |
 
-## Infrastructure
+---
 
-- BinderHub / Littlest JupyterHub for reproducible demos
-  - The Littlest JupyterHub: https://the-littlest-jupyterhub.readthedocs.io/
-  - BinderHub: https://binderhub.readthedocs.io/en/latest/
-- RAM-disk options: `pyfilesystem` in-memory, Windows RAMDISK, OSForensics
-- Speed benchmarks: https://www.raymond.cc/blog/12-ram-disk-software-benchmarked-for-fastest-read-and-write-speed/
+## References
 
-## Novelty / Similarity References
-
+### Novelty / Similarity
 - Weighted novelty / fitness: http://people.idsia.ch/~tino/papers/cuccu.evostar11.pdf
-- Popular similarity measures: https://dataaspirant.com/2015/04/11/five-most-popular-similarity-measures-implementation-in-python/
-- Approximate novelty & replace: https://books.google.de/books?id=wJiRDwAAQBAJ
+- Similarity measures: https://dataaspirant.com/2015/04/11/five-most-popular-similarity-measures-implementation-in-python/
+- Approximate novelty: https://books.google.de/books?id=wJiRDwAAQBAJ
 
-## DQN / RL Specific
+### RL / Hyperparameters
+- Hyperparameter example: https://arxiv.org/pdf/1207.6682.pdf
 
-- Scale rewards between 0 and 1?
-- ReplayMemory stored that is then only updated during run?
-- Able to reproduce memory increase that slows everything down?
-- Add resume function
-- GS: include network architecture in genetic search?
-- NOVELTY: example of hyperparameters: https://arxiv.org/pdf/1207.6682.pdf
+### Infrastructure
+- Littlest JupyterHub: https://the-littlest-jupyterhub.readthedocs.io/
+- BinderHub: https://binderhub.readthedocs.io/en/latest/
+- RAM-disk benchmarks: https://www.raymond.cc/blog/12-ram-disk-software-benchmarked-for-fastest-read-and-write-speed/
+- pyfilesystem: https://docs.pyfilesystem.org/en/latest/concepts.html
 
-## GUI / Play
+---
 
-- Start button
-- Split screen with 4 motions: random, inexperienced, experienced, agent
-- Actions at top progress bar, colormap scaled with reward
-- Calculate prognostic/auxiliary particle trajectory with longer MODPATH run
+## Changelog
 
-## Misc
-
-- Make sure to use same set of models for training all the time and for cross-validation
-- Hyperparameters for genetic algorithm
-- Syntax consistency genetic algorithm
-- Remove prints from FloPy and TensorFlow (changing model workspace → flopy → mbase; using tensorflow → keras → init)
+| Date | Change |
+|------|--------|
+| 2026-11-01 | Rebuilt: module-split audit, marked 13 items as implemented, re-prioritised remaining work, revised branch plan to 7 branches in 3 phases |
+| 2026-11-01 | Added 6-branch development plan + dependency graph |
+| 2026-11-01 | Initial: 47 items from `ideas.dev` |
