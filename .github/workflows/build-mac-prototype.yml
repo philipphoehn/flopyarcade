@@ -31,7 +31,7 @@ jobs:
           echo "!! expected files missing; running verbose manual clone to capture the real git error"
           set +e
           rm -rf /tmp/fb_verify
-          git --verbose clone --depth 1 -b build https://github.com/philipphoehn/flopyarcade /tmp/fb_verify 2>&1 | tail -40
+          git clone --verbose --depth 1 -b build https://github.com/philipphoehn/flopyarcade /tmp/fb_verify 2>&1 | tail -40
           echo "clone exit: ${PIPESTATUS[0]}"
           if [ -f /tmp/fb_verify/FloPyArcadePlay.spec ]; then
             echo "manual clone OK; copying into workspace"
