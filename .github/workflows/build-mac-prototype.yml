@@ -1,4 +1,4 @@
-name: Build Mac Prototype (build-branch)
+name: Build Mac Prototype
 
 on:
   workflow_dispatch:
@@ -19,43 +19,6 @@ jobs:
           ref: master
           fetch-depth: 1
 
-      - name: Download build-branch source files (HTTPS, no git protocol)
-        run: |
-          BASE="https://raw.githubusercontent.com/philipphoehn/flopyarcade/build"
-          echo "Downloading FloPyArcadePlay.py"
-          curl -sfL -o FloPyArcadePlay.py "$BASE/FloPyArcadePlay.py"
-          echo "Downloading FloPyArcadePlay.spec"
-          curl -sfL -o FloPyArcadePlay.spec "$BASE/FloPyArcadePlay.spec"
-          echo "Downloading FloPyArcade.py"
-          curl -sfL -o FloPyArcade.py "$BASE/FloPyArcade.py"
-          echo "Downloading requirements.txt"
-          curl -sfL -o requirements_build.txt "$BASE/requirements.txt"
-          # Verify
-          test -f FloPyArcadePlay.py && echo "OK: FloPyArcadePlay.py ($(wc -c < FloPyArcadePlay.py) bytes)"
-          test -f FloPyArcadePlay.spec && echo "OK: FloPyArcadePlay.spec ($(wc -c < FloPyArcadePlay.spec) bytes)"
-          test -f FloPyArcade.py && echo "OK: FloPyArcade.py ($(wc -c < FloPyArcade.py) bytes)"
-
-      - name: Extract Mac simulators
-        run: |
-          # Master has flopyarcade/simulators/simulators_mac.zip
-          if [ -f flopyarcade/simulators/simulators_mac.zip ]; then
-            mkdir -p simulators
-            cd simulators
-            unzip -o ../flopyarcade/simulators/simulators_mac.zip
-            cd ..
-          else
-            echo "Falling back to individual downloads"
-            mkdir -p simulators
-            BASE="https://raw.githubusercontent.com/philipphoehn/flopyarcade/master/flopyarcade/simulators/mac"
-            curl -sfL -o simulators/mf2005 "$BASE/mf2005" || true
-            curl -sfL -o simulators/mp6 "$BASE/mp6" || true
-            curl -sfL -o simulators/libmf6.so "$BASE/libmf6.so" || true
-          fi
-          chmod +x simulators/* 2>/dev/null || true
-          echo "=== Simulators ==="
-          ls -la simulators/
-          file simulators/* 2>/dev/null || true
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -64,29 +27,30 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install \
-            tensorflow>=2.11 \
+            'tensorflow>=2.11' \
             'flopy>=3.9.2' \
-            matplotlib>=3.6 \
-            numpy>=1.24 \
-            pandas>=1.5 \
-            pathos>=0.3 \
-            imageio>=2.19 \
-            tqdm>=4.60
+            'matplotlib>=3.6' \
+            'numpy>=1.24' \
+            'pandas>=1.5' \
+            'pathos>=0.3' \
+            'imageio>=2.19' \
+            'tqdm>=4.60'
           pip install pyinstaller
 
       - name: Verify environment
         run: |
           python -c "import tensorflow as tf; print(f'TF {tf.__version__} OK')"
           python -c "import flopy; print(f'flopy {flopy.__version__} OK')"
-          python -c "import matplotlib; print(f'matplotlib data: {matplotlib.get_data_path()}')"
-          echo "=== Build source ==="
-          ls -la FloPyArcadePlay.py FloPyArcadePlay.spec FloPyArcade.py
+          python -c "import matplotlib; print(f'matplotlib: {matplotlib.get_data_path()}')"
+          echo "=== Build source (mac-build/) ==="
+          ls -la mac-build/FloPyArcadePlay.py mac-build/FloPyArcadePlay.spec mac-build/FloPyArcade.py
           echo "=== Simulators ==="
-          ls -la simulators/
-          file simulators/mf2005 2>/dev/null || echo "mf2005 not found"
+          ls -la mac-build/simulators/
+          file mac-build/simulators/mf2005 2>/dev/null || echo "mf2005 not found"
 
       - name: Build with PyInstaller
         run: |
+          cd mac-build
           pyinstaller FloPyArcadePlay.spec --clean --noconfirm 2>&1 | tee pyinstaller_build.log
           echo "=== Build finished ==="
           ls -lh dist/FloPyArcadePlay
@@ -94,6 +58,7 @@ jobs:
 
       - name: Smoke test (headless)
         run: |
+          cd mac-build
           echo "=== Running FloPyArcade headless on macOS ARM64 ==="
           echo "Binary: $(file dist/FloPyArcadePlay)"
           echo "Size: $(ls -lh dist/FloPyArcadePlay | awk '{print $5}')"
@@ -101,8 +66,8 @@ jobs:
           # macOS has no GNU timeout; use perl alarm (always present)
           perl -e 'alarm shift; exec @ARGV' 180 ./dist/FloPyArcadePlay 2>&1 | tee mac_smoke_test.log || true
           echo ""
-          echo "=== Smoke test output (last 30 lines) ==="
-          tail -30 mac_smoke_test.log
+          echo "=== Smoke test output (last 40 lines) ==="
+          tail -40 mac_smoke_test.log
           echo "=== Done ==="
 
       - name: Upload smoke test log
@@ -110,21 +75,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mac-smoke-test-log
-          path: mac_smoke_test.log
+          path: mac-build/mac_smoke_test.log
 
       - name: Upload PyInstaller build log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pyinstaller-build-log
-          path: pyinstaller_build.log
+          path: mac-build/pyinstaller_build.log
 
       - name: Upload binary artifact (always preserve)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: flopyarcade-macos-arm64
-          path: dist/FloPyArcadePlay
+          path: mac-build/dist/FloPyArcadePlay
 
       - name: Upload to release
         if: success()
@@ -133,14 +98,12 @@ jobs:
         run: |
           set -e
           TAG="${{ inputs.release_tag }}"
-          # Ensure the release exists (create if not)
           gh release view "$TAG" --repo philipphoehn/flopyarcade 2>/dev/null || \
             gh release create "$TAG" --repo philipphoehn/flopyarcade \
               --title "FloPyArcade $TAG" \
               --notes "Multi-platform standalone executables." \
               --prerelease
-          # Upload (clobber existing same-name asset)
-          gh release upload "$TAG" dist/FloPyArcadePlay \
+          gh release upload "$TAG" mac-build/dist/FloPyArcadePlay \
             --repo philipphoehn/flopyarcade \
             --clobber \
             --name "FloPyArcadePlay-macos-arm64"
