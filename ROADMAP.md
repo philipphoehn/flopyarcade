@@ -85,6 +85,155 @@
 
 ---
 
+## Development Branch Plan
+
+> 6 focused development streams, grouped by theme and ordered by dependency.
+> Each branch is independently shippable.
+
+### Dependency graph
+
+```
+┌─────────────────────┐     ┌─────────────────────┐
+│  feat/novelty-fix   │     │  feat/reward-env    │
+│  (independent)      │     │  (independent)      │
+└────────┬────────────┘     └──────────┬──────────┘
+         │                             │
+         │         ┌───────────────────┘
+         ▼         ▼
+┌─────────────────────────────────────┐
+│  feat/dqn-improvements             │
+│  (needs stable reward + novelty)   │
+└─────────────────────────────────────┘
+
+┌─────────────────────┐     ┌─────────────────────┐
+│  feat/convnet       │     │  feat/perf          │
+│  (independent, big) │     │  (independent)      │
+└─────────────────────┘     └────────┬────────────┘
+                                     │
+                                     ▼
+                          ┌─────────────────────┐
+                          │  feat/gui-play      │
+                          │  (needs stable all) │
+                          └─────────────────────┘
+```
+
+---
+
+### Branch 1: `feat/novelty-fix`
+**Theme:** Stabilise neuroevolution · **Effort:** M (2–3 weeks) · **Independent:** ✅
+
+| ROADMAP # | Task |
+|-----------|------|
+| 2 | Weighted novelty score, stop below threshold, separate novelty-children vs novelty-elites |
+| 26 | Debug: why does novelty increase with action length? |
+| 27 | Debug: why is best-reward agent inconsistent? (overwritten by novelty child?) |
+| 28 | Debug: duplicate agents after restart? |
+| 31 | Is initialisation triggering limited action set? (shuffle within layer) |
+| 33 | Pruning + ensemble validation with archived models |
+| 34 | Genetic algorithm: HP search, syntax consistency |
+
+**Deliverable:** Neuroevolution produces stable, reproducible improvements per generation. Tests assert novelty metric is length-invariant and best-agent tracking is correct.
+
+---
+
+### Branch 2: `feat/reward-env`
+**Theme:** Redesign the game (reward + environment rules) · **Effort:** M (2–3 weeks) · **Independent:** ✅
+
+| ROADMAP # | Task |
+|-----------|------|
+| 3 | Reward redesign: scale 0→1, don't zero on loss, add cost/money objective |
+| 4 | Multiple particles / particle swarm per episode |
+| 5 | K-regions (multiple capture zones) |
+| 6 | Avoid keep-winning: cap max distance from well Y, random boundary noise |
+| 10 | Avoid protection-zone overlap for multi-well envs |
+| 29 | Check convergence / success flag in MODFLOW |
+| 30 | ENVTYPE 3 reward not fully reset on loss? |
+| 32 | Debug: flexibility when changing mesh resolution |
+
+**Deliverable:** New `EnvType` enum values (multi-particle, k-region, cost-objective). All existing env types still pass tests. Reward function documented and bounded.
+
+---
+
+### Branch 3: `feat/dqn-improvements`
+**Theme:** Make DQN/RL training reliable · **Effort:** M (2–3 weeks) · **Depends on:** Branch 2, Branch 1
+
+| ROADMAP # | Task |
+|-----------|------|
+| 7 | Target model for Q-predictions (Double-DQN) |
+| 8 | Hyperparameter optimisation (Bayesian / grid) + discount rationale |
+| 9 | Combine multiple initial runs → high-variability seed set |
+| 22 | Resume function (DQN + neuroevolution) |
+| 35 | Test averaging behaviour with same model (reproducibility) |
+| 47 | Save test game dataset / check prediction dataset |
+
+**Deliverable:** `train_dqn.py` with Double-DQN, HP search config, resume from checkpoint. Benchmark: DQN matches or beats neuroevolution on ENVTYPE 1 within N episodes.
+
+---
+
+### Branch 4: `feat/convnet`
+**Theme:** Full-field ConvNet agent · **Effort:** L (4–6 weeks) · **Independent:** ✅
+
+| ROADMAP # | Task |
+|-----------|------|
+| 1 | Couple ConvNet to full flow-field observations (all stresses, not just head) |
+| 25 | Surrogate model: test sim-boost factor, genetic HP sampling, recall test |
+| 36 | Save all models with ID for visuals |
+
+**Deliverable:** `train_convnet.py` — ConvNet ingesting 2D head + velocity + pressure fields. Beats MLP-DQN on ENVTYPE 2/3. Surrogate speedup measured.
+
+---
+
+### Branch 5: `feat/perf`
+**Theme:** Performance & rendering speed · **Effort:** S–M (1–2 weeks) · **Independent:** ✅
+
+| ROADMAP # | Task |
+|-----------|------|
+| 16 | Matplotlib blitting for 60+ FPS display |
+| 17 | Calculate / display FPS in HUD |
+| 18 | HDF5 novelty archive (lazy load, append-only) |
+| 19 | Functionalize `run()` + convert models to JSON |
+| 20 | Auto-profile runtimes |
+| 21 | RAM-disk / in-memory filesystem for MODFLOW work files |
+| 11 | Smooth trajectory (interpolate in-between particle-tracking steps) |
+| 39 | Generate GIFs of progress during evolution |
+
+**Deliverable:** 2–5× faster `play.py` loop. FPS counter visible. Archive grows without full-reload. `play3d.py` at 30+ FPS for 40×40 grid.
+
+---
+
+### Branch 6: `feat/gui-play`
+**Theme:** Interactive GUI & presentation · **Effort:** M (2–3 weeks) · **Depends on:** Branches 1–5
+
+| ROADMAP # | Task |
+|-----------|------|
+| 12 | Split-screen GUI: 4 panels (random / inexperienced / experienced / agent) |
+| 13 | Actions bar at top, colormap scaled by reward |
+| 14 | Store & plot all well trajectories (not just last game) |
+| 15 | Generational trajectory ensemble plot |
+| 23 | Website: auto-update benchmark figures from saved policy models |
+| 24 | Website: animated GIF logo (particle moving on load) |
+| 37 | Scale linewidth around well with pumping rate magnitude |
+| 38 | Edit white line (highest reward) + keep initial line transparent |
+| 40 | DOCS: GIF/video for CLI installation |
+| 41 | DOCS: complete docstrings + auto-doc |
+| 44 | BinderHub / Littlest JupyterHub for reproducible demos |
+| 45 | Upload function for an autograder |
+| 46 | Jupyter notebook with pre-prepared solutions |
+
+**Deliverable:** `play_gui.py` — 4-panel split-screen with live FPS, action bar, trajectory history. Auto-generated benchmark figures. Binder-compatible notebook.
+
+---
+
+### Suggested build order
+
+| Phase | Branch | Rationale |
+|-------|--------|-----------|
+| **1** (parallel) | `feat/novelty-fix` + `feat/reward-env` | Both independent, both unblock downstream work |
+| **2** (parallel) | `feat/dqn-improvements` + `feat/perf` + `feat/convnet` | DQN needs stable reward; perf is independent; convnet is the long-pole |
+| **3** | `feat/gui-play` | Needs everything stable to display meaningfully |
+
+---
+
 ## Environment & Simulator Notes
 
 - Improved discretisation
