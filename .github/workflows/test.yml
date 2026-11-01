@@ -32,7 +32,6 @@ jobs:
       - name: Run tests with coverage
         env:
           PYTHONWARNINGS: "ignore::ResourceWarning"
-          PYTHONPATH: "flopyarcade"
         run: |
           pytest flopyarcade/tests/ -v --timeout=1800 \
             --cov=flopyarcade \
