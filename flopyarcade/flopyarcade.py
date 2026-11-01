@@ -3750,14 +3750,19 @@ class FloPyEnv(gym.Env):
         start = time()
         success, buff = self.mf.run_model(silent=True)
         if not success:
-            # transient convergence failure under memory pressure — retry once
+            # transient convergence failure under memory pressure — retry with backoff
             gc.collect()
+            sleep(0.5)
             success, buff = self.mf.run_model(silent=True)
             if not success:
-                raise RuntimeError(
-                    'MODFLOW did not terminate normally after retry. '
-                    'Check model output for errors.'
-                )
+                gc.collect()
+                sleep(1.0)
+                success, buff = self.mf.run_model(silent=True)
+                if not success:
+                    raise RuntimeError(
+                        'MODFLOW did not terminate normally after retries. '
+                        'Check model output for errors.'
+                    )
         self.success_modflow = success
         self.buff = buff
         self.t_simulate = time() - start
