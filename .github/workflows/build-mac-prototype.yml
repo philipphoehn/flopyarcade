@@ -83,8 +83,8 @@ jobs:
           echo "Binary: $(file dist/FloPyArcadePlay)"
           echo "Size: $(ls -lh dist/FloPyArcadePlay | awk '{print $5}')"
           echo ""
-          # Run with timeout, capture all output
-          timeout 180 ./dist/FloPyArcadePlay 2>&1 | tee mac_smoke_test.log || true
+          # macOS has no GNU timeout; use perl alarm (always present)
+          perl -e 'alarm shift; exec @ARGV' 180 ./dist/FloPyArcadePlay 2>&1 | tee mac_smoke_test.log || true
           echo ""
           echo "=== Smoke test output (last 30 lines) ==="
           tail -30 mac_smoke_test.log
@@ -104,19 +104,29 @@ jobs:
           name: pyinstaller-build-log
           path: pyinstaller_build.log
 
+      - name: Upload binary artifact (always preserve)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flopyarcade-macos-arm64
+          path: dist/FloPyArcadePlay
+
       - name: Upload to release
         if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ inputs.release_tag }}" dist/FloPyArcadePlay \
+          set -e
+          TAG="${{ inputs.release_tag }}"
+          # Ensure the release exists (create if not)
+          gh release view "$TAG" --repo philipphoehn/flopyarcade 2>/dev/null || \
+            gh release create "$TAG" --repo philipphoehn/flopyarcade \
+              --title "FloPyArcade $TAG" \
+              --notes "Multi-platform standalone executables." \
+              --prerelease
+          # Upload (clobber existing same-name asset)
+          gh release upload "$TAG" dist/FloPyArcadePlay \
             --repo philipphoehn/flopyarcade \
             --clobber \
             --name "FloPyArcadePlay-macos-arm64"
-          echo "Uploaded to release ${{ inputs.release_tag }}"
-
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: flopyarcade-macos-arm64
-          path: dist/FloPyArcadePlay
+          echo "✅ Uploaded to release $TAG"
