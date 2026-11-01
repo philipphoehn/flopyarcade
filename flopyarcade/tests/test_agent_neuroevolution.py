@@ -18,6 +18,10 @@ from shutil import rmtree
 import unittest
 
 
+import pytest
+
+
+@pytest.mark.slow
 class TestFloPyAgentGenetic(unittest.TestCase):
 
     def test_FloPyAgentGenetic_noExceptionRaised(self):

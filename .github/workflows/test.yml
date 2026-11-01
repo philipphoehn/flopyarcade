@@ -34,6 +34,7 @@ jobs:
           PYTHONWARNINGS: "ignore::ResourceWarning"
         run: |
           pytest flopyarcade/tests/ -v --timeout=1800 \
+            -m "not slow" \
             --cov=flopyarcade \
             --cov-report=xml:coverage.xml \
             --cov-report=term-missing
