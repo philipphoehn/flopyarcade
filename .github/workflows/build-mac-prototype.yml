@@ -15,57 +15,46 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        continue-on-error: true
         with:
-          ref: build
+          ref: master
           fetch-depth: 1
 
-      - name: Verify checkout (verbose self-diagnose)
+      - name: Download build-branch source files (HTTPS, no git protocol)
         run: |
-          echo "=== Checking whether build-branch files landed ==="
-          if [ -f FloPyArcadePlay.spec ]; then
-            echo "OK: FloPyArcadePlay.spec present"
-            ls -la FloPyArcadePlay.spec FloPyArcadePlay.py
-            exit 0
-          fi
-          echo "!! expected files missing; running verbose manual clone to capture the real git error"
-          set +e
-          rm -rf /tmp/fb_verify
-          git clone --verbose --depth 1 -b build https://github.com/philipphoehn/flopyarcade /tmp/fb_verify 2>&1 | tail -40
-          echo "clone exit: ${PIPESTATUS[0]}"
-          if [ -f /tmp/fb_verify/FloPyArcadePlay.spec ]; then
-            echo "manual clone OK; copying into workspace"
-            cp -a /tmp/fb_verify/. .
-            echo "restored via manual clone"
-            exit 0
-          fi
-          echo "FATAL: could not obtain build branch; aborting (see error above)"
-          exit 1
+          BASE="https://raw.githubusercontent.com/philipphoehn/flopyarcade/build"
+          echo "Downloading FloPyArcadePlay.py"
+          curl -sfL -o FloPyArcadePlay.py "$BASE/FloPyArcadePlay.py"
+          echo "Downloading FloPyArcadePlay.spec"
+          curl -sfL -o FloPyArcadePlay.spec "$BASE/FloPyArcadePlay.spec"
+          echo "Downloading FloPyArcade.py"
+          curl -sfL -o FloPyArcade.py "$BASE/FloPyArcade.py"
+          echo "Downloading requirements.txt"
+          curl -sfL -o requirements_build.txt "$BASE/requirements.txt"
+          # Verify
+          test -f FloPyArcadePlay.py && echo "OK: FloPyArcadePlay.py ($(wc -c < FloPyArcadePlay.py) bytes)"
+          test -f FloPyArcadePlay.spec && echo "OK: FloPyArcadePlay.spec ($(wc -c < FloPyArcadePlay.spec) bytes)"
+          test -f FloPyArcade.py && echo "OK: FloPyArcade.py ($(wc -c < FloPyArcade.py) bytes)"
 
-      - name: Fetch Mac simulators from master
+      - name: Extract Mac simulators
         run: |
-          # The build branch has Linux ELF simulators. We need macOS ARM64 ones.
-          # Fetch them from master's flopyarcade/simulators/mac/ directory.
-          git fetch origin master --depth=1
-          mkdir -p simulators/mac
-          git show origin/master:flopyarcade/simulators/mac/mp6 > simulators/mac/mp6 2>/dev/null || \
-            git archive --remote=origin master flopyarcade/simulators/mac/ | tar -x --strip-components=2 -C simulators/mac/ 2>/dev/null || \
-            echo "Falling back: will use pip-installed flopy simulators"
-          # If git show failed, try downloading from the GitHub raw URL
-          if [ ! -f simulators/mac/mp6 ]; then
-            echo "Downloading Mac simulators from GitHub raw..."
-            curl -sL -o simulators/mac/mp6 "https://raw.githubusercontent.com/philipphoehn/flopyarcade/master/flopyarcade/simulators/mac/mp6" || true
-            curl -sL -o simulators/mac/mf2005 "https://raw.githubusercontent.com/philipphoehn/flopyarcade/master/flopyarcade/simulators/mac/mf2005" || true
-            curl -sL -o simulators/mac/libmf6.so "https://raw.githubusercontent.com/philipphoehn/flopyarcade/master/flopyarcade/simulators/mac/libmf6.so" || true
+          # Master has flopyarcade/simulators/simulators_mac.zip
+          if [ -f flopyarcade/simulators/simulators_mac.zip ]; then
+            mkdir -p simulators
+            cd simulators
+            unzip -o ../flopyarcade/simulators/simulators_mac.zip
+            cd ..
+          else
+            echo "Falling back to individual downloads"
+            mkdir -p simulators
+            BASE="https://raw.githubusercontent.com/philipphoehn/flopyarcade/master/flopyarcade/simulators/mac"
+            curl -sfL -o simulators/mf2005 "$BASE/mf2005" || true
+            curl -sfL -o simulators/mp6 "$BASE/mp6" || true
+            curl -sfL -o simulators/libmf6.so "$BASE/libmf6.so" || true
           fi
-          chmod +x simulators/mac/* 2>/dev/null || true
-          ls -la simulators/ simulators/mac/ 2>/dev/null || true
-          # Replace the Linux simulators with Mac ones for bundling
-          if [ -d simulators/mac ] && [ -f simulators/mac/mf2005 ]; then
-            cp simulators/mac/mf2005 simulators/mf2005
-            cp simulators/mac/mp6 simulators/mp6 2>/dev/null || true
-            echo "Mac simulators in place"
-          fi
+          chmod +x simulators/* 2>/dev/null || true
+          echo "=== Simulators ==="
+          ls -la simulators/
+          file simulators/* 2>/dev/null || true
 
       - uses: actions/setup-python@v5
         with:
@@ -90,8 +79,11 @@ jobs:
           python -c "import tensorflow as tf; print(f'TF {tf.__version__} OK')"
           python -c "import flopy; print(f'flopy {flopy.__version__} OK')"
           python -c "import matplotlib; print(f'matplotlib data: {matplotlib.get_data_path()}')"
-          file simulators/mf2005
-          file simulators/mp6 2>/dev/null || echo "mp6 not present"
+          echo "=== Build source ==="
+          ls -la FloPyArcadePlay.py FloPyArcadePlay.spec FloPyArcade.py
+          echo "=== Simulators ==="
+          ls -la simulators/
+          file simulators/mf2005 2>/dev/null || echo "mf2005 not found"
 
       - name: Build with PyInstaller
         run: |
