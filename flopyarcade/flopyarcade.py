@@ -11,6 +11,7 @@
 from builtins import min as py_min, max as py_max
 from copy import copy, deepcopy
 from ctypes import sizeof, c_voidp
+import gc
 import hashlib
 from matplotlib import use as matplotlibBackend
 from matplotlib.ticker import NullLocator
@@ -485,15 +486,17 @@ class FloPyEnv(gym.Env):
         # random.seed(seed)
 
     def close(self):
-        """Mark the resource as closed.
+        """Mark the resource as closed and release accumulated memory.
 
-        Sets the `closed` attribute to True to indicate that the resource has been closed.
+        Sets the `closed` attribute to True and runs garbage collection
+        to free numpy arrays and MODFLOW objects no longer referenced.
 
         Args:
             self (object): The instance of the class.
         
         """
         self.closed = True
+        gc.collect()
 
     def teardown(self):
         """Clean up the workspace by removing the example folder if deletion is enabled.
@@ -3747,10 +3750,14 @@ class FloPyEnv(gym.Env):
         start = time()
         success, buff = self.mf.run_model(silent=True)
         if not success:
-            raise RuntimeError(
-                'MODFLOW did not terminate normally. '
-                'Check model output for errors.'
-            )
+            # transient convergence failure under memory pressure — retry once
+            gc.collect()
+            success, buff = self.mf.run_model(silent=True)
+            if not success:
+                raise RuntimeError(
+                    'MODFLOW did not terminate normally after retry. '
+                    'Check model output for errors.'
+                )
         self.success_modflow = success
         self.buff = buff
         self.t_simulate = time() - start
