@@ -228,6 +228,17 @@ chmod +x FloPyArcadePlay
 
 Runs headless or with display (auto-detects). No Python, pip, or system dependencies required.
 
+### macOS (Apple Silicon)
+
+[⬇ Download `FloPyArcadePlay` (289 MB)](https://github.com/philipphoehn/flopyarcade/releases/download/v0.3.34-exe/FloPyArcadePlay-macos-arm64)
+
+```bash
+chmod +x FloPyArcadePlay-macos-arm64
+./FloPyArcadePlay-macos-arm64
+```
+
+Native arm64 (Apple Silicon M1/M2/M3/M4). Also runs on Intel Macs via Rosetta 2. No Python, pip, or system dependencies required.
+
 ### Windows
 
 Easily test yourself: Steer the existing environments on Windows. Skip installation by downloading these versions:
