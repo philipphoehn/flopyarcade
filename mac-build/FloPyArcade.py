@@ -1761,7 +1761,7 @@ class FloPyEnv():
                                    ) + '.exe'
             elif PATHMP6 is not None:
                 self.exe_mp += PATHMP6
-        elif system() == 'Linux':
+        elif system() == 'Linux' or system() == 'Darwin':
             if PATHMF2005 is None:
                 self.exe_name = join(self.wrkspc, 'simulators', 'mf2005')
             elif PATHMF2005 is not None:
@@ -1772,6 +1772,8 @@ class FloPyEnv():
                 self.exe_mp = PATHMP6
         else:
             print('Operating system is unknown.')
+            self.exe_name = join(self.wrkspc, 'simulators', 'mf2005')
+            self.exe_mp = join(self.wrkspc, 'simulators', 'mp6')
 
         self.versionMODFLOW = 'mf2005'
         self.versionMODPATH = 'mp6'
