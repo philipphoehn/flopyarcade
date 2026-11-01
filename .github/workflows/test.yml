@@ -21,7 +21,7 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -e . pytest-timeout
+          pip install -e . pytest-timeout pytest-cov
 
       - name: Extract simulators
         run: |
@@ -29,9 +29,19 @@ jobs:
           unzip -o simulators_linux.zip
           chmod +x linux/mf2005 linux/mf6 linux/mp6 2>/dev/null || true
 
-      - name: Run tests
+      - name: Run tests with coverage
         env:
           PYTHONWARNINGS: "ignore::ResourceWarning"
           PYTHONPATH: "flopyarcade"
         run: |
-          pytest flopyarcade/tests/ -v --timeout=1800
+          pytest flopyarcade/tests/ -v --timeout=1800 \
+            --cov=flopyarcade \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing
+
+      - name: Upload coverage to CodeCov
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          flags: unittests
+          fail_ci_if_error: false

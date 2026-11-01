@@ -439,7 +439,7 @@ class FloPyEnv(gym.Env):
             low=-25.0,
             high=25.0,
             shape=obs_array.shape,
-            dtype=np.float32
+            dtype=np.float64
         )
 
         if self.actionType == 'discrete':
@@ -1451,7 +1451,8 @@ class FloPyEnv(gym.Env):
             new_recharge = self.retrieve_boundary_conditions()
             self.prepare_observations(new_recharge)
             self.observationsVectorNormalized = copy(self.observations)
-            self.observations_history = [self.observationsVectorNormalized]
+            self._obs_hasher = hashlib.sha256()
+            self._feed_obs_hash(self.observationsVectorNormalized)
             if self.renderFlag or self.SAVEPLOT:
                 self.render()
         else:
@@ -1460,7 +1461,8 @@ class FloPyEnv(gym.Env):
             self.get_normalized_observations()
             self.get_normalized_stresses()
             self.observations = np.array(self.observationsVectorNormalized)
-            self.observations_history = [self.observations]
+            self._obs_hasher = hashlib.sha256()
+            self._feed_obs_hash(self.observations)
             if self.renderFlag or self.SAVEPLOT:
                 self.render()
 
@@ -1507,7 +1509,7 @@ class FloPyEnv(gym.Env):
 
         self.prepare_observations(new_recharge)
         self.observationsVectorNormalized = copy(self.observations)
-        self.observations_history += self.observationsVectorNormalized
+        self._feed_obs_hash(self.observationsVectorNormalized)
 
         if self.renderFlag or self.SAVEPLOT:
             self.render()
@@ -1566,7 +1568,7 @@ class FloPyEnv(gym.Env):
             self.render()
 
         self.observations = np.array(self.observationsVectorNormalized)
-        self.observations_history += self.observations
+        self._feed_obs_hash(self.observations)
 
         self.timeStep += 1
 
@@ -2591,6 +2593,17 @@ class FloPyEnv(gym.Env):
         print("failed converging")
         return self.bmi_return(self.success, self.model_ws, modelname)
 
+    def _feed_obs_hash(self, observation):
+        """Feed a single observation's normalized bytes into the incremental hasher.
+
+        Args:
+            self (object): Instance with _obs_hasher attribute.
+            observation (np.ndarray): Single observation array.
+        
+        """
+        feature = self.example_feature_extractor(observation)
+        self._obs_hasher.update(feature.ravel().tobytes())
+
     def update_envhash(self):
         """Create and store a hash of the observations history.
 
@@ -2598,7 +2611,7 @@ class FloPyEnv(gym.Env):
             self (object): Instance containing observations history.
         
         """
-        self.envhash = self.create_single_hash(self.observations_history)
+        self.envhash = self._obs_hasher.hexdigest()
 
     def cleanup_temp_dir(self):
         """Clean up the temporary directory.
@@ -7714,7 +7727,6 @@ class FloPyAgent:
         if seed is None:
             seed = self.SEED
         seed_orig = deepcopy(seed)
-        print('DEBUG seed, seed_orig', seed, seed_orig)
         model = Sequential()
         seed = int(seed)  # force Python int
         seed = SeedGenerator(seed=seed)
@@ -7917,7 +7929,6 @@ class FloPyAgent:
         self.gameReward, self.gameStep, done = 0, 1, False
         for game in range(self.hyParams['NAGENTSTEPS']):
             rnd = random()
-            print('DEBUG rnd', rnd)
             # epsilon defines the fraction of random to queried actions
             if rnd > self.epsilon:
                 # retrieving action from Q table
@@ -7932,7 +7943,6 @@ class FloPyAgent:
                 # retrieving random action
                 if env.actionType == 'discrete':
                     actionIdx = randint(0, self.actionSpaceSize)
-                    print('DEBUG actionIdx', actionIdx)
                     action = self.actionSpace[actionIdx]
                 elif env.actionType == 'continuous':
                     action = list(uniform(low=0.0, high=1.0, size=self.actionSpaceSize))

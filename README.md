@@ -6,10 +6,10 @@ FloPyArcade provides simple [MODFLOW](https://www.usgs.gov/mission-areas/water-r
 See the [preprint](https://github.com/philipphoehn/flopyarcade/blob/master/preprint_FloPyArcade.pdf) for further details.
 
 [![made with python](https://img.shields.io/badge/made%20with-python-blue.svg?style=flat)](https://www.python.org/)
-[![code coverage](https://codecov.io/gh/philipphoehn/FloPyArcade/branch/master/graph/badge.svg)](https://codecov.io/gh/philipphoehn/FloPyArcade)
+[![code coverage](https://codecov.io/gh/philipphoehn/flopyarcade/branch/master/graph/badge.svg)](https://codecov.io/gh/philipphoehn/flopyarcade)
 [![gitter](https://img.shields.io/gitter/room/thunder-project/thunder.svg?style=flat-flat)](https://gitter.im/FloPyArcade/community)
 [![github version](https://badge.fury.io/gh/philipphoehn%2Fflopyarcade.svg)](https://badge.fury.io/gh/philipphoehn%2Fflopyarcade)
-[![binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/philipphoehn/FloPyArcade/master)
+[![binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/philipphoehn/flopyarcade/master)
 
 ## Installation
 
