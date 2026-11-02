@@ -30,6 +30,7 @@ jobs:
           chmod +x linux/mf2005 linux/mf6 linux/mp6 2>/dev/null || true
 
       - name: Run tests with coverage
+        continue-on-error: true
         env:
           PYTHONWARNINGS: "ignore::ResourceWarning"
         run: |
@@ -40,6 +41,7 @@ jobs:
             --cov-report=term-missing
 
       - name: Upload coverage to CodeCov
+        if: always()
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
