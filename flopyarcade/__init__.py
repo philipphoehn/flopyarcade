@@ -41,6 +41,8 @@ if not exists(join(wrkspc, 'simulators', 'win64')):
 	remove(join(wrkspc, 'simulators', 'simulators_win64.zip'))
 
 
-from .flopyarcade import FloPyAgent
 from .flopyarcade import FloPyEnv
-from .flopyarcade import FloPyArcade
+from .arcade import FloPyArcade
+from .agent import FloPyAgent
+
+__all__ = ['FloPyEnv', 'FloPyArcade', 'FloPyAgent']
