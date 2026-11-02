@@ -163,6 +163,9 @@ class RewardMixin:
         else:
             if self.rewardCurrent >= 0.:
                 self.reward = -self.rewardCurrent
+            else:
+                self.reward = 0.0
+        self.rewardCurrent = 0.0
 
     def calculate_reward(self):
         """
