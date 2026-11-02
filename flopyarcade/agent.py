@@ -1660,7 +1660,8 @@ class FloPyAgent:
             novelty += self.actionNoveltyMetric(actions[g],
                 actions2[g], self.actionType)
 
-        return novelty
+        # C2: normalize by episode count so score is length-invariant
+        return novelty / len(actions) if len(actions) > 0 else 0.
 
     def calculateNoveltyPerAgent(self, iAgent, actionsDict=None):
 

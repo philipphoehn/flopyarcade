@@ -223,6 +223,7 @@ class FloPyArcade:
             '2r-c', '3s-d', '3s-c', '3r-d', '3r-c', '4s-c', '4r-c', '5s-c',
             '5s-c-cost', '5r-c', '6s-c', '6r-c'
         ]
+        from flopyarcade.agent import FloPyAgent
         self.wrkspc = FloPyAgent().wrkspc
 
     def play(self, env=None, ENVTYPE='1s-d', seed=None,
@@ -288,6 +289,7 @@ class FloPyArcade:
         if self.keepTimeSeries:
             self._init_time_series(self.observations)
         self.actionSpace = self.env.actionSpace
+        from flopyarcade.agent import FloPyAgent
         self.agentObj = FloPyAgent(actionSpace=self.actionSpace)
         self.success = False
         self.rewardTotal = 0.
