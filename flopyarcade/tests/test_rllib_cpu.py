@@ -65,6 +65,7 @@ def _assert_training_complete(result):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_dqn_one_iteration(ray_session, registered_env):
     """tune.run DQN for 1 iteration — env created, stepped, rewarded."""
     from ray import tune
@@ -90,6 +91,7 @@ def test_dqn_one_iteration(ray_session, registered_env):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_ppo_one_iteration(ray_session, registered_env):
     """tune.run PPO for 1 iteration."""
     from ray import tune
@@ -117,6 +119,7 @@ def test_ppo_one_iteration(ray_session, registered_env):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_appo_one_iteration(ray_session, registered_env):
     """tune.run APPO for 1 iteration."""
     from ray import tune
@@ -142,6 +145,7 @@ def test_appo_one_iteration(ray_session, registered_env):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.slow
 def test_impala_one_iteration(ray_session, registered_env):
     """tune.run IMPALA for 1 iteration."""
     from ray import tune
