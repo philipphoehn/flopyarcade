@@ -196,18 +196,14 @@ class ObservationsMixin:
         """
         self.state = {'heads': self.heads}
 
-        if self.ENVTYPE in ['1s-d', '1s-c', '1r-d', '1r-c']:
-            self._update_1()
-        elif self.ENVTYPE in ['2s-d', '2s-c', '2r-d', '2r-c']:
-            self._update_2()
-        elif self.ENVTYPE in ['3s-d', '3s-c', '3r-d', '3r-c']:
-            self._update_3()
-        elif self.ENVTYPE in ['4s-d', '4s-c', '4r-d', '4r-c']:
-            self._update_helper_wells(['X', 'Y'])
-        elif self.ENVTYPE in ['5s-d', '5s-c', '5s-c-cost', '5r-d', '5r-c']:
-            self._update_helper_wells(['Q'])
-        elif self.ENVTYPE in ['6s-d', '6s-c', '6r-d', '6r-c']:
-            self._update_helper_wells(['X', 'Y', 'Q'])
+        from .env_config import ENV_CONFIG
+        cfg = ENV_CONFIG.get(self.ENVTYPE)
+        if cfg is None:
+            return
+        if cfg['helper_keys'] is not None:
+            self._update_helper_wells(cfg['helper_keys'])
+        else:
+            getattr(self, cfg['state_update'])()
 
     def _init_observations(self):
         """Initialize observation dictionaries.

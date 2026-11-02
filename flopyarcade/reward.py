@@ -175,13 +175,10 @@ class RewardMixin:
             self (object): Instance with environment type and reward calculation methods.
 
         """
-        other_reward_calculators = {
-            '5s-c-cost': self.calculateGameRewardOperationCost,
-        }
-        # Get the appropriate reward function or default to trajectory reward
-        reward_func = other_reward_calculators.get(
-            self.ENVTYPE, self.calculateGameRewardTrajectory
-        )
+        from .env_config import ENV_CONFIG, REWARD_DISPATCH
+        cfg = ENV_CONFIG.get(self.ENVTYPE)
+        reward_key = cfg['reward'] if cfg else 'trajectory'
+        reward_func = getattr(self, REWARD_DISPATCH[reward_key])
         self.reward = reward_func()
 
     def calculateGameRewardTrajectory(self):

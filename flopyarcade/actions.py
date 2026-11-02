@@ -184,20 +184,19 @@ class ActionsMixin:
             None
         
         """
-        t, a = self.ENVTYPE, self.actionType
-        if a == 'discrete':
-            if t in {'1s-d', '1r-d', '2s-d', '2r-d'}:
-                self.actionSpace = ['down', 'up', 'keep']
-            elif t in {'3s-d', '3r-d'}:
-                self.actionSpace = ['right', 'up', 'keep', 'down', 'left']
-            elif t in {'4s-d', '4r-d', '5s-d', '5r-d', '6s-d', '6r-d'}:
+        from .env_config import ENV_CONFIG
+        cfg = ENV_CONFIG.get(self.ENVTYPE)
+        if cfg is None:
+            pass
+        elif self.actionType == 'discrete':
+            if cfg['action_discrete'] is not None:
+                self.actionSpace = cfg['action_discrete']
+            else:
                 self._setup_discrete_multiwell_actions()
-        elif a == 'continuous':
-            if t in {'1s-c', '1r-c', '2s-c', '2r-c'}:
-                self.actionSpace = ['up', 'down']
-            elif t in {'3s-c', '3r-c'}:
-                self.actionSpace = ['up', 'down', 'left', 'right']
-            elif t in {'4s-c', '4r-c', '5s-c', '5s-c-cost', '5r-c', '6s-c', '6r-c'}:
+        elif self.actionType == 'continuous':
+            if cfg['action_continuous'] is not None:
+                self.actionSpace = cfg['action_continuous']
+            else:
                 self._setup_continuous_multiwell_actions()
 
         self.actionSpaceSize = len(
