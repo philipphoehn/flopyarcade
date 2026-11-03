@@ -458,7 +458,13 @@ class FloPyAgent:
         self.pid = ''.join(pid_list)
 
     def _load_novelty_archive(self):
-        self.noveltyArchive = self.pickleLoad(join(self.tempPrevModelPrefix + '_noveltyArchive.p'))
+        from .archive_hdf5 import NoveltyArchiveHDF5
+        archive_path = join(self.tempPrevModelPrefix + '_noveltyArchive.h5')
+        if exists(archive_path):
+            self.noveltyArchive = NoveltyArchiveHDF5(archive_path).load()
+        else:
+            # Fallback to legacy pickle for backward compatibility
+            self.noveltyArchive = self.pickleLoad(join(self.tempPrevModelPrefix + '_noveltyArchive.p'))
         if not self.envSettings['KEEPMODELHISTORY']:
             self.mutationHistory = self.pickleLoad(join(self.tempPrevModelPrefix + '_mutationHistory.p'))
         self.noveltyItemCount = len(self.noveltyArchive)
@@ -597,7 +603,9 @@ class FloPyAgent:
             self.noveltyArchive[agent_str]['novelty'] = novelties[unique_id]
 
     def _save_novelties(self):
-        self.pickleDump(join(self.tempModelPrefix + '_noveltyArchive.p'), self.noveltyArchive)
+        from .archive_hdf5 import NoveltyArchiveHDF5
+        archive_path = join(self.tempModelPrefix + '_noveltyArchive.h5')
+        NoveltyArchiveHDF5(archive_path).save(self.noveltyArchive)
         self.novelties, self.noveltyFilenames = [], []
         for k in range(self.noveltyItemCount):
             agent_str = f'agent{k+1}'
