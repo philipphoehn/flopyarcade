@@ -131,10 +131,20 @@ class Render3D:
         ax.plot_wireframe(X[::ws, ::ws], Y[::ws, ::ws], Z[::ws, ::ws],
                           color=CYAN, alpha=0.08, lw=0.3)
 
-        # 3. Trajectory — locked to surface, neon gradient
+        # 3. Trajectory — locked to surface, neon gradient (smoothed)
         if len(self.trajectory) > 1:
             traj = np.array(self.trajectory)
             n = len(traj)
+            # Subdivide for smooth rendering (10x interpolation)
+            if n >= 2:
+                t_orig = np.linspace(0.0, 1.0, n)
+                t_new = np.linspace(0.0, 1.0, max(2, n * 10))
+                traj = np.column_stack([
+                    np.interp(t_new, t_orig, traj[:, 0]),
+                    np.interp(t_new, t_orig, traj[:, 1]),
+                    np.interp(t_new, t_orig, traj[:, 2]),
+                ])
+                n = len(traj)
             # Batch: single plot call (fastest)
             ax.plot(traj[:, 0], traj[:, 1], traj[:, 2],
                     color=MAGENTA, lw=2.0, alpha=0.7, zorder=5)
