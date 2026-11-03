@@ -84,7 +84,7 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | B12 | **Website: auto-update benchmark figures** | Med UX | ❌ Manual |
 | B13 | **Website: animated GIF logo** | Low UX | ❌ Static |
 | B14 | **Scale linewidth around well** with pumping rate | Low UX | ❌ Not implemented |
-| B15 | **Edit white line** (highest reward) + transparent initial | Low UX | ❌ Not implemented |
+| B15 | **Edit white line** (highest reward) + transparent initial | Low UX | 🔄 PR [#48](https://github.com/philipphoehn/flopyarcade/pull/48) open |
 | B16 | **Generate GIFs of progress** during evolution | Low UX | ❌ Not implemented |
 
 ---
