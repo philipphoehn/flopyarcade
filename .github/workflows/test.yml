@@ -18,10 +18,15 @@ jobs:
           python-version: "3.11"
           cache: pip
 
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/lib/llvm-* /usr/local/lib/android 2>/dev/null || true
+          sudo apt-get clean && sudo rm -rf /var/lib/apt/lists/* 2>/dev/null || true
+
       - name: Install
         run: |
-          python -m pip install --upgrade pip
-          pip install -e . pytest-timeout pytest-cov ray[default] pathos torch
+          python -m pip install --no-cache-dir --upgrade pip
+          pip install --no-cache-dir -e . pytest-timeout pytest-cov
 
       - name: Extract simulators
         run: |
