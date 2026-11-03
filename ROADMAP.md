@@ -53,7 +53,7 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 
 | # | Task | Impact | Status |
 |---|------|--------|--------|
-| A1 | **Double-DQN**: target network for Q-predictions in `agent.py` | Very High | ❌ Not implemented — `get_qs()` uses main model |
+| A1 | **Double-DQN**: target network for Q-predictions in `agent.py` | Very High | 🔄 PR [#40](https://github.com/philipphoehn/flopyarcade/pull/40) open |
 | A2 | **Novelty metric fix**: length-invariant score, stop below threshold, separate novelty-children vs elites | Very High | ❌ Bugs #26/#27/#28 still open |
 | A3 | **ConvNet → full field**: feed head + velocity + pressure 2D arrays (not just sampled points) into Conv2D layers | High | ⚠️ Architecture exists, input shape may be 1D |
 | A4 | **Multi-particle / particle swarm** per episode | High | ❌ Not implemented |
@@ -75,12 +75,12 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | B3 | **Actions bar at top**, colormap scaled by reward | Med UX | ❌ Not implemented |
 | B4 | **Store & plot all well trajectories** (ensemble) | Med UX | ❌ Only last game stored |
 | B5 | **Generational trajectory ensemble plot** | Med UX | ❌ Not implemented |
-| B6 | **Matplotlib blitting** for 60+ FPS in `play.py` | Med Perf | ❌ Not implemented |
-| B7 | **FPS counter in 2D HUD** (`play.py`) | Med Perf | ❌ Only in 3D |
-| B8 | **HDF5 novelty archive** (lazy load, append-only) | Med Perf | ❌ Currently pickle/JSON |
+| B6 | **Matplotlib blitting** for 60+ FPS in `play.py` | Med Perf | 🔄 PR [#42](https://github.com/philipphoehn/flopyarcade/pull/42) open |
+| B7 | **FPS counter in 2D HUD** (`play.py`) | Med Perf | 🔄 PR [#43](https://github.com/philipphoehn/flopyarcade/pull/43) open |
+| B8 | **HDF5 novelty archive** (lazy load, append-only) | Med Perf | 🔄 PR [#44](https://github.com/philipphoehn/flopyarcade/pull/44) open |
 | B9 | **Auto-profile runtimes** (cProfile / line_profiler integration) | Med Perf | ❌ Not implemented |
 | B10 | **RAM-disk / in-memory filesystem** for MODFLOW work files | Med Perf | ❌ Not implemented |
-| B11 | **Resume function for DQN** (checkpoint save/load) | Med UX | ❌ Only neuroevolution has it |
+| B11 | **Resume function for DQN** (checkpoint save/load) | Med UX | 🔄 PR [#41](https://github.com/philipphoehn/flopyarcade/pull/41) open |
 | B12 | **Website: auto-update benchmark figures** | Med UX | ❌ Manual |
 | B13 | **Website: animated GIF logo** | Low UX | ❌ Static |
 | B14 | **Scale linewidth around well** with pumping rate | Low UX | ❌ Not implemented |
@@ -94,11 +94,11 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | # | Task | Impact | Status |
 |---|------|--------|--------|
 | C1 | **Surrogate model**: test sim-boost factor, recall test | Med | ❌ Research |
-| C2 | **Why does novelty increase with action length?** | High | ❌ Open bug |
+| C2 | **Novelty length-invariance fix**: normalize per-pair score by episode count | High | 🔄 PR [#45](https://github.com/philipphoehn/flopyarcade/pull/45) open |
 | C3 | **Why is best-reward agent inconsistent?** | High | ❌ Open bug |
 | C4 | **Duplicate agents after restart?** | Med | ❌ Open bug |
 | C5 | **Check convergence / success flag** in MODFLOW | Med | ⚠️ Backoff added, flag check TBD |
-| C6 | **ENVTYPE 3 reward not fully reset on loss?** | Med | ❌ Investigate |
+| C6 | **Reward reset on fail**: reset rewardCurrent to prevent accumulation leak | Med | 🔄 PR [#46](https://github.com/philipphoehn/flopyarcade/pull/46) open |
 | C7 | **Is initialisation triggering limited action set?** | Med | ❌ Investigate |
 | C8 | **Debug: flexibility when changing mesh resolution** | Med | ❌ Not tested |
 | C9 | **Pruning + ensemble validation** with archived models | Med | ❌ Not implemented |
