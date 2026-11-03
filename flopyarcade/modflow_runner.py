@@ -1073,14 +1073,21 @@ class ModflowMixin:
         """
         self.mf_bas = ModflowBas(self.mf, ibound=self.ibound, strt=self.strt)
 
-    def add_lpf_package_other(self):
-        """Add the Layer Property Flow (LPF) package with uniform hydraulic conductivity.
+    def add_lpf_package_other(self, hk_array=None):
+        """Add the Layer Property Flow (LPF) package.
+
+        Supports both uniform and spatially-varying hydraulic conductivity.
 
         Args:
             self (object): Instance containing the MODFLOW model.
+            hk_array (np.ndarray, optional): Spatially-varying hydraulic conductivity
+                array of shape (nlay, nrow, ncol). If None, uses uniform K=10.0.
 
         """
-        hk = 10.0  # uniform hydraulic conductivity
+        if hk_array is not None:
+            hk = hk_array
+        else:
+            hk = 10.0  # uniform hydraulic conductivity
         self.mf_lpf = ModflowLpf(
             self.mf,
             hk=hk,
