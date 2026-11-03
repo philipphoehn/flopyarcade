@@ -867,11 +867,16 @@ class RenderMixin:
         idx = 0
         for i, length in enumerate(lengths):
             color = colors[idx + length - 1]
-            self.ax2.plot(
-                self.trajectories['x'][i],
-                self.trajectories['y'][i],
-                lw=2, c=color, zorder=zorder
-            )
+            x_raw = np.asarray(self.trajectories['x'][i], dtype=np.float64)
+            y_raw = np.asarray(self.trajectories['y'][i], dtype=np.float64)
+            if len(x_raw) >= 2:
+                t_orig = np.linspace(0.0, 1.0, len(x_raw))
+                t_new = np.linspace(0.0, 1.0, max(2, len(x_raw) * 10))
+                xs = np.interp(t_new, t_orig, x_raw)
+                ys = np.interp(t_new, t_orig, y_raw)
+            else:
+                xs, ys = x_raw, y_raw
+            self.ax2.plot(xs, ys, lw=2, c=color, zorder=zorder)
             idx += length
 
     def renderRemoveAxesTicks(self):
