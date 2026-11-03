@@ -60,6 +60,112 @@ class TestFloPyAgentDQN(unittest.TestCase):
             self.assertFalse(ENVTYPE, 'Test of deep Q-network agent in environment ' + ENVTYPE + ' failed.')
 
 
+    def test_targetModel_exists_after_init(self):
+        """Verify that targetModel is created during DQN agent initialization."""
+        envSettings, hyParams = train_dqn.envSettings, train_dqn.hyParams
+        envSettings['ENVTYPE'] = '1s-d'
+        envSettings['MODELNAME'] = 'unittest_ddqn'
+        envSettings['RENDER'] = False
+        hyParams['NHIDDENNODES'] = [5] * 2
+        hyParams['HIDDENACTIVATIONS'] = ['relu'] * 2
+        hyParams['DROPOUTS'] = [0.0] * 2
+        hyParams['REPLAYMEMORYSIZE'] = 100
+        hyParams['EPSILONINITIAL'] = 1.0
+
+        from flopyarcade import FloPyAgent, FloPyEnv
+        env = FloPyEnv(
+            envSettings['ENVTYPE'], None, None,
+            envSettings['MODELNAME'], flagRender=False,
+            NAGENTSTEPS=3, OBSPREP='perceptron')
+        agent = FloPyAgent(
+            env.observationsVectorNormalized,
+            env.actionSpace, hyParams, envSettings, 'DQN')
+
+        self.assertTrue(hasattr(agent, 'targetModel'),
+                        'targetModel attribute missing after DQN init')
+        self.assertIsNotNone(agent.targetModel)
+
+    def test_targetModel_same_architecture_as_mainModel(self):
+        """Verify targetModel has the same architecture as mainModel."""
+        envSettings, hyParams = train_dqn.envSettings, train_dqn.hyParams
+        envSettings['ENVTYPE'] = '1s-d'
+        envSettings['MODELNAME'] = 'unittest_ddqn'
+        envSettings['RENDER'] = False
+        hyParams['NHIDDENNODES'] = [5] * 2
+        hyParams['HIDDENACTIVATIONS'] = ['relu'] * 2
+        hyParams['DROPOUTS'] = [0.0] * 2
+        hyParams['REPLAYMEMORYSIZE'] = 100
+        hyParams['EPSILONINITIAL'] = 1.0
+
+        from flopyarcade import FloPyAgent, FloPyEnv
+        env = FloPyEnv(
+            envSettings['ENVTYPE'], None, None,
+            envSettings['MODELNAME'], flagRender=False,
+            NAGENTSTEPS=3, OBSPREP='perceptron')
+        agent = FloPyAgent(
+            env.observationsVectorNormalized,
+            env.actionSpace, hyParams, envSettings, 'DQN')
+
+        # Compare layer-by-layer architecture
+        main_layers = agent.mainModel.layers
+        target_layers = agent.targetModel.layers
+        self.assertEqual(len(main_layers), len(target_layers),
+                         'Layer count mismatch between mainModel and targetModel')
+        for i, (ml, tl) in enumerate(zip(main_layers, target_layers)):
+            self.assertEqual(ml.__class__.__name__, tl.__class__.__name__,
+                             f'Layer {i} class mismatch: {ml.__class__.__name__} vs {tl.__class__.__name__}')
+            self.assertEqual(ml.count_params(), tl.count_params(),
+                             f'Layer {i} param count mismatch: {ml.count_params()} vs {tl.count_params()}')
+
+    def test_train_uses_targetNetwork_for_bootstrapping(self):
+        """Verify that train() uses targetModel (not mainModel) for Q-target computation."""
+        import numpy as np
+        from unittest.mock import patch
+        envSettings, hyParams = train_dqn.envSettings, train_dqn.hyParams
+        envSettings['ENVTYPE'] = '1s-d'
+        envSettings['MODELNAME'] = 'unittest_ddqn'
+        envSettings['RENDER'] = False
+        hyParams['NHIDDENNODES'] = [5] * 2
+        hyParams['HIDDENACTIVATIONS'] = ['relu'] * 2
+        hyParams['DROPOUTS'] = [0.0] * 2
+        hyParams['REPLAYMEMORYSIZE'] = 100
+        hyParams['REPLAYMEMORYSIZEMIN'] = 3
+        hyParams['MINIBATCHSIZE'] = 3
+        hyParams['EPSILONINITIAL'] = 1.0
+        hyParams['UPDATEPREDICTIVEMODELEVERY'] = 100
+
+        from flopyarcade import FloPyAgent, FloPyEnv
+        env = FloPyEnv(
+            envSettings['ENVTYPE'], None, None,
+            envSettings['MODELNAME'], flagRender=False,
+            NAGENTSTEPS=3, OBSPREP='perceptron')
+        agent = FloPyAgent(
+            env.observationsVectorNormalized,
+            env.actionSpace, hyParams, envSettings, 'DQN')
+
+        # Create fake replay memory entries with correct observation shape
+        obs_len = len(env.observationsVectorNormalized)
+        fake_transitions = []
+        for _ in range(hyParams['REPLAYMEMORYSIZEMIN']):
+            state = np.random.rand(obs_len).astype(np.float32)
+            action = 0
+            reward = 1.0
+            next_state = np.random.rand(obs_len).astype(np.float32)
+            done = False
+            fake_transitions.append([state, action, reward, next_state, done])
+        agent.replayMemory.extend(fake_transitions)
+
+        # Patch targetModel.predict to track calls
+        with patch.object(agent.targetModel, 'predict', wraps=agent.targetModel.predict) as target_predict_mock:
+            with patch.object(agent.mainModel, 'predict', wraps=agent.mainModel.predict):
+                with patch.object(agent.mainModel, 'fit', wraps=agent.mainModel.fit):
+                    agent.train(terminal_state=True, step=1)
+
+        self.assertTrue(target_predict_mock.called,
+                        'targetModel.predict was not called during train() - '
+                        'Double-DQN bootstrapping is not using the target network')
+
+
 if __name__ == '__main__':
     unittest.main(exit=False)
 
