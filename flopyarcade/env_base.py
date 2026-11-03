@@ -1943,7 +1943,7 @@ class EnvBaseMixin:
         x, y = coords[0], self.extentY - coords[1]
         return x, y
 
-    def _create_outline_circle(self, center, radius, color, zorder):
+    def _create_outline_circle(self, center, radius, color, zorder, lw=1.0):
         """Create an outline circle patch.
 
         Args:
@@ -1952,6 +1952,7 @@ class EnvBaseMixin:
             radius (float): Radius of the circle.
             color: Color of the circle outline.
             zorder (int): Drawing order.
+            lw (float): Line width, scaled by pumping rate.
 
         Returns:
             matplotlib.patches.Circle: A Circle patch object.
@@ -1965,7 +1966,7 @@ class EnvBaseMixin:
             fill=False,
             zorder=zorder,
             alpha=1.0,
-            lw=1.0
+            lw=lw
         )
 
     def _create_filled_circle(self, center, radius, color, alpha, zorder):

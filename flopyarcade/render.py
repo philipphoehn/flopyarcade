@@ -564,8 +564,9 @@ class RenderMixin:
         """
         color = self.renderGetWellColor(quantity)
         center = self._circle_coords(coords)
-
-        outline = self._create_outline_circle(center, radius, color, zorder)
+        # B14: scale outline width with pumping rate
+        lw = 1.0 + 4.0 * (abs(quantity) / max(abs(min_quantity), 1e-6))
+        outline = self._create_outline_circle(center, radius, color, zorder, lw=lw)
         self.ax2.add_artist(outline)
 
         alpha = self.renderGetWellCircleAlpha(quantity, min_quantity)
