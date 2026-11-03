@@ -84,8 +84,9 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | B12 | **Website: auto-update benchmark figures** | Med UX | ❌ Manual |
 | B13 | **Website: animated GIF logo** | Low UX | ❌ Static |
 | B14 | **Scale linewidth around well** with pumping rate | Low UX | ❌ Not implemented |
-| B15 | **Edit white line** (highest reward) + transparent initial | Low UX | ❌ Not implemented |
+| B15 | **Edit white line** (highest reward) + transparent initial | Low UX | 🔄 PR [#48](https://github.com/philipphoehn/flopyarcade/pull/48) open |
 | B16 | **Generate GIFs of progress** during evolution | Low UX | ❌ Not implemented |
+| B17 | **Benchmark suite orchestrator** (`examples/benchmark_suite.py`): runs random / human / trained-agent on each env type, outputs reproducible score table. **Requires locally stored human control data (operator session recordings) to be uploaded to the benchmark environment to reproduce the human baseline score.** Without the uploaded control data the human column is unavailable and the table is incomplete. | High (validation) | ❌ Not implemented |
 
 ---
 
@@ -270,6 +271,7 @@ Phase 3:
 
 | Date | Change |
 |------|--------|
+| 2026-11-03 | Layer separation: moved 6 train scripts to `examples/`, split deps into `[solvers]`/`[ray]` extras, made `FloPyAgent` import optional, bumped to 0.7.0, added B17 benchmark suite (requires human control data) |
 | 2026-11-01 | Rebuilt: module-split audit, marked 13 items as implemented, re-prioritised remaining work, revised branch plan to 7 branches in 3 phases |
 | 2026-11-01 | Added 6-branch development plan + dependency graph |
 | 2026-11-01 | Initial: 47 items from `ideas.dev` |

@@ -4,7 +4,7 @@ FloPyArcade.
 Simulated groundwater flow environments to test reinforcement learning algorithms.
 """
 
-__version__ = '0.3.23'
+__version__ = '0.7.0'
 __author__ = 'Philipp Hoehn'
 
 
@@ -43,6 +43,14 @@ if not exists(join(wrkspc, 'simulators', 'win64')):
 
 from .flopyarcade import FloPyEnv
 from .arcade import FloPyArcade
-from .agent import FloPyAgent
+
+# Solvers are optional — require tensorflow (pip install flopyarcade[solvers])
+try:
+    from flopyarcade_solvers import FloPyAgent
+except ImportError:
+    try:
+        from .agent import FloPyAgent
+    except ImportError:
+        FloPyAgent = None
 
 __all__ = ['FloPyEnv', 'FloPyArcade', 'FloPyAgent']
