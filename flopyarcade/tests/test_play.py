@@ -18,6 +18,9 @@ from os import remove
 from os.path import abspath, dirname, isdir, isfile, join
 from shutil import rmtree
 import unittest
+import pytest
+
+pytestmark = pytest.mark.slow
 
 
 class TestFloPyEnvPlay(unittest.TestCase):
