@@ -104,30 +104,32 @@ flowchart LR
 ## Project Structure
 
 ```
-flopyarcade/
-├── flopyarcade.py          # Core FloPyEnv + FloPyAgent (8900+ lines)
-├── env_base.py             # Environment base class & abstractions
-├── agent.py                # Policy model (DQN, neuroevolution)
-├── arcade.py               # Game loop & scoring
-├── play.py                 # Manual / AI-controlled play entry point
-├── play3d.py               # 3D play entry point
-├── render.py               # 2D matplotlib rendering
-├── render3d.py             # 3D pyrender rendering (cinematic theme)
-├── reward.py               # Reward computation
-├── observations.py         # Observation vector assembly
-├── actions.py              # Action space dispatch
-├── modflow_runner.py       # MODFLOW 2005 / MP6 subprocess management
-├── modpath_runner.py       # MODPATH 6 particle tracking
-├── train_rllib_apexdqn.py  # Ray RLlib APExDQN trainer
-├── train_rllib_ppo.py      # Ray RLlib PPO trainer
-├── train_rllib_appo.py     # Ray RLlib APPO trainer
-├── train_rllib_impala.py   # Ray RLlib IMPALA trainer
-├── train_dqn.py            # Classic Double DQN trainer
-├── train_neuroevolution.py # Genetic / novelty-search trainer
-├── simulators/             # Bundled MODFLOW / MP6 binaries (per-OS)
-├── models/                 # Trained policy checkpoints
-├── examples/               # GIFs, notebooks, benchmark images
-└── tests/                  # pytest suite (fast + slow tiers)
+flopyarcade/                        # CORE — Gymnasium environments
+├── flopyarcade.py                  # FloPyEnv (Gymnasium API)
+├── env_base.py                     # Environment base class & abstractions
+├── env_config.py                   # Env-type parsing, grid setup, well placement
+├── agent.py                        # Experimental solvers (DQN, neuroevolution)
+├── arcade.py                       # Game loop & scoring
+├── play.py                         # Manual / AI-controlled play entry point
+├── play3d.py                       # 3D play entry point
+├── render.py                       # 2D matplotlib rendering
+├── render3d.py                     # 3D pyrender rendering (cinematic theme)
+├── reward.py                       # Reward computation
+├── observations.py                 # Observation vector assembly
+├── actions.py                      # Action space dispatch
+├── modflow_runner.py               # MODFLOW 2005 / MP6 subprocess management
+├── modpath_runner.py               # MODPATH 6 particle tracking
+├── simulators/                     # Bundled MODFLOW / MP6 binaries (per-OS)
+├── models/                         # Trained policy checkpoints
+├── examples/                       # Training scripts & benchmark assets
+│   ├── train_rllib_apexdqn.py      # Ray RLlib APExDQN trainer
+│   ├── train_rllib_ppo.py          # Ray RLlib PPO trainer
+│   ├── train_rllib_appo.py         # Ray RLlib APPO trainer
+│   ├── train_rllib_impala.py       # Ray RLlib IMPALA trainer
+│   ├── train_dqn.py                # Classic Double DQN trainer
+│   ├── train_neuroevolution.py     # Genetic / novelty-search trainer
+│   └── images/                     # GIFs, notebooks, benchmark images
+└── tests/                          # pytest suite (fast + slow tiers)
 ```
 
 ---
@@ -138,7 +140,17 @@ flopyarcade/
 
 ```bash
 # Python 3.9–3.12
+# Environments only (lightweight, ~200 MB):
 python -m pip install flopyarcade
+
+# + experimental solvers (Double DQN, neuroevolution):
+python -m pip install flopyarcade[solvers]
+
+# + Ray/RLlib benchmarks:
+python -m pip install flopyarcade[ray]
+
+# Everything:
+python -m pip install flopyarcade[all]
 
 # Linux: also need a Fortran compiler (for MODFLOW binaries)
 sudo apt install gfortran
@@ -168,20 +180,26 @@ python -m flopyarcade.play --manualcontrol True --envtype 3r-d
 
 Arrow keys to control. Alt+F4 to quit.
 
-### Train an Agent (Ray/RLlib)
+### Train an Agent (Ray/RLlib) — requires `pip install flopyarcade[ray]`
 
 ```bash
 # APExDQN on 16 cores (~1-2 days to beat human operators)
-python -m flopyarcade.train_rllib_apexdqn --envtype 3s-d --cpus 16
+python flopyarcade/examples/train_rllib_apexdqn.py --envtype 3s-d --cpus 16
 
 # Or PPO, APPO, IMPALA
-python -m flopyarcade.train_rllib_ppo --envtype 3s-d --cpus 16
+python flopyarcade/examples/train_rllib_ppo.py --envtype 3s-d --cpus 16
+```
+
+### Train with Classic DQN — requires `pip install flopyarcade[solvers]`
+
+```bash
+python flopyarcade/examples/train_dqn.py --envtype 3s-d --ngames 20000
 ```
 
 ### Simulate with a Trained Policy
 
 ```bash
-python -m flopyarcade.train_rllib_apexdqn --playbenchmark True --envtype 3s-d
+python flopyarcade/examples/train_rllib_apexdqn.py --playbenchmark True --envtype 3s-d
 ```
 
 ### Render in 3D
