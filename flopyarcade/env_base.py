@@ -1027,6 +1027,46 @@ class EnvBaseMixin:
 
         return self.observationsVectorNormalized, self.reward, self.done, self.truncated, self.info
 
+    def _step_apply_action(self, action):
+        """Pipeline stage 1: apply action to model."""
+        self.setActionValue(action)
+        self.initializeState(self.state)
+        self.updateModel()
+        self.updateWellRate()
+        self.updateWell()
+
+    def _step_run_simulation(self):
+        """Pipeline stage 2: run MODFLOW + MODPATH."""
+        self.runMODFLOW()
+        self.runMODPATH()
+        self.evaluateParticleTracking()
+
+    def _step_evaluate_reward(self):
+        """Pipeline stage 3: calculate reward."""
+        self.calculate_reward()
+
+    def _step_update_state(self):
+        """Pipeline stage 4: update state + observations."""
+        self.update_state()
+        self.get_normalized_observations()
+        self.get_normalized_stresses()
+        self.check_particle_state()
+
+    def _step_finalize(self):
+        """Pipeline stage 5: hash, render, bookkeeping."""
+        self.rewardCurrent += self.reward
+        if self.RENDER or self.MANUALCONTROL or self.SAVEPLOT:
+            self.render()
+        self.observations = np.array(self.observationsVectorNormalized)
+        self._feed_obs_hash(self.observations)
+        self.timeStep += 1
+        self.info = {
+            'timestep': self.timeStep,
+            'max_steps': self.maxSteps,
+            'action': self._last_action,
+        }
+        self.update_envhash()
+
     def _handle_other_environments(self, action, reward, info, teardownOnFinish):
         """Handle environment types other than '0s-c'.
 
@@ -1049,38 +1089,13 @@ class EnvBaseMixin:
         self.keyPressed = None
         self.periodSteadiness = False
 
-        self.setActionValue(action)
-        self.initializeState(self.state)
-        self.updateModel()
-        self.updateWellRate()
-        self.updateWell()
-        self.runMODFLOW()
-        self.runMODPATH()
-        self.evaluateParticleTracking()
-        self.calculate_reward()
-
-        self.update_state()
-        self.get_normalized_observations()
-        self.get_normalized_stresses()
-        self.check_particle_state()
-
-        self.rewardCurrent += self.reward
-
-        if self.RENDER or self.MANUALCONTROL or self.SAVEPLOT:
-            self.render()
-
-        self.observations = np.array(self.observationsVectorNormalized)
-        self._feed_obs_hash(self.observations)
-
-        self.timeStep += 1
-
-        self.info = {
-            'timestep': self.timeStep,
-            'max_steps': self.maxSteps,
-            'action': action,
-        }
-
-        self.update_envhash()
+        # --- Step pipeline (named stages) ---
+        self._last_action = action
+        self._step_apply_action(action)    # 1. action to model
+        self._step_run_simulation()         # 2. solve + track
+        self._step_evaluate_reward()        # 3. reward
+        self._step_update_state()           # 4. obs + state
+        self._step_finalize()               # 5. hash + bookkeeping
 
         if self.done and teardownOnFinish:
             self.tempDir.cleanup()
