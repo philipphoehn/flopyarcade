@@ -29,6 +29,22 @@ dependencies = [
 	"tqdm >= 4.64.1",
 	"xmipy == 1.3.0",
 ]
+classifiers = [
+	'Development Status :: 3 - Alpha',
+	'Intended Audience :: Science/Research',
+	'Intended Audience :: Education',
+	'Intended Audience :: Developers',
+	'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+	'Natural Language :: English',
+	'Operating System :: POSIX :: Linux',
+	'Operating System :: Microsoft :: Windows',
+	'Programming Language :: Python :: 3',
+	'Programming Language :: Python :: 3 :: Only',
+	'Topic :: Scientific/Engineering',
+	'Topic :: Scientific/Engineering :: Hydrology',
+	'Topic :: Scientific/Engineering :: Artificial Intelligence',
+	'Topic :: Education',
+]
 
 [project.optional-dependencies]
 solvers = [
@@ -48,22 +64,7 @@ dev = [
 	"pytest-cov",
 	"coverage",
 ]
-classifiers = [
-	'Development Status :: 3 - Alpha',
-	'Intended Audience :: Science/Research',
-	'Intended Audience :: Education',
-	'Intended Audience :: Developers',
-	'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
-	'Natural Language :: English',
-	'Operating System :: POSIX :: Linux',
-	'Operating System :: Microsoft :: Windows',
-	'Programming Language :: Python :: 3',
-	'Programming Language :: Python :: 3 :: Only',
-	'Topic :: Scientific/Engineering',
-	'Topic :: Scientific/Engineering :: Hydrology',
-	'Topic :: Scientific/Engineering :: Artificial Intelligence',
-	'Topic :: Education',
-]
+
 [tool.pytest.ini_options]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
