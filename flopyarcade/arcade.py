@@ -395,6 +395,13 @@ class FloPyArcade:
             sleep(5)
         if self.keepTimeSeries:
             self.timeSeries['trajectories'] = self.env.trajectories
+            # C19: save episode dataset for later evaluation
+            datasetsDir = join(self.wrkspc, 'datasets')
+            makedirs(datasetsDir, exist_ok=True)
+            outcome = 'success' if self.env.success else 'fail'
+            ts = time()
+            fname = f"episode_{self.env.ENVTYPE}_{outcome}_{int(ts)}.p"
+            joblibDump(self.timeSeries, join(datasetsDir, fname))
         self.success = self.env.success
         if verbose:
             outcome = 'won' if self.env.success else 'lost'
