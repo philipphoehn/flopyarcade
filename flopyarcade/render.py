@@ -512,14 +512,16 @@ class RenderMixin:
             zorder (int, optional): Drawing order for the plot. Defaults to 5.
         
         """
+        # B15: ideal (max-reward) line is now a solid, more prominent guide
+        # instead of a faint dashed reference.
         self.ax2.plot(
             [self.minX, self.minX + self.extentX],
             [self.particleY, self.particleY],
-            lw=1.5,
+            lw=2.5,
             c='white',
-            ls='--',
+            ls='-',
             zorder=zorder,
-            alpha=0.5
+            alpha=0.85
         )
 
     def renderContourLines(self, n=30, zorder=4):
@@ -837,8 +839,15 @@ class RenderMixin:
             zorder (int): Drawing order for the particle.
         
         """
-        linewidth = 4 if self.timeStep == 0 else 2
-        self.ax2.scatter(x, y, lw=linewidth, c='red', zorder=zorder)
+        # B15: the initial spawn marker (timeStep==0) recedes visually
+        # (thin + translucent) so the live particle + trajectory dominate.
+        if self.timeStep == 0:
+            linewidth = 1.5
+            alpha = 0.35
+        else:
+            linewidth = 2
+            alpha = 1.0
+        self.ax2.scatter(x, y, lw=linewidth, c='red', zorder=zorder, alpha=alpha)
 
     def renderParticleTrajectory(self, zorder=6):
         """Plot particle trajectory up to the current state.
