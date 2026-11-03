@@ -131,10 +131,24 @@ class Render3D:
         ax.plot_wireframe(X[::ws, ::ws], Y[::ws, ::ws], Z[::ws, ::ws],
                           color=CYAN, alpha=0.08, lw=0.3)
 
-        # 3. Trajectory — locked to surface, neon gradient
+        # 3. Trajectory — locked to surface, neon gradient (smoothed via cubic spline)
         if len(self.trajectory) > 1:
             traj = np.array(self.trajectory)
             n = len(traj)
+            # Cubic spline subdivision for smooth curved rendering
+            if n >= 3:
+                from scipy.interpolate import PchipInterpolator
+                d = np.diff(traj, axis=0)
+                seg = np.sqrt((d**2).sum(axis=1))
+                s_orig = np.concatenate([[0.0], np.cumsum(seg)])
+                s_new = np.linspace(0.0, s_orig[-1], n * 10)
+                traj = np.column_stack([
+                    PchipInterpolator(s_orig, traj[:, c])(s_new)
+                    for c in range(3)
+                ])
+                n = len(traj)
+            elif n == 2:
+                traj = np.linspace(traj[0], traj[1], 20)
             # Batch: single plot call (fastest)
             ax.plot(traj[:, 0], traj[:, 1], traj[:, 2],
                     color=MAGENTA, lw=2.0, alpha=0.7, zorder=5)
