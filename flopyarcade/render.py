@@ -869,11 +869,20 @@ class RenderMixin:
             color = colors[idx + length - 1]
             x_raw = np.asarray(self.trajectories['x'][i], dtype=np.float64)
             y_raw = np.asarray(self.trajectories['y'][i], dtype=np.float64)
-            if len(x_raw) >= 2:
-                t_orig = np.linspace(0.0, 1.0, len(x_raw))
-                t_new = np.linspace(0.0, 1.0, max(2, len(x_raw) * 10))
-                xs = np.interp(t_new, t_orig, x_raw)
-                ys = np.interp(t_new, t_orig, y_raw)
+            if len(x_raw) >= 3:
+                # Cumulative arc length as parameter (non-uniform spacing)
+                dx = np.diff(x_raw)
+                dy = np.diff(y_raw)
+                seg = np.sqrt(dx**2 + dy**2)
+                s_orig = np.concatenate([[0.0], np.cumsum(seg)])
+                s_new = np.linspace(0.0, s_orig[-1], len(x_raw) * 10)
+                from scipy.interpolate import PchipInterpolator
+                xs = PchipInterpolator(s_orig, x_raw)(s_new)
+                ys = PchipInterpolator(s_orig, y_raw)(s_new)
+            elif len(x_raw) == 2:
+                # Too few points for spline — linear is fine
+                xs = np.linspace(x_raw[0], x_raw[1], 20)
+                ys = np.linspace(y_raw[0], y_raw[1], 20)
             else:
                 xs, ys = x_raw, y_raw
             self.ax2.plot(xs, ys, lw=2, c=color, zorder=zorder)
