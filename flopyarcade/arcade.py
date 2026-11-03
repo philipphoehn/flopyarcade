@@ -154,7 +154,7 @@ class FloPyArcade:
                  PATHMP6=None, surrogateSimulator=None, flagSavePlot=False,
                  flagManualControl=False, actions=None, flagRender=False,
                  keepTimeSeries=False, ENVTYPE='1s-d', nLay=1, nRow=100,
-                 nCol=100, OBSPREP='perceptron'):
+                 nCol=100, OBSPREP='perceptron', flagBlit=True):
         """Constructor.
 
         Args:
@@ -183,13 +183,14 @@ class FloPyArcade:
             agent, modelNameLoad, modelName, animationFolder, NAGENTSTEPS,
             PATHMF2005, PATHMP6, surrogateSimulator, flagSavePlot,
             flagManualControl, actions, flagRender, keepTimeSeries,
-            ENVTYPE, nLay, nRow, nCol, OBSPREP
+            ENVTYPE, nLay, nRow, nCol, OBSPREP, flagBlit
         )
 
     def _init_config(self, agent, modelNameLoad, modelName, animationFolder,
                      NAGENTSTEPS, PATHMF2005, PATHMP6, surrogateSimulator,
                      flagSavePlot, flagManualControl, actions, flagRender,
-                     keepTimeSeries, ENVTYPE, nLay, nRow, nCol, OBSPREP):
+                     keepTimeSeries, ENVTYPE, nLay, nRow, nCol, OBSPREP,
+                     flagBlit=True):
         """Initialize configuration for FloPyArcade.
 
         Args:
@@ -205,6 +206,7 @@ class FloPyArcade:
         self.SAVEPLOT = flagSavePlot
         self.MANUALCONTROL = flagManualControl
         self.RENDER = flagRender
+        self.BLIT = flagBlit
         self.MODELNAME = modelName or modelNameLoad or "untitled"
         self.ANIMATIONFOLDER = (
             animationFolder or modelName or modelNameLoad or "untitled"
@@ -271,6 +273,7 @@ class FloPyArcade:
                 NAGENTSTEPS=self.NAGENTSTEPS, nLay=self.nLay, nRow=self.nRow,
                 nCol=self.nCol, OBSPREP=self.OBSPREP, initWithSolution=True
             )
+            self.env._blit_enabled = self.BLIT
         else:
             self.env = FloPyEnvSurrogate(
                 self.SURROGATESIMULATOR, ENVTYPE, MODELNAME=self.MODELNAME,

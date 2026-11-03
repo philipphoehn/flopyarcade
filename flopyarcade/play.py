@@ -58,6 +58,7 @@ def main(
     'SAVEPLOT': False,
     'MANUALCONTROL': False,
     'RENDER': True,
+    'BLIT': True,
     'MODELNAMELOAD': None,
     'MODELNAME': 'FloPyArcade',
     'PATHMF2005': None,
@@ -86,6 +87,8 @@ def main(
         help='boolean defining manual control model')
     parser.add_argument('--render', default=True, type=str_to_bool,
         help='boolean defining if displaying runs')
+    parser.add_argument('--blit', default=True, type=str_to_bool,
+        help='boolean enabling matplotlib blitting for 60+ FPS (default: True)')
     parser.add_argument('--modelnameload', default=None, type=str,
         help='string defining model to load')
     parser.add_argument('--modelname', default='FloPyArcade', type=str,
@@ -115,6 +118,7 @@ def main(
             'SAVEPLOT': args.saveplot,                          # boolean defining whether to save game animation
             'MANUALCONTROL': args.manualcontrol,                # boolean defining manual control model
             'RENDER': args.render,                              # boolean defining if displaying runs
+            'BLIT': args.blit,                              # boolean enabling matplotlib blitting
             'MODELNAMELOAD': args.modelnameload,                # string defining model to load
             'MODELNAME': args.modelname,                        # string defining model basename
             'PATHMF2005': args.pathmf2005,                      # string defining local path to MODFLOW 2005 executable
@@ -141,6 +145,7 @@ def main(
         flagSavePlot=envSettings['SAVEPLOT'],
         flagManualControl=envSettings['MANUALCONTROL'],
         flagRender=envSettings['RENDER'],
+        flagBlit=envSettings['BLIT'],
         nLay=envSettings['NLAY'],
         nRow=envSettings['NROW'],
         nCol=envSettings['NCOL'],

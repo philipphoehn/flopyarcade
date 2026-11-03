@@ -269,6 +269,12 @@ class EnvBaseMixin:
         self.rewardCurrent = 0.0
         self.delFiles = True
         self.canvasInitialized = False
+        self._blit_background = None
+        self._blit_enabled = False
+        self._blit_artists = {}
+        self._fps = 0.0
+        from collections import deque as _deque
+        self._frame_times = _deque(maxlen=60)
         self.renderFlag = self.RENDER
         self.success = False
         self.current_time = 0
@@ -1894,7 +1900,11 @@ class EnvBaseMixin:
         if self.MANUALCONTROL:
             self.renderUserInterAction()
         elif self.RENDER:
-            self.fig.canvas.draw()
+            if self._blit_enabled:
+                self.render_blit_frame()
+            else:
+                self.fig.canvas.draw()
+            self.renderFPS()
             show(block=False)
             pause(self.MANUALCONTROLTIME)
         self.renderClearAxes()
