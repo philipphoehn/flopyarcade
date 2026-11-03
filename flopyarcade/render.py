@@ -1139,6 +1139,94 @@ class RenderMixin:
         if self.ENVTYPE in envtypes_with_ax3:
             self.clear_axis(self.ax3)
 
+    def render_blit_init(self):
+        """Initialize blitting by capturing the static background buffer."""
+        self.fig.canvas.draw()
+        self._blit_background = self.fig.canvas.copy_from_bbox(self.fig.bbox)
+        self._blit_artists = {
+            'particle': None,
+            'trajectory': [],
+            'score_text': None,
+        }
+
+    def render_blit_frame(self):
+        """Render a single frame using blitting."""
+        if self._blit_background is None:
+            self.render_blit_init()
+        self.fig.canvas.restore_region(self._blit_background)
+        self._blit_update_particle()
+        self._blit_update_trajectory()
+        self._blit_update_score_text()
+        self.fig.canvas.blit(self.fig.bbox)
+
+    def _blit_update_particle(self):
+        """Update the particle artist for blitting mode."""
+        try:
+            x, y = self._get_particle_coords()
+        except (IndexError, TypeError):
+            return
+        linewidth = 4 if self.timeStep == 0 else 2
+        if self._blit_artists.get('particle') is None:
+            self._blit_artists['particle'] = self.ax2.scatter(
+                x, y, lw=linewidth, c='red', zorder=6
+            )
+        else:
+            self._blit_artists['particle'].set_offsets(
+                self.ax2.transData.transform([(x, y)])
+            )
+
+    def _blit_update_trajectory(self):
+        """Update the trajectory artists for blitting mode."""
+        if self.timeStep <= 0:
+            return
+        for line in self._blit_artists.get('trajectory', []):
+            line.remove()
+        self._blit_artists['trajectory'] = []
+        total, lengths = self._count_trajectory_points()
+        colors = self._generate_fade_colors(total)
+        idx = 0
+        for i, length in enumerate(lengths):
+            color = colors[idx + length - 1]
+            line, = self.ax2.plot(
+                self.trajectories['x'][i],
+                self.trajectories['y'][i],
+                lw=2, c=color, zorder=6
+            )
+            self._blit_artists['trajectory'].append(line)
+            idx += length
+
+    def _blit_update_score_text(self):
+        """Update the score/time text for blitting mode."""
+        score_text = self.format_score()
+        time_text = self.format_time()
+        display_text = f"{score_text}\ntime: {time_text}"
+        if self._blit_artists.get('score_text') is None:
+            self._blit_artists['score_text'] = self.ax2.text(
+                5, 92, display_text, fontsize=12, zorder=10
+            )
+        else:
+            self._blit_artists['score_text'].set_text(display_text)
+
+    def renderFPS(self, zorder=10):
+        """Render FPS counter text in the upper-right corner."""
+        import time as _time
+        self._frame_times.append(_time.time())
+        if len(self._frame_times) < 2:
+            return
+        elapsed = self._frame_times[-1] - self._frame_times[0]
+        if elapsed > 0:
+            self._fps = (len(self._frame_times) - 1) / elapsed
+        else:
+            self._fps = 0.0
+        fps_text = f"FPS: {self._fps:.1f}"
+        if not hasattr(self, '_fps_artist') or self._fps_artist is None:
+            self._fps_artist = self.ax2.text(
+                95, 92, fps_text, fontsize=12,
+                ha='right', va='top', zorder=zorder
+            )
+        else:
+            self._fps_artist.set_text(fps_text)
+
     def writeGIFtodisk(self, pathGIF, ims, fps=2, optimizeSize=False):
         """Write a GIF to disk and optionally optimize its size.
 
