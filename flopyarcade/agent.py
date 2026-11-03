@@ -254,6 +254,55 @@ class FloPyAgent:
         self.replayMemory = deque(maxlen=self.hyParams['REPLAYMEMORYSIZE'])
         self.epsilon = self.hyParams['EPSILONINITIAL']
         self.targetUpdateCount = 0
+        self.dqnGameCounter = 0
+
+    def save_dqn_checkpoint(self, checkpoint_dir=None):
+        """Save DQN training state to a checkpoint directory."""
+        if checkpoint_dir is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            checkpoint_dir = join(self.wrkspc, 'dqn_checkpoint', timestamp)
+        self._create_folder(checkpoint_dir)
+
+        self.mainModel.save_weights(join(checkpoint_dir, 'mainModel.weights.h5'))
+
+        if hasattr(self, 'targetModel') and self.targetModel is not None:
+            self.targetModel.save_weights(join(checkpoint_dir, 'targetModel.weights.h5'))
+
+        self.pickleDump(join(checkpoint_dir, 'replayMemory.p'), list(self.replayMemory))
+
+        state = {
+            'epsilon': self.epsilon,
+            'gameCounter': self.dqnGameCounter,
+            'targetUpdateCount': self.targetUpdateCount,
+        }
+        self.pickleDump(join(checkpoint_dir, 'state.p'), state)
+
+        print(f'DQN checkpoint saved to {checkpoint_dir}')
+        return checkpoint_dir
+
+    def load_dqn_checkpoint(self, checkpoint_dir):
+        """Load DQN training state from a checkpoint directory."""
+        if not exists(checkpoint_dir):
+            raise FileNotFoundError(f'Checkpoint directory not found: {checkpoint_dir}')
+
+        self.mainModel.load_weights(join(checkpoint_dir, 'mainModel.weights.h5'))
+
+        target_weights_path = join(checkpoint_dir, 'targetModel.weights.h5')
+        if exists(target_weights_path):
+            self.targetModel.load_weights(target_weights_path)
+        else:
+            self.targetModel.set_weights(self.mainModel.get_weights())
+
+        replay_list = self.pickleLoad(join(checkpoint_dir, 'replayMemory.p'))
+        self.replayMemory = deque(maxlen=self.hyParams['REPLAYMEMORYSIZE'])
+        self.replayMemory.extend(replay_list)
+
+        state = self.pickleLoad(join(checkpoint_dir, 'state.p'))
+        self.epsilon = state['epsilon']
+        self.dqnGameCounter = state['gameCounter']
+        self.targetUpdateCount = state['targetUpdateCount']
+
+        print(f'DQN checkpoint loaded from {checkpoint_dir}')
 
     def initializeGeneticAgents(self):
         if self.envSettings['KEEPMODELHISTORY']:
@@ -303,6 +352,12 @@ class FloPyAgent:
                 self._crossvalidate_and_save(env, iGame)
 
             self._decay_epsilon()
+
+            # periodic checkpointing
+            self.dqnGameCounter += 1
+            checkpoint_every = self.hyParams.get('CHECKPOINTEVERY', 0)
+            if checkpoint_every > 0 and self.dqnGameCounter % checkpoint_every == 0:
+                self.save_dqn_checkpoint()
 
     def runGenetic(self, env, searchNovelty=False):
         """Run main pipeline for genetic agent optimization."""
