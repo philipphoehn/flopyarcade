@@ -46,6 +46,10 @@ classifiers = [
 	'Topic :: Education',
 ]
 
+
+[project.scripts]
+flopyarcade-benchmark = 'flopyarcade.benchmark:main'
+
 [project.optional-dependencies]
 solvers = [
 	"tensorflow >= 2.16.0",

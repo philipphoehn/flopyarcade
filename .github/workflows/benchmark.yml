@@ -1,0 +1,63 @@
+name: Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_path:
+        description: 'Path to model file (relative to repo root)'
+        required: true
+        default: 'flopyarcade/examples/policymodels/model_3s-d.p'
+      envtype:
+        description: 'Environment type'
+        required: true
+        default: '3s-d'
+      games:
+        description: 'Number of games'
+        required: false
+        default: '1000'
+
+  pull_request:
+    paths:
+      - 'flopyarcade/benchmark.py'
+      - 'flopyarcade/arcade.py'
+      - 'flopyarcade/agent.py'
+      - 'flopyarcade/actions.py'
+      - 'pyproject.toml'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install package
+        run: |
+          pip install -e .[solvers]
+
+      - name: Run benchmark
+        id: bench
+        run: |
+          MODEL_PATH="${{ github.event.inputs.model_path || 'flopyarcade/examples/policymodels/model_3s-d.p' }}"
+          ENVTYPE="${{ github.event.inputs.envtype || '3s-d' }}"
+          GAMES="${{ github.event.inputs.games || '1000' }}"
+          flopyarcade-benchmark \
+            --model "$MODEL_PATH" \
+            --envtype "$ENVTYPE" \
+            --games "$GAMES" \
+            --seed 42 \
+            --output benchmark_results.json
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark_results.json
+
+      - name: Print summary
+        run: cat benchmark_results.json
