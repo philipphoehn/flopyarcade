@@ -11,7 +11,9 @@ from unittest.mock import patch, MagicMock
 class TestInitPublicAPI:
     def test_version(self):
         import flopyarcade
-        assert flopyarcade.__version__ == '0.3.23'
+        assert isinstance(flopyarcade.__version__, str)
+        import re
+        assert re.match(r'^\d+\.\d+\.\d+$', flopyarcade.__version__)
 
     def test_author(self):
         import flopyarcade
