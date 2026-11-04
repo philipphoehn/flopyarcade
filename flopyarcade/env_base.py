@@ -348,6 +348,8 @@ class EnvBaseMixin:
             self.initializeWellRate(self.minQ, self.maxQ)
         self.initialize_helper_wells()
         self.initializeWell()
+        # A10: resolve protection-zone overlap at init
+        self._resolve_well_overlap()
         if self.ENVTYPE.startswith(('3s', '3r', '4s', '4r', '5s', '5r', '6s', '6r')):
             self.initializeAction()
         self.trajectories = {axis: [] for axis in ('x', 'y', 'z')}

@@ -225,9 +225,17 @@ class ActionsMixin:
                 ['up', 'keep', 'down', 'left', 'right', 'moreQ', 'keepQ', 'lessQ'],
                 2.5, 100.0)
 
+        # C7 fix: avoid OOM from materializing 5^20 / 8^20 product list.
+        # Store per-well action set; full action is an array of ints (MultiDiscrete).
+        self._multiwell_discrete_per_well = len(self.actionSpaceIndividual)
+        self._multiwell_discrete_total = self.nHelperWells
+        # Keep a small reference list for backward compat / testing
+        # C7: cap the reference list to avoid OOM (all multi-well envs have 20 wells)
+        _cap = 2 if int(self.nHelperWells) > 2 else int(self.nHelperWells)
         self.actionSpace = [
-            ''.join(comb) for comb in product(self.actionSpaceIndividual, repeat=self.nHelperWells)
+            ''.join(comb) for comb in product(self.actionSpaceIndividual, repeat=_cap)
         ]
+        self.actionSpaceSize = self.nHelperWells
 
     def _setup_continuous_multiwell_actions(self):
         """Set up continuous action space for multiwell environments.
@@ -413,12 +421,81 @@ class ActionsMixin:
         self.wellCoords = [self.wellX, self.wellY, self.wellZ]
 
 
+    def _resolve_well_overlap(self, max_retries=50):
+        """Resolve protection-zone overlap between helper wells and main well.
+
+        Uses rejection sampling: if a helper well is too close to the main well
+        or to another helper well, re-randomise its position within bounds.
+
+        Minimum separations:
+            helper-to-helper: 2 * helperWellRadius
+            helper-to-main:   wellRadius + helperWellRadius
+
+        Args:
+            self (object): Instance with helperWells, wellX, wellY, etc.
+            max_retries (int): Max re-sampling attempts per well.
+
+        """
+        if not hasattr(self, 'helperWells') or not self.helperWells:
+            return
+        n = self.nHelperWells
+        hw = self.helperWells
+        hw_radius = getattr(self, 'helperWellRadius', self.wellRadius / 4)
+        min_sep_helper = 2.0 * hw_radius
+        min_sep_main = self.wellRadius + hw_radius
+        x_lo, x_hi = 1.1 * self.dCol, self.extentX - 1.1 * self.dCol
+        y_lo, y_hi = 1.1 * self.dRow, self.extentY - 1.1 * self.dRow
+        # Use a local RNG so re-sampling doesn't pollute the global random stream
+        import random as _random
+        _rng = _random.Random(0)
+
+        for i in range(n):
+            w = str(i + 1)
+            for attempt in range(max_retries):
+                cx = hw.get(f'wellX{w}')
+                cy = hw.get(f'wellY{w}')
+                if cx is None or cy is None:
+                    break
+                overlap = False
+                # Check against main well
+                dx_main = cx - self.wellX
+                dy_main = cy - self.wellY
+                if (dx_main ** 2 + dy_main ** 2) < min_sep_main ** 2:
+                    overlap = True
+                # Check against other helper wells
+                if not overlap:
+                    for j in range(n):
+                        if j == i:
+                            continue
+                        wj = str(j + 1)
+                        ox = hw.get(f'wellX{wj}')
+                        oy = hw.get(f'wellY{wj}')
+                        if ox is None or oy is None:
+                            continue
+                        dx = cx - ox
+                        dy = cy - oy
+                        if (dx ** 2 + dy ** 2) < min_sep_helper ** 2:
+                            overlap = True
+                            break
+                if not overlap:
+                    break
+                # Re-randomise this well (local RNG, doesn't pollute global stream)
+                hw[f'wellX{w}'] = _rng.uniform(x_lo, x_hi)
+                hw[f'wellY{w}'] = _rng.uniform(y_lo, y_hi)
+                hw[f'actionValueX{w}'] = hw[f'wellX{w}']
+                hw[f'actionValueY{w}'] = hw[f'wellY{w}']
+                if w in hw and f'wellCoords{w}' in hw:
+                    hw[f'wellCoords{w}'] = [
+                        hw[f'wellX{w}'], hw[f'wellY{w}'], hw.get(f'wellZ{w}', 0.0)
+                    ]
+
     def _update_helper_wells_location(self):
         """
         Update helper wells' locations if environment type allows.
 
         Sets helper wells' X and Y coordinates from action values and updates
         their coordinate lists. Z coordinate remains unchanged.
+        Resolves protection-zone overlap after position update.
 
         Args:
             self (object): Instance with attributes:
@@ -443,6 +520,9 @@ class ActionsMixin:
                 self.helperWells[f'wellY{w}'],
                 self.helperWells[f'wellZ{w}']
             ]
+
+        # A10: prevent protection-zone overlap after position update
+        self._resolve_well_overlap()
 
     def _update_helper_wells_Q(self):
         """Update helper wells' Q values from action value Qs.
