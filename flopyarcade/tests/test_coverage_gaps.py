@@ -287,19 +287,19 @@ class TestRender3DEdge:
 class TestTrainDqnModule:
     def test_module_has_main(self):
         import inspect
-        from flopyarcade import train_dqn
+        from flopyarcade.examples import train_dqn
         src = inspect.getsource(train_dqn)
         assert 'def main' in src
 
     def test_source_references_flopyagent(self):
         import inspect
-        from flopyarcade import train_dqn
+        from flopyarcade.examples import train_dqn
         src = inspect.getsource(train_dqn)
         assert 'FloPyAgent' in src
 
     def test_source_has_dqn(self):
         import inspect
-        from flopyarcade import train_dqn
+        from flopyarcade.examples import train_dqn
         src = inspect.getsource(train_dqn)
         assert 'DQN' in src or 'dqn' in src
 
@@ -308,17 +308,17 @@ class TestTrainDqnModule:
 
 class TestTrainNEModule:
     def test_module_importable(self):
-        from flopyarcade import train_neuroevolution
+        from flopyarcade.examples import train_neuroevolution
         assert train_neuroevolution is not None
 
     def test_source_references_flopyarcade(self):
         import inspect
-        from flopyarcade import train_neuroevolution
+        from flopyarcade.examples import train_neuroevolution
         src = inspect.getsource(train_neuroevolution)
         assert 'FloPyEnv' in src or 'flopyarcade' in src
 
     def test_source_has_genetic_algorithm(self):
         import inspect
-        from flopyarcade import train_neuroevolution
+        from flopyarcade.examples import train_neuroevolution
         src = inspect.getsource(train_neuroevolution)
         assert 'gen' in src.lower() or 'population' in src.lower()

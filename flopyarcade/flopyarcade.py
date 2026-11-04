@@ -86,6 +86,8 @@ import flopy.utils.binaryfile as bf
 from logging import getLogger, FATAL
 environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 getLogger('tensorflow').setLevel(FATAL)
+getLogger('flopy').setLevel(FATAL)
+logger = getLogger(__name__)
 
 # currently ignoring nested array error
 # from numpy import VisibleDeprecationWarning
