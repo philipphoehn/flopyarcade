@@ -27,9 +27,11 @@ on:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - uses: actions/setup-python@v5
         with:
@@ -61,3 +63,31 @@ jobs:
 
       - name: Print summary
         run: cat benchmark_results.json
+
+      - name: Update leaderboard
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python -c "
+          import json, datetime
+          with open('benchmark_results.json') as f:
+              r = json.load(f)
+          line = f'| {r[\"envtype\"]} | {r[\"model\"]} | {r[\"n_games\"]} | {r[\"mean_reward\"]} | {r[\"std_reward\"]} | {r[\"median_reward\"]} | {r[\"max_reward\"]} | {r[\"pct_nonzero\"]}% | {r[\"total_runtime_s\"]}s | {datetime.datetime.utcnow().isoformat()[:10]} |\n'
+          with open('LEADERBOARD_ADDITIONS.md', 'a') as f:
+              f.write(line)
+          print(line)
+          "
+
+      - name: Commit leaderboard update
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          if [ -f LEADERBOARD_ADDITIONS.md ]; then
+            cat LEADERBOARD_ADDITIONS.md >> LEADERBOARD.md
+            rm LEADERBOARD_ADDITIONS.md
+            git add LEADERBOARD.md
+            git commit -m 'bench: auto-update leaderboard (run ${{ github.run_id }})' || true
+            git push
+          fi
