@@ -565,7 +565,7 @@ class RenderMixin:
         color = self.renderGetWellColor(quantity)
         center = self._circle_coords(coords)
         # B14: scale outline width with pumping rate
-        lw = 1.0 + 4.0 * (abs(quantity) / max(abs(min_quantity), 1e-6))
+        lw = 1.0 + 4.0 * (abs(float(quantity)) / py_max(abs(float(min_quantity)), 1e-6))
         outline = self._create_outline_circle(center, radius, color, zorder, lw=lw)
         self.ax2.add_artist(outline)
 
@@ -876,10 +876,17 @@ class RenderMixin:
                 dy = np.diff(y_raw)
                 seg = np.sqrt(dx**2 + dy**2)
                 s_orig = np.concatenate([[0.0], np.cumsum(seg)])
-                s_new = np.linspace(0.0, s_orig[-1], len(x_raw) * 10)
-                from scipy.interpolate import PchipInterpolator
-                xs = PchipInterpolator(s_orig, x_raw)(s_new)
-                ys = PchipInterpolator(s_orig, y_raw)(s_new)
+                # Deduplicate: PCHIP requires strictly increasing x
+                s_unique, idx_unique = np.unique(s_orig, return_index=True)
+                x_u, y_u = x_raw[idx_unique], y_raw[idx_unique]
+                if len(s_unique) >= 3:
+                    s_new = np.linspace(0.0, s_unique[-1], len(s_unique) * 10)
+                    from scipy.interpolate import PchipInterpolator
+                    xs = PchipInterpolator(s_unique, x_u)(s_new)
+                    ys = PchipInterpolator(s_unique, y_u)(s_new)
+                else:
+                    xs = np.linspace(x_u[0], x_u[-1], 20)
+                    ys = np.linspace(y_u[0], y_u[-1], 20)
             elif len(x_raw) == 2:
                 # Too few points for spline — linear is fine
                 xs = np.linspace(x_raw[0], x_raw[1], 20)
