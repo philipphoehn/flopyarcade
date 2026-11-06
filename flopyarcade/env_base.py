@@ -167,6 +167,7 @@ class EnvBaseMixin:
                  OBSPREP='perceptron',
                  initWithSolution=True,
                  PATHMF6DLL=None,
+                 solver_backend='mf2005',
                  env_config=None):
         """Initialize the FloPyEnv environment and configuration.
 
@@ -233,6 +234,7 @@ class EnvBaseMixin:
             'initWithSolution': local_vars['initWithSolution'],
             'PATHMF6DLL': local_vars['PATHMF6DLL'],
             '_seed': local_vars.get('_seed'),
+            'solver_backend': local_vars.get('solver_backend', 'mf2005'),
         }
         # Merge overrides
         self.env_config = {**defaults, **env_config}
@@ -1046,10 +1048,13 @@ class EnvBaseMixin:
         self.updateWell()
 
     def _step_run_simulation(self):
-        """Pipeline stage 2: run MODFLOW + MODPATH."""
-        self.runMODFLOW()
-        self.runMODPATH()
-        self.evaluateParticleTracking()
+        """Pipeline stage 2: run groundwater flow + particle tracking."""
+        if self.env_config.get('solver_backend', 'mf2005') == 'mf6_prt':
+            self._step_run_simulation_mf6prt()
+        else:
+            self.runMODFLOW()
+            self.runMODPATH()
+            self.evaluateParticleTracking()
 
     def _step_evaluate_reward(self):
         """Pipeline stage 3: calculate reward."""
