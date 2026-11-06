@@ -293,7 +293,10 @@ class FloPyArcade:
         self.done = self.env.done
         if self.keepTimeSeries:
             self._init_time_series(self.observations)
-        self.actionSpace = self.env.actionSpace
+        if self.env.actionType == 'continuous':
+            self.actionSpace = list(range(self.env.actionSpaceSize))
+        else:
+            self.actionSpace = self.env.actionSpace
         from flopyarcade.agent import FloPyAgent
         self.agentObj = FloPyAgent(actionSpace=self.actionSpace)
         self.success = False

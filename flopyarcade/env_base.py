@@ -2575,7 +2575,7 @@ class EnvBaseMixin:
             text.set_fontsize(fontsize)
 
     def _increase_font_until_fit(self, text, width, height, fig, ax, whratio,
-                                dFontIncrease=0.001):
+                                dFontIncrease=0.5):
         """Increase font size until text nearly fills the given bounds.
 
         Args:
@@ -2590,7 +2590,8 @@ class EnvBaseMixin:
                 Defaults to 0.001.
         
         """
-        while True:
+        max_iter = 500
+        for _ in range(max_iter):
             text.draw(fig.canvas.renderer)
             bbox = text.get_window_extent().transformed(ax.transData.inverted())
             if (bbox.width * whratio > width) or (bbox.height / whratio > height):

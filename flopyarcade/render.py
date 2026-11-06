@@ -359,15 +359,32 @@ class RenderMixin:
             self (object): The instance containing environment and plotting data.
         
         """
-        self.modelmap = PlotMapView(model=self.mf, layer=0)
-        self.headsplot = self.modelmap.plot_array(
-            self.heads,
-            masked_values=[999.0],
-            alpha=0.5,
-            zorder=2,
-            cmap=colormaps['terrain'] # get_cmap('terrain')
+        # Plot head array directly on self.ax using pcolormesh
+        # (avoids PlotMapView creating a separate figure which breaks blitting)
+        heads_raw = np.asarray(self.heads, dtype=np.float64)
+        heads_raw = np.squeeze(heads_raw)
+        heads_2d = np.ma.masked_where(heads_raw == 999.0, heads_raw)
+        x_coords = np.linspace(self.minX, self.minX + self.extentX, self.nCol + 1)
+        y_coords = np.linspace(self.minY, self.minY + self.extentY, self.nRow + 1)
+        self.headsplot = self.ax.pcolormesh(
+            x_coords, y_coords, heads_2d,
+            shading='flat', alpha=0.5, zorder=2, cmap=colormaps['terrain']
         )
-        self.quadmesh = self.modelmap.plot_ibound(zorder=3)
+        # Plot ibound boundary (masked cells) as black patches
+        if hasattr(self, 'ibound'):
+            from matplotlib.patches import Rectangle
+            ibound_arr = np.asarray(self.ibound)
+            ibound_2d = ibound_arr[0] if ibound_arr.ndim == 3 else ibound_arr
+            for r in range(self.nRow):
+                for c in range(self.nCol):
+                    if ibound_2d[r, c] <= 0:
+                        x0 = self.minX + c * self.dCol
+                        y0 = self.minY + r * self.dRow
+                        rect = Rectangle(
+                            (x0, y0), self.dCol, self.dRow,
+                            facecolor='black', alpha=0.7, zorder=3
+                        )
+                        self.ax.add_patch(rect)
         self.renderWellSafetyZone(zorder=3)
         self.renderContourLines(n=30, zorder=4)
         self.renderIdealParticleTrajectory(zorder=5)
@@ -531,9 +548,13 @@ class RenderMixin:
             zorder (int, optional): Drawing order for contours. Defaults to 4.
         
         """
-        self.levels = linspace(min(self.heads), max(self.heads), n)
-        self.contours = self.modelmap.contour_array(
-            self.heads,
+        heads_arr = np.squeeze(np.asarray(self.heads, dtype=np.float64))
+        self.levels = linspace(float(np.min(heads_arr)), float(np.max(heads_arr)), n)
+        x_coords = np.linspace(self.minX, self.minX + self.extentX, self.nCol)
+        y_coords = np.linspace(self.minY, self.minY + self.extentY, self.nRow)
+        heads_plot = np.ma.masked_where(heads_arr == 999.0, heads_arr)
+        self.contours = self.ax.contour(
+            x_coords, y_coords, heads_plot,
             levels=self.levels,
             alpha=0.5,
             zorder=zorder
@@ -565,7 +586,7 @@ class RenderMixin:
         color = self.renderGetWellColor(quantity)
         center = self._circle_coords(coords)
         # B14: scale outline width with pumping rate
-        lw = 1.0 + 4.0 * (abs(quantity) / max(abs(min_quantity), 1e-6))
+        lw = 1.0 + 4.0 * (abs(quantity) / py_max(abs(min_quantity), 1e-6))
         outline = self._create_outline_circle(center, radius, color, zorder, lw=lw)
         self.ax2.add_artist(outline)
 
@@ -876,10 +897,23 @@ class RenderMixin:
                 dy = np.diff(y_raw)
                 seg = np.sqrt(dx**2 + dy**2)
                 s_orig = np.concatenate([[0.0], np.cumsum(seg)])
-                s_new = np.linspace(0.0, s_orig[-1], len(x_raw) * 10)
-                from scipy.interpolate import PchipInterpolator
-                xs = PchipInterpolator(s_orig, x_raw)(s_new)
-                ys = PchipInterpolator(s_orig, y_raw)(s_new)
+                if s_orig[-1] < 1e-10:
+                    # Zero-length trajectory (well didn't move)
+                    xs, ys = x_raw, y_raw
+                else:
+                    # Deduplicate points to ensure strictly increasing s_orig
+                    keep = np.concatenate([[True], np.diff(s_orig) > 1e-12])
+                    x_dedup = x_raw[keep]
+                    y_dedup = y_raw[keep]
+                    s_dedup = s_orig[keep]
+                    if len(s_dedup) >= 3:
+                        s_new = np.linspace(0.0, s_dedup[-1], len(s_dedup) * 10)
+                        from scipy.interpolate import PchipInterpolator
+                        xs = PchipInterpolator(s_dedup, x_dedup)(s_new)
+                        ys = PchipInterpolator(s_dedup, y_dedup)(s_new)
+                    else:
+                        xs = np.linspace(x_dedup[0], x_dedup[-1], 20)
+                        ys = np.linspace(y_dedup[0], y_dedup[-1], 20)
             elif len(x_raw) == 2:
                 # Too few points for spline — linear is fine
                 xs = np.linspace(x_raw[0], x_raw[1], 20)
@@ -1140,6 +1174,10 @@ class RenderMixin:
         if self.ENVTYPE in envtypes_with_ax3:
             self.clear_axis(self.ax3)
 
+        # Reset blit artists so next frame creates fresh ones
+        if self._blit_enabled:
+            self._blit_artists = {'particle': None, 'trajectory': [], 'score_text': None}
+
     def render_blit_init(self):
         """Initialize blitting by capturing the static background buffer."""
         self.fig.canvas.draw()
@@ -1154,11 +1192,15 @@ class RenderMixin:
         """Render a single frame using blitting."""
         if self._blit_background is None:
             self.render_blit_init()
-        self.fig.canvas.restore_region(self._blit_background)
+        # Update dynamic artists on top of the already-drawn environment
         self._blit_update_particle()
         self._blit_update_trajectory()
         self._blit_update_score_text()
-        self.fig.canvas.blit(self.fig.bbox)
+        # Full canvas draw since the head array changes every timestep,
+        # making a static-background blit approach inapplicable.
+        self.fig.canvas.draw()
+        # Refresh the cached background so next frame's restore is current
+        self._blit_background = self.fig.canvas.copy_from_bbox(self.fig.bbox)
 
     def _blit_update_particle(self):
         """Update the particle artist for blitting mode."""
