@@ -19,10 +19,10 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 MODULES = {
     "play_againstai": "flopyarcade/play_againstai.py",
-    "train_rllib_apexdqn": "flopyarcade/train_rllib_apexdqn.py",
-    "train_rllib_appo": "flopyarcade/train_rllib_appo.py",
-    "train_rllib_impala": "flopyarcade/train_rllib_impala.py",
-    "train_rllib_ppo": "flopyarcade/train_rllib_ppo.py",
+    "train_rllib_apexdqn": "flopyarcade/examples/train_rllib_apexdqn.py",
+    "train_rllib_appo": "flopyarcade/examples/train_rllib_appo.py",
+    "train_rllib_impala": "flopyarcade/examples/train_rllib_impala.py",
+    "train_rllib_ppo": "flopyarcade/examples/train_rllib_ppo.py",
 }
 
 # ---------------------------------------------------------------------------
