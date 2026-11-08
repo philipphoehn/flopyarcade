@@ -624,10 +624,10 @@ class ModflowMixin:
             numpy.ndarray: Copy of the new recharge boundary condition array.
 
         """
-        rch_tag = self.mf6.get_var_address("BOUND", self.nameUpper, "RCHA_0")
+        rch_tag = self.mf6.get_var_address("RECHARGE", self.nameUpper, "RCHA_0")
         new_recharge = self.mf6.get_value(rch_tag).copy()
 
-        self.well_tag = self.mf6.get_var_address("BOUND", self.nameUpper, "WEL_0")
+        self.well_tag = self.mf6.get_var_address("Q", self.nameUpper, "WEL_0")
         self.well = self.mf6.get_value(self.well_tag)
 
         return new_recharge
@@ -685,7 +685,7 @@ class ModflowMixin:
             float: Current recharge value.
         
         """
-        self.rch_tag = self.mf6.get_var_address("BOUND", self.nameUpper, "RCHA_0")
+        self.rch_tag = self.mf6.get_var_address("RECHARGE", self.nameUpper, "RCHA_0")
         return self.mf6.get_value(self.rch_tag)
 
     def finalize_simulation(self):

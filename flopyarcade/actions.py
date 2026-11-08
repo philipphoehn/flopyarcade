@@ -362,7 +362,7 @@ class ActionsMixin:
             self (object): Instance containing well data and Q values.
         
         """
-        self.well[:, 0] = self.collect_Qs()
+        self.well[:] = self.collect_Qs()
 
     def getActionType(self, ENVTYPE):
         """
