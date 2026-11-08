@@ -5,4 +5,4 @@ matplotlib==3.2.2
 numpy==1.22.0
 pathos==0.2.5
 tensorflow==2.12.1
-tqdm==4.66.3
+tqdm==4.70.1
