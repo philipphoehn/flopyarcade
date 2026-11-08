@@ -436,6 +436,7 @@ class TestTrainRllibConfig:
         mod = self._import_module('train_rllib_ppo', ['--cpus', '2'])
         assert mod.config['num_workers'] == 2  # <3, so cpus directly
 
+    @pytest.mark.slow
     def test_appo_config_structure(self):
         mod = self._import_module('train_rllib_appo', ['--envtype', '2s-d'])
         assert hasattr(mod, 'config')
@@ -443,12 +444,14 @@ class TestTrainRllibConfig:
         assert 'seed' in cfg
         assert 'framework' in cfg
 
+    @pytest.mark.slow
     def test_impala_config_structure(self):
         mod = self._import_module('train_rllib_impala', ['--envtype', '1s-d'])
         assert hasattr(mod, 'config')
         cfg = mod.config
         assert 'seed' in cfg
 
+    @pytest.mark.slow
     def test_apexdqn_config_structure(self):
         # ApexTrainer doesn't exist in installed ray.rllib.algorithms.dqn
         import ray.rllib.algorithms.dqn as dqn_mod
@@ -465,6 +468,7 @@ class TestTrainRllibConfig:
             if hasattr(dqn_mod, 'ApexTrainer') and dqn_mod.ApexTrainer is MagicMock:
                 del dqn_mod.ApexTrainer
 
+    @pytest.mark.slow
     def test_env_creator_returns_env(self):
         """env_creator function returns a FloPyEnv instance."""
         mod = self._import_module('train_rllib_ppo', ['--envtype', '1s-d'])
@@ -506,6 +510,7 @@ class TestPlayAgainstAI:
             assert 'seed' in mod.config
             assert 'model' in mod.config
 
+    @pytest.mark.slow
     def test_env_creator(self):
         self._mock_ray_agents_dqn()
         with patch.object(sys, 'argv', ['play_againstai.py', '--envtype', '1s-d']):

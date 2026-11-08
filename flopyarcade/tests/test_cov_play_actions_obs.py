@@ -94,7 +94,7 @@ class TestPlayAgainstAI:
     def test_config_structure(self):
         from flopyarcade.play_againstai import config, config_model, config_stopCriteria
         assert config["seed"] == 1
-        assert config["num_workers"] == 2  # cpus=4, 4-2=2
+        assert config["num_workers"] == 1  # cpus=1 (default), 1<3 so num_workers=cpus=1
         assert config["num_gpus"] == 0
         # last key 'env' in dict wins: it is 'my_env'
         assert config["env"] == "my_env"
