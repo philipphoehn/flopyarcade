@@ -1,0 +1,44 @@
+[
+  {
+    "envtype": "1s-d",
+    "model": "model_1s-d.p",
+    "n_games": 1000,
+    "seed_base": 42,
+    "mean_reward": 186.61,
+    "std_reward": 326.3,
+    "min_reward": -247.15,
+    "max_reward": 982.57,
+    "median_reward": 0.0,
+    "pct_nonzero": 25.0,
+    "avg_runtime_s": 1.197,
+    "total_runtime_s": 1196.9
+  },
+  {
+    "envtype": "2s-d",
+    "model": "model_2s-d.p",
+    "n_games": 1000,
+    "seed_base": 42,
+    "mean_reward": 297.09,
+    "std_reward": 410.83,
+    "min_reward": -247.15,
+    "max_reward": 998.29,
+    "median_reward": 0.0,
+    "pct_nonzero": 35.4,
+    "avg_runtime_s": 1.287,
+    "total_runtime_s": 1287.1
+  },
+  {
+    "envtype": "3s-d",
+    "model": "model_3s-d.p",
+    "n_games": 1000,
+    "seed_base": 42,
+    "mean_reward": 442.74,
+    "std_reward": 401.28,
+    "min_reward": -81.22,
+    "max_reward": 998.13,
+    "median_reward": 575.14,
+    "pct_nonzero": 57.1,
+    "avg_runtime_s": 1.44,
+    "total_runtime_s": 1439.9
+  }
+]

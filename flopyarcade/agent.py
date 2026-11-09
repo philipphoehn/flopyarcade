@@ -86,6 +86,8 @@ import flopy.utils.binaryfile as bf
 from logging import getLogger, FATAL
 environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 getLogger('tensorflow').setLevel(FATAL)
+getLogger('flopy').setLevel(FATAL)
+logger = getLogger(__name__)
 
 # currently ignoring nested array error
 # from numpy import VisibleDeprecationWarning
@@ -419,7 +421,7 @@ class FloPyAgent:
         if self.average_rewardCV >= self.envSettings['REWARDMINTOSAVE']:
             self.mainModel.save(join(self.wrkspc, 'models', filename))
 
-        print('DQN results', self.max_rewardCV, self.average_rewardCV, self.min_rewardCV)
+        logger.info('DQN results max=%.1f avg=%.1f min=%.1f', self.max_rewardCV, self.average_rewardCV, self.min_rewardCV)
 
     def _decay_epsilon(self):
         """Decay exploration rate epsilon."""
@@ -488,12 +490,10 @@ class FloPyAgent:
                     self.agentsDuplicate.append(iAgent)
 
     def _log_generation_rewards(self):
-        print('lowest reward', min(self.rewards))
-        print('average reward', mean(self.rewards))
-        print('highest reward', max(self.rewards))
+        logger.info('rewards: low=%.1f avg=%.1f high=%.1f', min(self.rewards), mean(self.rewards), max(self.rewards))
         if self.envSettings['SEEDSRANDOM']:
             self.bestRewards.append(max(self.rewards))
-            print('highest sliding reward (n=50)', mean(self.bestRewards[-50:]))
+            logger.info('sliding best (n=50)=%.1f', mean(self.bestRewards[-50:]))
 
     def _sort_and_save_top_agents(self):
         sortedParentIdxs = argsort(self.rewards)[::-1][:self.hyParams['NAGENTELITES']]
@@ -504,21 +504,21 @@ class FloPyAgent:
         if not self.searchNovelty:
             return
 
-        print('Performing novelty search')
+        logger.info('Performing novelty search')
         t0 = time()
         self._prepare_novelty_archive(env)
-        print('Preparing novelty search took', round(time() - t0, 2), 's')
+        logger.info('Preparing novelty search took %.2fs', time() - t0)
 
         self._print_novelty_stats()
 
         t0 = time()
         args, update_flags = self._build_novelty_args()
-        print('Calculated novelty search arguments, took', round(time() - t0, 2), 's')
+        logger.info('Calculated novelty search arguments, took %.2fs', time() - t0)
 
-        print('Started novelty search ...')
+        logger.info('Started novelty search ...')
         t0 = time()
         novelties = self._run_novelty_search(args)
-        print('Finished novelty search, took', round(time() - t0, 2), 's')
+        logger.info('Finished novelty search, took %.2fs', time() - t0)
 
         self._update_agent_novelties(novelties, update_flags)
         self._save_novelties()
@@ -1075,7 +1075,7 @@ class FloPyAgent:
             nChunksRemaining = copy(nChunks)
             # batch processing to avoid memory explosion
             # https://stackoverflow.com/questions/18414020/memory-usage-keep-growing-with-pythons-multiprocessing-pool/20439272
-            print('------------------------------')
+            logger.info('--- generation %d ---', self.geneticGeneration + 1)
             for chunk in chunksTotal:
                 t0 = time()
                 if len(runtimes) == 0:
@@ -1088,14 +1088,13 @@ class FloPyAgent:
                     runtimeGenEstimate = '%.3f' % (runtimeGenEstimate/(60*60))
                     runtimeGensEstimate = '%.3f' % (runtimeGensEstimate/(60*60))
 
-                print('Currently: ' + str(min(chunk)) + '/' + 
-                      str(max(agentCounts)+1) + ' agents, ' +
-                      str(self.currentGame) + '/' +
-                      str(self.hyParams['NGAMESAVERAGED']) + ' games, ' +
-                      str(self.geneticGeneration + 1) + '/' +
-                      str(self.hyParams['NGENERATIONS']) + ' generations\n' +
-                      runtimeGenEstimate + ' h for generation, ' +
-                      runtimeGensEstimate + ' h for all generations')
+                logger.info(
+                    'Currently: %d/%d agents, game %d/%d, gen %d/%d | ETA: %s h/gen, %s h total',
+                    min(chunk), max(agentCounts)+1,
+                    self.currentGame, self.hyParams['NGAMESAVERAGED'],
+                    self.geneticGeneration + 1, self.hyParams['NGENERATIONS'],
+                    runtimeGenEstimate, runtimeGensEstimate
+                )
 
                 if self.envSettings['ENVTYPE'] in ['0s-c']:
                     # necessary as some ctypes object related to the dll used with BMI is not pickleable
@@ -1114,7 +1113,7 @@ class FloPyAgent:
                 runtimes.append(time() - t0)
                 nChunksRemaining -= 1
             tRuns = time()-t0Runs
-            print('Processing agents took', tRuns, 's')
+            logger.info('Processing agents took %.2fs', tRuns)
 
         return reward_agents
 
@@ -1139,7 +1138,7 @@ class FloPyAgent:
             agent = self.loadModelFromMutationHistory(creationSeed, mutationSeeds)
             tRecreateFromMutationHistory = (self.hyParams['NAGENTS']/self.envSettings['NAGENTSPARALLEL']) * (t0RecreateFromMutationHistory - time())
             if agentCount == 1:
-                print('model recreation took about', tRecreateFromMutationHistory, 's')
+                logger.info('model recreation took about %.2fs', tRecreateFromMutationHistory)
 
         MODELNAMETEMP = ('Temp' + self.pid +
             '_' + str(agentCount + 1))

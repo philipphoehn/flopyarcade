@@ -1,0 +1,93 @@
+name: Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_path:
+        description: 'Path to model file (relative to repo root)'
+        required: true
+        default: 'flopyarcade/examples/policymodels/model_3s-d.p'
+      envtype:
+        description: 'Environment type'
+        required: true
+        default: '3s-d'
+      games:
+        description: 'Number of games'
+        required: false
+        default: '1000'
+
+  pull_request:
+    paths:
+      - 'flopyarcade/benchmark.py'
+      - 'flopyarcade/arcade.py'
+      - 'flopyarcade/agent.py'
+      - 'flopyarcade/actions.py'
+      - 'pyproject.toml'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install package
+        run: |
+          pip install -e .[solvers]
+
+      - name: Run benchmark
+        id: bench
+        run: |
+          MODEL_PATH="${{ github.event.inputs.model_path || 'flopyarcade/examples/policymodels/model_3s-d.p' }}"
+          ENVTYPE="${{ github.event.inputs.envtype || '3s-d' }}"
+          GAMES="${{ github.event.inputs.games || '1000' }}"
+          flopyarcade-benchmark \
+            --model "$MODEL_PATH" \
+            --envtype "$ENVTYPE" \
+            --games "$GAMES" \
+            --seed 42 \
+            --output benchmark_results.json
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark_results.json
+
+      - name: Print summary
+        run: cat benchmark_results.json
+
+      - name: Update leaderboard
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python -c "
+          import json, datetime
+          with open('benchmark_results.json') as f:
+              r = json.load(f)
+          line = f'| {r[\"envtype\"]} | {r[\"model\"]} | {r[\"n_games\"]} | {r[\"mean_reward\"]} | {r[\"std_reward\"]} | {r[\"median_reward\"]} | {r[\"max_reward\"]} | {r[\"pct_nonzero\"]}% | {r[\"total_runtime_s\"]}s | {datetime.datetime.utcnow().isoformat()[:10]} |\n'
+          with open('LEADERBOARD_ADDITIONS.md', 'a') as f:
+              f.write(line)
+          print(line)
+          "
+
+      - name: Commit leaderboard update
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          if [ -f LEADERBOARD_ADDITIONS.md ]; then
+            cat LEADERBOARD_ADDITIONS.md >> LEADERBOARD.md
+            rm LEADERBOARD_ADDITIONS.md
+            git add LEADERBOARD.md
+            git commit -m 'bench: auto-update leaderboard (run ${{ github.run_id }})' || true
+            git push
+          fi

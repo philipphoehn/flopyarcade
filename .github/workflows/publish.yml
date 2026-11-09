@@ -1,0 +1,90 @@
+name: publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Publish target'
+        required: true
+        default: 'testpypi'
+        type: choice
+        options:
+          - testpypi
+          - pypi
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build tools
+        run: |
+          pip install build twine
+
+      - name: Build sdist + wheel
+        run: python -m build
+
+      - name: Check dist
+        run: ls -la dist/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish-testpypi:
+    needs: build
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'testpypi') ||
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Install twine
+        run: pip install twine
+
+      - name: Publish to TestPyPI
+        env:
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
+        run: |
+          twine upload --verbose --repository testpypi dist/*
+
+  publish-pypi:
+    needs: [build, publish-testpypi]
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'pypi') ||
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Install twine
+        run: pip install twine
+
+      - name: Publish to PyPI
+        env:
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          twine upload --verbose dist/*

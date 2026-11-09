@@ -3,7 +3,7 @@ requires = ["setuptools >= 64", "wheel"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "flopyarcade"
-version = "0.7.0"
+version = "0.7.2"
 description="Simulated groundwater flow environments for reinforcement learning."
 readme = "README.md"
 urls = {Homepage = "https://github.com/philipphoehn/flopyarcade", Documentation = "https://flopyarcade.readthedocs.io"}
@@ -14,7 +14,8 @@ requires-python = ">=3.7, <3.13"
 license={text = "GNU GPLv3"}
 dependencies = [
 	"flopy >= 3.9.2",
-	"gymnasium >= 0.29.1",
+	"gymnasium >= 0.29.1, < 1.2; python_version < '3.11'",
+	"gymnasium >= 0.29.1; python_version >= '3.11'",
 	"imageio >= 2.22.4",
 	"importlib-metadata >= 4.13.0",
 	"joblib >= 1.2.0",
@@ -45,6 +46,10 @@ classifiers = [
 	'Topic :: Scientific/Engineering :: Artificial Intelligence',
 	'Topic :: Education',
 ]
+
+
+[project.scripts]
+flopyarcade-benchmark = 'flopyarcade.benchmark:main'
 
 [project.optional-dependencies]
 solvers = [
