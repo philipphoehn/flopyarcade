@@ -91,7 +91,7 @@ def make_env(**overrides):
     e = _Dummy.__new__(_Dummy)
     defaults = {
         'ENVTYPE': '1s-c',
-        'nlay': 1, 'nrow': 10, 'ncol': 10,
+        'nlay': 1, 'nrow': 10, 'ncol': 10, 'nCol': 10,
         'dRow': 10.0, 'dCol': 10.0,
         'heads': np.random.rand(10, 10),
         'head': np.random.rand(1, 10, 10),
@@ -123,7 +123,7 @@ def make_env(**overrides):
         'headSpecNorth': 8.0, 'headSpecSouth': 7.0,
         'gameResult': 'WIN',
         '_frame_times': [], '_fps': 0.0, '_fps_artist': None,
-        '_blit_background': None,
+        '_blit_background': None, '_blit_enabled': False,
         '_blit_artists': {'particle': None, 'trajectory': [], 'score_text': None},
         'mf': MagicMock(),
         'actionsDict': {},
