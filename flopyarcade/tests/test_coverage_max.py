@@ -406,7 +406,7 @@ class TestTrainRllibConfig:
         args = [module_name] + (extra_args or [])
         with patch.object(sys, 'argv', args):
             # Remove from cache to force re-import
-            full_name = f'flopyarcade.{module_name}'
+            full_name = f'flopyarcade.examples.{module_name}'
             sys.modules.pop(full_name, None)
             import importlib
             mod = importlib.import_module(full_name)

@@ -72,6 +72,7 @@ class TestFloPyEnvPlay(unittest.TestCase):
             envSettings['SAVEPLOTALLAGENTS'] = False
             envSettings['MANUALCONTROL'] = False
             envSettings['RENDER'] = True
+            envSettings['BLIT'] = True
             envSettings['PATHMF2005'] = None
             envSettings['PATHMP6'] = None
             envSettings['SEEDENV'] = 1

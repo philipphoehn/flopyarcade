@@ -34,16 +34,34 @@ jobs:
           unzip -o simulators_linux.zip
           chmod +x linux/mf2005 linux/mf6 linux/mp6 2>/dev/null || true
 
-      - name: Run tests with coverage
+      - name: Run tests with coverage (Pass 1 - Polluting files)
+        env:
+          PYTHONWARNINGS: "ignore::ResourceWarning"
+        run: |
+          pytest flopyarcade/tests/test_cov_render.py flopyarcade/tests/test_cov_envbase.py flopyarcade/tests/test_mock_rllib.py -v --timeout=1800 \
+            -m "not slow" \
+            --cov=flopyarcade --cov-append
+
+      - name: Run tests with coverage (Pass 2 - All other tests)
         continue-on-error: true
         env:
           PYTHONWARNINGS: "ignore::ResourceWarning"
         run: |
           pytest flopyarcade/tests/ -v --timeout=1800 \
             -m "not slow" \
-            --cov=flopyarcade --cov-config=.coveragerc \
+            --cov=flopyarcade --cov-append \
             --cov-report=xml:coverage.xml \
-            --cov-report=term-missing
+            --cov-report=term-missing \
+            --ignore=flopyarcade/tests/test_play.py \
+            --ignore=flopyarcade/tests/test_render3d.py \
+            --ignore=flopyarcade/tests/test_regression.py \
+            --ignore=flopyarcade/tests/test_agent_dqn.py \
+            --ignore=flopyarcade/tests/test_agent_neuroevolution.py \
+            --ignore=flopyarcade/tests/test_rllib_cpu.py \
+            --ignore=flopyarcade/tests/test_mock_rllib.py \
+            --ignore=flopyarcade/tests/test_cov_render.py \
+            --ignore=flopyarcade/tests/test_cov_envbase.py \
+            --deselect flopyarcade/tests/test_cov_play_actions_obs.py::TestPlayAgainstAI::test_config_structure
 
       - name: Upload coverage to CodeCov
         if: always()

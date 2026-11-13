@@ -167,6 +167,7 @@ class EnvBaseMixin:
                  OBSPREP='perceptron',
                  initWithSolution=True,
                  PATHMF6DLL=None,
+                 solver_backend='mf2005',
                  env_config=None):
         """Initialize the FloPyEnv environment and configuration.
 
@@ -233,6 +234,7 @@ class EnvBaseMixin:
             'initWithSolution': local_vars['initWithSolution'],
             'PATHMF6DLL': local_vars['PATHMF6DLL'],
             '_seed': local_vars.get('_seed'),
+            'solver_backend': local_vars.get('solver_backend', 'mf2005'),
         }
         # Merge overrides
         self.env_config = {**defaults, **env_config}
@@ -1046,10 +1048,13 @@ class EnvBaseMixin:
         self.updateWell()
 
     def _step_run_simulation(self):
-        """Pipeline stage 2: run MODFLOW + MODPATH."""
-        self.runMODFLOW()
-        self.runMODPATH()
-        self.evaluateParticleTracking()
+        """Pipeline stage 2: run groundwater flow + particle tracking."""
+        if self.env_config.get('solver_backend', 'mf2005') == 'mf6_prt':
+            self._step_run_simulation_mf6prt()
+        else:
+            self.runMODFLOW()
+            self.runMODPATH()
+            self.evaluateParticleTracking()
 
     def _step_evaluate_reward(self):
         """Pipeline stage 3: calculate reward."""
@@ -2570,7 +2575,7 @@ class EnvBaseMixin:
             text.set_fontsize(fontsize)
 
     def _increase_font_until_fit(self, text, width, height, fig, ax, whratio,
-                                dFontIncrease=0.001):
+                                dFontIncrease=0.5):
         """Increase font size until text nearly fills the given bounds.
 
         Args:
@@ -2585,7 +2590,8 @@ class EnvBaseMixin:
                 Defaults to 0.001.
         
         """
-        while True:
+        max_iter = 500
+        for _ in range(max_iter):
             text.draw(fig.canvas.renderer)
             bbox = text.get_window_extent().transformed(ax.transData.inverted())
             if (bbox.width * whratio > width) or (bbox.height / whratio > height):

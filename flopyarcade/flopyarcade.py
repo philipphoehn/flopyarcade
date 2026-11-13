@@ -147,12 +147,13 @@ from .observations import ObservationsMixin
 from .reward import RewardMixin
 from .modflow_runner import ModflowMixin
 from .modpath_runner import ModpathMixin
+from .mf6_prt_runner import MF6PRTMixin
 from .render import RenderMixin
 
 
 class FloPyEnv(EnvBaseMixin, ActionsMixin, ObservationsMixin,
-                RewardMixin, ModflowMixin, ModpathMixin, RenderMixin,
-                gym.Env):
+                RewardMixin, ModflowMixin, MF6PRTMixin, ModpathMixin,
+                RenderMixin, gym.Env):
     """FloPyEnv - composed from mixin modules."""
 
     # dispatch maps for setActionValue (O(1) dict lookup vs 8-way if/elif)
