@@ -1,5 +1,5 @@
 git+git://github.com/modflowpy/flopy.git@develop
-imageio==2.3.0
+imageio==2.38.0
 ipython==8.10.0
 matplotlib==3.2.2
 numpy==1.22.0
