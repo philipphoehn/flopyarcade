@@ -21,7 +21,7 @@ for name in [
     'flopy','flopy.modflow','flopy.mf6','flopy.mf6.modflow',
     'flopy.mf6.modflow.mfgwfwel','flopy.mf6.utils','flopy.mf6.utils.binarygrid_util',
     'flopy.modpath','flopy.plot','flopy.utils','flopy.utils.binaryfile',
-    'imageio','joblib',
+    'gymnasium','imageio','joblib',
     'pathos','pathos.multiprocessing','pathos.helpers','pathos.pools',
     'xmipy',
     'tensorflow','tensorflow.keras','tensorflow.keras.initializers',
@@ -64,14 +64,6 @@ sys.modules['flopyarcade.render3d'] = mod_r3d
 spec_r3d.loader.exec_module(mod_r3d)
 Render3D = mod_r3d.Render3D
 render_environment_3d = mod_r3d.render_environment_3d
-# Clean up fake sys.modules entries to prevent polluting other test files
-# (the classes RenderMixin, Render3D, render_environment_3d are already captured above)
-for _key in ['flopyarcade', 'flopyarcade.render', 'flopyarcade.render3d']:
-    if _key in sys.modules and type(sys.modules[_key]).__module__ == 'types' and not hasattr(sys.modules[_key], '__path__') or (hasattr(sys.modules[_key], '__path__') and not sys.modules[_key].__path__):
-        del sys.modules[_key]
-    elif _key in sys.modules and isinstance(sys.modules[_key], types.ModuleType) and not hasattr(sys.modules[_key], 'FloPyEnv'):
-        del sys.modules[_key]
-
 
 # ──────────────────────────────────────────────────────────────────────
 # Helper: concrete subclass + mock env builder
@@ -99,9 +91,7 @@ def make_env(**overrides):
     e = _Dummy.__new__(_Dummy)
     defaults = {
         'ENVTYPE': '1s-c',
-        'nlay': 1, 'nrow': 10, 'ncol': 10,
-        'nLay': 1, 'nRow': 10, 'nCol': 10,
-        '_blit_enabled': False, '_blit_artists': {},
+        'nlay': 1, 'nrow': 10, 'ncol': 10, 'nCol': 10, 'nRow': 10,
         'dRow': 10.0, 'dCol': 10.0,
         'heads': np.random.rand(10, 10),
         'head': np.random.rand(1, 10, 10),
@@ -133,7 +123,7 @@ def make_env(**overrides):
         'headSpecNorth': 8.0, 'headSpecSouth': 7.0,
         'gameResult': 'WIN',
         '_frame_times': [], '_fps': 0.0, '_fps_artist': None,
-        '_blit_background': None,
+        '_blit_background': None, '_blit_enabled': False,
         '_blit_artists': {'particle': None, 'trajectory': [], 'score_text': None},
         'mf': MagicMock(),
         'actionsDict': {},

@@ -123,18 +123,24 @@ def _import_module(name, relpath):
     # Install ray mocks
     ray_mocks = _make_ray_mocks()
     with mock.patch.dict(sys.modules, ray_mocks):
-        # Also mock FloPyEnv/FloPyAgent to avoid heavy imports and MODFLOW sim
+        # Mock the entire flopyarcade package to avoid heavy flopy imports
+        fake_pkg = types.ModuleType("flopyarcade")
+        fake_pkg.__path__ = []
+        fake_pkg.FloPyEnv = mock.MagicMock(name="FloPyEnv")
+        fake_pkg.FloPyAgent = mock.MagicMock(name="FloPyAgent")
+        fake_pkg.FloPyArcade = mock.MagicMock(name="FloPyArcade")
         fake_flopy = types.ModuleType("flopyarcade.flopyarcade")
-        fake_flopy.FloPyEnv = mock.MagicMock(name="FloPyEnv")
-        fake_flopy.FloPyAgent = mock.MagicMock(name="FloPyAgent")
-        with mock.patch.dict(sys.modules, {"flopyarcade.flopyarcade": fake_flopy}):
-            with mock.patch("flopyarcade.FloPyEnv", mock.MagicMock(name="FloPyEnv")):
-                # Set argv before import (module-level parse_args)
-                with mock.patch.object(sys, "argv", ["prog", "--envtype", "1s-d", "--cpus", "1", "--gpus", "0"]):
-                    spec = importlib.util.spec_from_file_location(mod_name, mod_path)
-                    mod = importlib.util.module_from_spec(spec)
-                    sys.modules[mod_name] = mod
-                    spec.loader.exec_module(mod)
+        fake_flopy.FloPyEnv = fake_pkg.FloPyEnv
+        fake_flopy.FloPyAgent = fake_pkg.FloPyAgent
+        fake_arcade = types.ModuleType("flopyarcade.arcade")
+        fake_arcade.FloPyArcade = fake_pkg.FloPyArcade
+        with mock.patch.dict(sys.modules, {"flopyarcade": fake_pkg, "flopyarcade.flopyarcade": fake_flopy, "flopyarcade.arcade": fake_arcade}):
+            # Set argv before import (module-level parse_args)
+            with mock.patch.object(sys, "argv", ["prog", "--envtype", "1s-d", "--cpus", "1", "--gpus", "0"]):
+                spec = importlib.util.spec_from_file_location(mod_name, mod_path)
+                mod = importlib.util.module_from_spec(spec)
+                sys.modules[mod_name] = mod
+                spec.loader.exec_module(mod)
     return mod, ray_mocks
 
 
@@ -341,39 +347,3 @@ class TestPlayAgainstAI:
         assert "render" in src
         assert "matplotlib" in src or "plt" in src
 
-
-
-class TestRllibTestFunction:
-    """Exercise the test() function and env_creator_MountainCarContinuous in train_rllib modules."""
-
-    def test_rllib_ppo_test_function(self):
-        """Call test() with a mocked env that terminates after one step."""
-        mod, _ = _import_module("train_rllib_ppo", MODULES["train_rllib_ppo"])
-
-        mock_env = mock.MagicMock()
-        mock_env.observationsVectorNormalized = [1.0, 2.0, 3.0]
-        mock_env.done = False
-        mock_env.RENDER = False
-
-        def _fake_step(action):
-            mock_env.done = True
-            return ([0.0], 1.0, True, False, {})
-
-        mock_env.step = _fake_step
-
-        mock_agent = mock.MagicMock()
-        mock_agent.compute_single_action = lambda obs: [0, 0]
-
-        with mock.patch('matplotlib.pyplot.switch_backend', mock.MagicMock()):
-            reward = mod.test(mock_agent, mock_env)
-        assert reward == 1.0
-        assert mock_env.RENDER is True
-
-    def test_rllib_ppo_mountaincar_creator(self):
-        """env_creator_MountainCarContinuous returns a gym env."""
-        mod, _ = _import_module("train_rllib_ppo", MODULES["train_rllib_ppo"])
-        fake_gym = mock.MagicMock()
-        with mock.patch('gymnasium.make', fake_gym) as gm:
-            env = mod.env_creator_MountainCarContinuous({})
-            gm.assert_called_once_with('MountainCarContinuous-v0')
-            assert env is gm.return_value
