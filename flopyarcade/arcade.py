@@ -86,6 +86,8 @@ import flopy.utils.binaryfile as bf
 from logging import getLogger, FATAL
 environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 getLogger('tensorflow').setLevel(FATAL)
+getLogger('flopy').setLevel(FATAL)
+logger = getLogger(__name__)
 
 # currently ignoring nested array error
 # from numpy import VisibleDeprecationWarning
@@ -291,7 +293,10 @@ class FloPyArcade:
         self.done = self.env.done
         if self.keepTimeSeries:
             self._init_time_series(self.observations)
-        self.actionSpace = self.env.actionSpace
+        if self.env.actionType == 'continuous':
+            self.actionSpace = list(range(self.env.actionSpaceSize))
+        else:
+            self.actionSpace = self.env.actionSpace
         from flopyarcade.agent import FloPyAgent
         self.agentObj = FloPyAgent(actionSpace=self.actionSpace)
         self.success = False

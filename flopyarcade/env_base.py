@@ -92,6 +92,8 @@ import flopy.utils.binaryfile as bf
 from logging import getLogger, FATAL
 environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 getLogger('tensorflow').setLevel(FATAL)
+getLogger('flopy').setLevel(FATAL)
+logger = getLogger(__name__)
 
 # currently ignoring nested array error
 # from numpy import VisibleDeprecationWarning
@@ -165,6 +167,7 @@ class EnvBaseMixin:
                  OBSPREP='perceptron',
                  initWithSolution=True,
                  PATHMF6DLL=None,
+                 solver_backend='mf2005',
                  env_config=None):
         """Initialize the FloPyEnv environment and configuration.
 
@@ -231,6 +234,7 @@ class EnvBaseMixin:
             'initWithSolution': local_vars['initWithSolution'],
             'PATHMF6DLL': local_vars['PATHMF6DLL'],
             '_seed': local_vars.get('_seed'),
+            'solver_backend': local_vars.get('solver_backend', 'mf2005'),
         }
         # Merge overrides
         self.env_config = {**defaults, **env_config}
@@ -346,6 +350,8 @@ class EnvBaseMixin:
             self.initializeWellRate(self.minQ, self.maxQ)
         self.initialize_helper_wells()
         self.initializeWell()
+        # A10: resolve protection-zone overlap at init
+        self._resolve_well_overlap()
         if self.ENVTYPE.startswith(('3s', '3r', '4s', '4r', '5s', '5r', '6s', '6r')):
             self.initializeAction()
         self.trajectories = {axis: [] for axis in ('x', 'y', 'z')}
@@ -1042,10 +1048,13 @@ class EnvBaseMixin:
         self.updateWell()
 
     def _step_run_simulation(self):
-        """Pipeline stage 2: run MODFLOW + MODPATH."""
-        self.runMODFLOW()
-        self.runMODPATH()
-        self.evaluateParticleTracking()
+        """Pipeline stage 2: run groundwater flow + particle tracking."""
+        if self.env_config.get('solver_backend', 'mf2005') == 'mf6_prt':
+            self._step_run_simulation_mf6prt()
+        else:
+            self.runMODFLOW()
+            self.runMODPATH()
+            self.evaluateParticleTracking()
 
     def _step_evaluate_reward(self):
         """Pipeline stage 3: calculate reward."""
@@ -1943,7 +1952,7 @@ class EnvBaseMixin:
         x, y = coords[0], self.extentY - coords[1]
         return x, y
 
-    def _create_outline_circle(self, center, radius, color, zorder):
+    def _create_outline_circle(self, center, radius, color, zorder, lw=1.0):
         """Create an outline circle patch.
 
         Args:
@@ -1952,6 +1961,7 @@ class EnvBaseMixin:
             radius (float): Radius of the circle.
             color: Color of the circle outline.
             zorder (int): Drawing order.
+            lw (float): Line width, scaled by pumping rate.
 
         Returns:
             matplotlib.patches.Circle: A Circle patch object.
@@ -1965,7 +1975,7 @@ class EnvBaseMixin:
             fill=False,
             zorder=zorder,
             alpha=1.0,
-            lw=1.0
+            lw=lw
         )
 
     def _create_filled_circle(self, center, radius, color, alpha, zorder):
@@ -2565,7 +2575,7 @@ class EnvBaseMixin:
             text.set_fontsize(fontsize)
 
     def _increase_font_until_fit(self, text, width, height, fig, ax, whratio,
-                                dFontIncrease=0.001):
+                                dFontIncrease=0.5):
         """Increase font size until text nearly fills the given bounds.
 
         Args:
@@ -2580,7 +2590,8 @@ class EnvBaseMixin:
                 Defaults to 0.001.
         
         """
-        while True:
+        max_iter = 500
+        for _ in range(max_iter):
             text.draw(fig.canvas.renderer)
             bbox = text.get_window_extent().transformed(ax.transData.inverted())
             if (bbox.width * whratio > width) or (bbox.height / whratio > height):
