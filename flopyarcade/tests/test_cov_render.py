@@ -91,7 +91,7 @@ def make_env(**overrides):
     e = _Dummy.__new__(_Dummy)
     defaults = {
         'ENVTYPE': '1s-c',
-        'nlay': 1, 'nrow': 10, 'ncol': 10, 'nCol': 10,
+        'nlay': 1, 'nrow': 10, 'ncol': 10, 'nCol': 10, 'nRow': 10,
         'dRow': 10.0, 'dCol': 10.0,
         'heads': np.random.rand(10, 10),
         'head': np.random.rand(1, 10, 10),
