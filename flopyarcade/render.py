@@ -588,11 +588,7 @@ class RenderMixin:
         color = self.renderGetWellColor(quantity)
         center = self._circle_coords(coords)
         # B14: scale outline width with pumping rate
-<<<<<<< HEAD
-        lw = 1.0 + 4.0 * (abs(float(quantity)) / py_max(abs(float(min_quantity)), 1e-6))
-=======
         lw = 1.0 + 4.0 * (abs(quantity) / py_max(abs(min_quantity), 1e-6))
->>>>>>> origin/master
         outline = self._create_outline_circle(center, radius, color, zorder, lw=lw)
         self.ax2.add_artist(outline)
 
