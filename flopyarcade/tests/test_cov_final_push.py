@@ -418,6 +418,7 @@ class TestMF6PRTMixin:
         assert chd_west == 3.0
         assert chd_east == 2.5
 
+    @pytest.mark.skip(reason="Tests BMI/XmiWrapper flow from PR#60 which was reverted from master")
     def test_build_and_run_full(self, tmp_path):
         from flopyarcade.mf6_prt_runner import MF6PRTMixin
         inst = self._make_instance(
