@@ -117,6 +117,103 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 
 ---
 
+## 🔬 P0 — 50-Idea Expansion (2026-11-14)
+
+> Curated from 500 candidates. All items below are **new** (not tracked above).
+> Distribution: Research 12 · Benchmarking 10 · Reporting 10 · Visualisation 8 · Tooling 4 · Testing 3 · Science 2 · Community 1
+
+### Research & RL Methods (12)
+
+| # | Idea | Impact | Status |
+|---|------|--------|--------|
+| R1 | **Surrogate-assisted Bayesian optimisation** (GP surrogate on 20 cheap runs → 5 expensive full runs) for HP search per env type | Very High | ❌ Not implemented |
+| R2 | **Curriculum learning**: 1s-d → 2s-d → 3s-d → cost modes; auto-promote when reward > threshold | Very High | ❌ Not implemented |
+| R3 | **Physics-informed loss**: penalty <latex>\lambda \| \nabla \cdot (K\nabla h) - S_s \partial_t h \|^2</latex> in reward; policy respects governing PDE | High | ❌ Not implemented |
+| R4 | **Multi-objective NSGA-II** on (reward, cost, wall-clock); archive Pareto front to HDF5 | High | ❌ Not implemented |
+| R5 | **Differentiable MODFLOW surrogate**: CNN predicts <latex>h_{t+1}</latex> from <latex>h_t, q_{wells}</latex>; gradient for MPC step | Very High | ❌ Not implemented |
+| R6 | **Equivariant network on grid**: E(2)-equivariant layer; mesh-invariant policy generalises across env sizes | High | ❌ Not implemented |
+| R7 | **Reward hacking detector**: track <latex>\nabla_\theta \mathbb{E}[r]</latex> vs measured reward; alert on divergence | Med-High | ❌ Not implemented |
+| R8 | **Constrained MDP / safe RL**: hard constraint <latex>h_{capture} \geq h_{safety}</latex> via Lagrangian dual; report violation rate | High | ❌ Not implemented |
+| R9 | **Neuroevolution island model**: 4 islands, migrate top-5 every 50 gens; diversity metric | Med-High | ❌ Not implemented |
+| R10 | **Meta-learning (MAML) on reward weights**: outer loop adapts per env type in < 10 episodes | Med-High | ❌ Not implemented |
+| R11 | **Uncertainty quantification**: MC-dropout ensemble of 5 DQN heads → mean±std Q; use for exploration bonus | Med-High | ❌ Not implemented |
+| R12 | **Graph neural network on MODFLOW mesh**: nodes=cells, edges=connectivity; GNN predicts heads; agent reads features | High | ❌ Not implemented |
+
+### Benchmarking & Evaluation (10)
+
+| # | Idea | Impact | Status |
+|---|------|--------|--------|
+| B18 | **Bootstrap CI on benchmark scores**: 1000 resamples → 95% CI + p-value vs baseline | Very High | ❌ Not implemented |
+| B19 | **Seed-sensitivity table**: 10 seeds × 6 envs × 3 algorithms → std, IQR, CV per cell | High | ❌ Not implemented |
+| B20 | **Ablation matrix**: remove one reward component × 6 envs → Δscore table | High | ❌ Not implemented |
+| B21 | **Cross-env transfer heatmap**: train X, eval Y → 6×6 matrix + t-test per pair | High | ❌ Not implemented |
+| B22 | **Cost-reward Pareto front**: scatter (cost, reward) per algorithm × env; 95% CI envelope | Med-High | ❌ Not implemented |
+| B23 | **Wall-clock vs sim-steps dual axis**: ms/step + steps/s; flag >10% drift per commit | Med-High | ❌ Not implemented |
+| B24 | **CI benchmark gate**: fail if any env score drops >5% from main artifact (JSON in Actions cache) | High | ❌ Not implemented |
+| B25 | **Agent-vs-human paired test**: same 10 seeds, paired t-test + Cohen's d | High | ❌ Not implemented |
+| B26 | **Longitudinal benchmark archive**: append-only JSONL (`benchmarks/history.jsonl`); every CI run appends | Med-High | ❌ Not implemented |
+| B27 | **Sample efficiency metric**: episodes-to-80%-of-best per algorithm × env | Med-High | ❌ Not implemented |
+
+### Reporting & Data Export (10)
+
+| # | Idea | Impact | Status |
+|---|------|--------|--------|
+| P1 | **Per-step trajectory JSON**: `[{step, action, reward, obs_sha, pos_2d, head_mean}]` in HDF5 | Very High | ❌ Not implemented |
+| P2 | **MODFLOW convergence trace**: parse lst → iterations, condition #, residual per step | High | ❌ Not implemented |
+| P3 | **Seed manifest**: `{seed, git_sha, config_hash, env_version, score, ci_run_id}` JSON per run | High | ❌ Not implemented |
+| P4 | **Particle trajectory export**: MODPATH paths as `.npz` (T × P × 3) per episode | Med-High | ❌ Not implemented |
+| P5 | **Head/velocity field snapshots**: grid arrays every N steps → `.npz` | Med-High | ❌ Not implemented |
+| P6 | **Failure taxonomy auto-classifier**: label `boundary_hit | convergence_fail | no_progress | NaN | timeout` | High | ❌ Not implemented |
+| P7 | **Reward decomposition stacked bar**: per-component per episode in HDF5 | Med-High | ❌ Not implemented |
+| P8 | **Checkpoint comparison tool**: side-by-side policy table + KL divergence between two Q-networks | Med-High | ❌ Not implemented |
+| P9 | **Observation coverage heatmap**: fraction of action space visited per generation | Med-High | ❌ Not implemented |
+| P10 | **Training curve 3-panel JSON**: loss, reward, ε → TensorBoard-compatible single file | Med-High | ❌ Not implemented |
+
+### Visualisation & UX (8)
+
+| # | Idea | Impact | Status |
+|---|------|--------|--------|
+| V1 | **Plume front tracking plot**: distance-from-source over time; box-plot across episodes | High | ❌ Not implemented |
+| V2 | **Hydraulic head change heatmap**: Δh per well, annotated with flow arrows | Med-High | ❌ Not implemented |
+| V3 | **Interactive Plotly dashboard**: HDF5 → 3D scatter + time slider + well selector + head contour | High | ❌ Not implemented |
+| V4 | **Video export (mp4)**: 3D trajectory at 30 fps via matplotlib.animation → ffmpeg | Med-High | ❌ Not implemented |
+| V5 | **Ablation tornado plot**: rank HPs by \|Δscore\| across ±20% perturbation | Med-High | ❌ Not implemented |
+| V6 | **Cross-env transfer 6×6 heatmap**: colour = score; p-value significance stars | Med-High | ❌ Not implemented |
+| V7 | **Well-activation timeline Gantt**: per-step pumping rate per well; stacked bar | Med | ❌ Not implemented |
+| V8 | **Benchmark drift line chart**: score vs date; 95% CI band; alert marker on >5% drop | Med-High | ❌ Not implemented |
+
+### Tooling & Workflows (4)
+
+| # | Idea | Impact | Status |
+|---|------|--------|--------|
+| T1 | **`flopyarcade bench` CLI**: `python -m flopyarcade bench --env 3s-d --seed 42 --episodes 50` | High | ❌ Not implemented |
+| T2 | **Hydra config system**: YAML hierarchies for env/agent/reward/trainer; CLI overrides | Med-High | ❌ Not implemented |
+| T3 | **MLflow / TensorBoard integration**: log metrics, params, artifacts; `mlflow ui` | Med-High | ❌ Not implemented |
+| T4 | **ONNX export + inference bench**: DQN → ONNX; ms/inference on CPU & GPU vs PyTorch | Med | ❌ Not implemented |
+
+### Testing & Quality (3)
+
+| # | Idea | Impact | Status |
+|---|------|--------|--------|
+| Q1 | **Property-based testing (Hypothesis)**: random valid configs → assert obs space, reward bounds, step count | High | ❌ Not implemented |
+| Q2 | **Golden-file regression**: reference HDF5 for 3 episodes; CI diffs < 0.1% tolerance | High | ❌ Not implemented |
+| Q3 | **Performance regression gate**: assert ms/step < 2× baseline; fail CI on >50% slowdown | Med-High | ❌ Not implemented |
+
+### Science & Domain (2)
+
+| # | Idea | Impact | Status |
+|---|------|--------|--------|
+| S1 | **Multi-component reactive transport env**: 2-species degradation (parent→daughter), first-order kinetics; env `7r-d` | High | ❌ Not implemented |
+| S2 | **Heterogeneous aquifer env**: layered K + lens geometry; env `8s-d`; capture-zone efficiency vs homogeneous | Med-High | ❌ Not implemented |
+
+### Community & Adoption (1)
+
+| # | Idea | Impact | Status |
+|---|------|--------|--------|
+| C21 | **Zenodo DOI + reproducible benchmark package**: archive results + config + seeds → DOI; cite in paper | Med-High | ❌ Not implemented |
+
+---
+
 ## 🌿 Development Branch Plan (Revised)
 
 ### Dependency graph
