@@ -39,7 +39,6 @@ jobs:
           PYTHONWARNINGS: "ignore::ResourceWarning"
         run: |
           pytest flopyarcade/tests/test_cov_render.py flopyarcade/tests/test_cov_envbase.py flopyarcade/tests/test_mock_rllib.py -v --timeout=1800 \
-            --import-mode=importlib \
             -m "not slow" \
             --cov=flopyarcade --cov-append
 
@@ -49,7 +48,6 @@ jobs:
           PYTHONWARNINGS: "ignore::ResourceWarning"
         run: |
           pytest flopyarcade/tests/ -v --timeout=1800 \
-            --import-mode=importlib \
             -m "not slow" \
             --cov=flopyarcade --cov-append \
             --cov-report=xml:coverage.xml \
