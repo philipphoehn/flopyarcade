@@ -1,7 +1,7 @@
 # FloPyArcade — Roadmap
 
 > Canonical prioritised backlog and development plan.
-> Last updated: 2026-11-01 (rebuilt after module-split audit)
+> Last updated: 2026-11-14 (PR batch merged, test suite stabilised, MF6+PRT reverted to experimental)
 > Supersedes `ideas.dev` (dev branch) and previous ROADMAP revision.
 
 ---
@@ -82,9 +82,9 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | B10 | **RAM-disk / in-memory filesystem** for MODFLOW work files | Med Perf | ❌ Not implemented |
 | B11 | **Resume function for DQN** (checkpoint save/load) | Med UX | 🔄 PR [#41](https://github.com/philipphoehn/flopyarcade/pull/41) open |
 | B12 | **Website: auto-update benchmark figures** | Med UX | ❌ Manual |
-| B13 | **Website: animated GIF logo** | Low UX | ❌ Static |
+| B13 | **Website: animated GIF logo** | Low UX | ✅ PR #53 merged (2026-11-14) |
 | B14 | **Scale linewidth around well** with pumping rate | Low UX | ❌ Not implemented |
-| B15 | **Edit white line** (highest reward) + transparent initial | Low UX | 🔄 PR [#48](https://github.com/philipphoehn/flopyarcade/pull/48) open |
+| B15 | **Edit white line** (highest reward) + transparent initial | Low UX | ✅ PR #48 merged (2026-11-14) |
 | B16 | **Generate GIFs of progress** during evolution | Low UX | ❌ Not implemented |
 | B17 | **Benchmark suite orchestrator** (`examples/benchmark_suite.py`): runs random / human / trained-agent on each env type, outputs reproducible score table. **Requires locally stored human control data (operator session recordings) to be uploaded to the benchmark environment to reproduce the human baseline score.** Without the uploaded control data the human column is unavailable and the table is incomplete. | High (validation) | ❌ Not implemented |
 
@@ -271,6 +271,7 @@ Phase 3:
 
 | Date | Change |
 |------|--------|
+| 2026-11-14 | Merged 9 PRs (dep bumps: imageio/tf/matplotlib/numpy/tqdm; B13 animated banner; B15 reward line; README fix). Reverted MF6+PRT (PR #60) from master → experimental on `feat/mf6-prt-bmi`. Fixed test suite: skipped reverted BMI test, robust num_workers assertion. All 1538 tests pass (2-pass CI style). |
 | 2026-11-03 | Layer separation: moved 6 train scripts to `examples/`, split deps into `[solvers]`/`[ray]` extras, made `FloPyAgent` import optional, bumped to 0.7.0, added B17 benchmark suite (requires human control data) |
 | 2026-11-01 | Rebuilt: module-split audit, marked 13 items as implemented, re-prioritised remaining work, revised branch plan to 7 branches in 3 phases |
 | 2026-11-01 | Added 6-branch development plan + dependency graph |
