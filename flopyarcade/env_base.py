@@ -12,7 +12,6 @@
 # author: Philipp Hoehn
 # philipp.hoehn@yahoo.com
 
-
 # imports for environments
 from builtins import min as py_min, max as py_max
 from copy import copy, deepcopy
@@ -86,7 +85,6 @@ from xmipy import XmiWrapper
 
 import flopy.utils.binaryfile as bf
 
-
 # suppressing TensorFlow output on import, except fatal errors
 # https://stackoverflow.com/questions/40426502/is-there-a-way-to-suppress-the-messages-tensorflow-prints
 from logging import getLogger, FATAL
@@ -143,9 +141,6 @@ pathosHelpers.mp.context._force_start_method('spawn')
 # to avoid thread erros
 # https://stackoverflow.com/questions/52839758/matplotlib-and-runtimeerror-main-thread-is-not-in-main-loop
 # matplotlibBackend('Agg')
-
-
-
 
 class EnvBaseMixin:
 
@@ -1112,6 +1107,10 @@ class EnvBaseMixin:
         self._step_update_state()           # 4. obs + state
         self._step_finalize()               # 5. hash + bookkeeping
 
+        if self.done:
+            if self.env_config.get('solver_backend', 'mf2005') == 'mf6_prt':
+                self._mf6prt_close()
+
         if self.done and teardownOnFinish:
             self.tempDir.cleanup()
 
@@ -1730,7 +1729,6 @@ class EnvBaseMixin:
         for coord in 'xyz':
             self.trajectories[coord].append(data[coord][valid])
 
-
     def _sum_flows(self):
         """Sum pump and recharge flows from helper wells.
 
@@ -1769,6 +1767,17 @@ class EnvBaseMixin:
             self._reset_0s_c(seed)
         else:
             self._reset_other(seed, MODELNAME, initWithSolution)
+
+        # Initialize persistent BMI session for MF6+PRT backend
+        if self.env_config.get('solver_backend', 'mf2005') == 'mf6_prt':
+
+            try:
+                self._mf6prt_reset()
+
+            except Exception as e:
+                import traceback; traceback.print_exc()
+
+                self._bmi = None
 
         return array(self.observationsVectorNormalized), {}
 

@@ -434,10 +434,8 @@ class TestMF6PRTMixin:
         workdir = str(tmp_path / 'mf6prt_run')
         mock_df = pd.DataFrame({'x': [1.0], 'y': [2.0], 'z': [3.0], 'time': [0.0]})
 
-        mock_bmi = MagicMock(name='XmiWrapper')
         extra = [
             (patch('flopyarcade.mf6_prt_runner.exists', new=MagicMock(return_value=True)), None),
-            (patch('xmipy.XmiWrapper', new=mock_bmi), 'xmi'),
             (patch.object(inst, '_mf6prt_parse_track_csv', new=MagicMock(return_value=mock_df)), None),
         ]
         specs = self._patch_all_mf6(extra)
@@ -446,9 +444,7 @@ class TestMF6PRTMixin:
             result = inst._mf6prt_build_and_run(workdir)
             mock_sim = mocks['sim_cls'].return_value
             mock_sim.write_simulation.assert_called_once()
-            mock_bmi.return_value.initialize.assert_called_once()
-            mock_bmi.return_value.execute.assert_called_once()
-            mock_bmi.return_value.finalize.assert_called_once()
+            mock_sim.run_simulation.assert_called_once()
             assert isinstance(result, pd.DataFrame)
             assert list(result.columns) == ['x', 'y', 'z', 'time']
         finally:

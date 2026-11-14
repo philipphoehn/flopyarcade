@@ -50,9 +50,6 @@ for mod_name in [
 ]:
     sys.modules.setdefault(mod_name, MagicMock())
 
-mock_gym = MagicMock()
-mock_gym.spaces = MagicMock()
-sys.modules.setdefault('gymnasium', mock_gym)
 
 mock_pathos = MagicMock()
 mock_pathos.multiprocessing = MagicMock()
@@ -93,6 +90,13 @@ _mod = importlib.util.module_from_spec(_spec)
 sys.modules['flopyarcade.env_base'] = _mod
 _spec.loader.exec_module(_mod)
 EnvBaseMixin = _mod.EnvBaseMixin
+
+# Clean up fake sys.modules entries to prevent polluting other test files
+# KEEP flopyarcade.env_base in sys.modules (needed for unittest.mock.patch targets)
+# Only remove the bare flopyarcade ModuleType that lacks the real package attributes
+if 'flopyarcade' in sys.modules and isinstance(sys.modules['flopyarcade'], types.ModuleType) and not hasattr(sys.modules['flopyarcade'], 'FloPyEnv'):
+    del sys.modules['flopyarcade']
+
 
 
 # ---------------------------------------------------------------------------
