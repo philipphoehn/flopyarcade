@@ -9,6 +9,13 @@
 # set PYTHONWARNINGS=ignore::ResourceWarning
 # python -m coverage run --source=flopyarcade -m unittest
 
+import tensorflow as tf
+
+# Ensure TF eager execution (may be disabled by prior test files)
+if not tf.executing_eagerly():
+    tf.compat.v1.enable_eager_execution()
+tf.keras.backend.clear_session()
+
 from glob import glob
 from os import remove
 from os.path import abspath, dirname, isdir, isfile, join
