@@ -13,6 +13,11 @@ if not hasattr(ray.rllib, 'agents'):
     sys.modules['ray.rllib.agents'] = _agents_mod
     sys.modules['ray.rllib.agents.dqn'] = _agents_mod.dqn
 
+# ray.rllib disables TF eager execution; re-enable it for Keras/TF tests
+import tensorflow as tf
+if not tf.executing_eagerly():
+    tf.compat.v1.enable_eager_execution()
+
 # Set sys.argv before play_againstai module-level parse_args()
 sys.argv = ["play_againstai.py", "--envtype", "1s-d", "--cpus", "4", "--gpus", "0",
             "--playbenchmark", "False", "--external", "True", "--suffix", "_test"]

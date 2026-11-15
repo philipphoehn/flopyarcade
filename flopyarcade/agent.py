@@ -899,11 +899,12 @@ class FloPyAgent:
         current_qs_list = self.mainModel.predict(current_states)
 
         # retrieving future states from minibatch
-        # then querying NN model for Q values
-        # when using target network, query it, otherwise main network should be
-        # queried
+        # then querying target network for Q values (evaluation)
+        # and online network for best action selection (Double-DQN)
         new_current_states = array([transition[3] for transition in minibatch])
         future_qs_list = self.targetModel.predict(new_current_states)
+        # Double-DQN: online network selects argmax action for next state
+        next_qs_online = self.mainModel.predict(new_current_states)
 
         X, y = [], []
         # enumerating batches
@@ -912,9 +913,10 @@ class FloPyAgent:
 
             # If not a terminal state, get new q from future states,
             # otherwise set it to 0
-            # almost like with Q Learning, but we use just part of equation
+            # Double-DQN: argmax from online network, Q-value from target network
             if not done:
-                max_future_q = max(future_qs_list[index])
+                best_action_next = argmax(next_qs_online[index])
+                max_future_q = future_qs_list[index][best_action_next]
                 new_q = reward + self.hyParams['DISCOUNT'] * max_future_q
             else:
                 new_q = reward
