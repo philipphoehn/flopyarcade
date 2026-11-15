@@ -45,7 +45,7 @@ jobs:
       - name: Run benchmark
         id: bench
         run: |
-          MODEL_PATH="${{ github.event.inputs.model_path || 'flopyarcade/examples/policymodels/model_3s-d.p' }}"
+          MODEL_PATH="${{ github.event.inputs.model_path || (github.workspace + '/flopyarcade/examples/policymodels/model_3s-d.p') }}"
           ENVTYPE="${{ github.event.inputs.envtype || '3s-d' }}"
           GAMES="${{ github.event.inputs.games || '1000' }}"
           flopyarcade-benchmark \
