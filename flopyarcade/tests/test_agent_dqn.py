@@ -166,6 +166,112 @@ class TestFloPyAgentDQN(unittest.TestCase):
                         'Double-DQN bootstrapping is not using the target network')
 
 
+    def test_dqn_checkpoint_save_load(self):
+        """Verify save_dqn_checkpoint and load_dqn_checkpoint restore all state."""
+        import numpy as np
+        import tempfile
+        import shutil
+
+        envSettings, hyParams = train_dqn.envSettings, train_dqn.hyParams
+        envSettings['ENVTYPE'] = '1s-d'
+        envSettings['MODELNAME'] = 'unittest_ckpt'
+        envSettings['RENDER'] = False
+        hyParams['NHIDDENNODES'] = [5] * 2
+        hyParams['HIDDENACTIVATIONS'] = ['relu'] * 2
+        hyParams['DROPOUTS'] = [0.0] * 2
+        hyParams['REPLAYMEMORYSIZE'] = 100
+        hyParams['REPLAYMEMORYSIZEMIN'] = 3
+        hyParams['MINIBATCHSIZE'] = 3
+        hyParams['EPSILONINITIAL'] = 0.5
+
+        from flopyarcade import FloPyAgent, FloPyEnv
+        env = FloPyEnv(
+            envSettings['ENVTYPE'], None, None,
+            envSettings['MODELNAME'], flagRender=False,
+            NAGENTSTEPS=3, OBSPREP='perceptron')
+        agent = FloPyAgent(
+            env.observationsVectorNormalized,
+            env.actionSpace, hyParams, envSettings, 'DQN')
+
+        agent.epsilon = 0.42
+        agent.dqnGameCounter = 42
+        agent.targetUpdateCount = 7
+        obs_len = len(env.observationsVectorNormalized)
+        fake_transitions = []
+        for _ in range(3):
+            state = np.random.rand(obs_len).astype(np.float32)
+            fake_transitions.append([state, 0, 1.0, state.copy(), False])
+        agent.replayMemory.extend(fake_transitions)
+
+        orig_main_weights = [w.copy() for w in agent.mainModel.get_weights()]
+        orig_target_weights = [w.copy() for w in agent.targetModel.get_weights()]
+        orig_replay = [list(t) for t in list(agent.replayMemory)]
+
+        tmpdir = tempfile.mkdtemp(prefix='dqn_ckpt_test_')
+        ckpt_dir = join(tmpdir, 'test_checkpoint')
+        agent.save_dqn_checkpoint(ckpt_dir)
+
+        agent.epsilon = 0.99
+        agent.dqnGameCounter = 0
+        agent.targetUpdateCount = 0
+        agent.replayMemory.clear()
+        perturbed = [np.zeros_like(w) for w in agent.mainModel.get_weights()]
+        agent.mainModel.set_weights(perturbed)
+
+        agent.load_dqn_checkpoint(ckpt_dir)
+
+        self.assertAlmostEqual(agent.epsilon, 0.42, msg='epsilon not restored')
+        self.assertEqual(agent.dqnGameCounter, 42, msg='game counter not restored')
+        self.assertEqual(agent.targetUpdateCount, 7, msg='targetUpdateCount not restored')
+        self.assertEqual(len(agent.replayMemory), 3, msg='replay memory length not restored')
+        for i, (orig, restored) in enumerate(zip(orig_replay, list(agent.replayMemory))):
+            np.testing.assert_array_equal(np.array(orig[0]), np.array(restored[0]),
+                err_msg=f'replay entry {i} state mismatch')
+        restored_main = agent.mainModel.get_weights()
+        for i, (orig_w, rest_w) in enumerate(zip(orig_main_weights, restored_main)):
+            np.testing.assert_array_equal(orig_w, rest_w, err_msg=f'main weight {i} mismatch')
+        restored_target = agent.targetModel.get_weights()
+        for i, (orig_w, rest_w) in enumerate(zip(orig_target_weights, restored_target)):
+            np.testing.assert_array_equal(orig_w, rest_w, err_msg=f'target weight {i} mismatch')
+
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+    def test_dqn_checkpoint_periodic_in_runDQN(self):
+        """Verify periodic checkpointing is triggered during runDQN."""
+        import unittest.mock as mock
+
+        envSettings, hyParams = train_dqn.envSettings, train_dqn.hyParams
+        envSettings['ENVTYPE'] = '1s-d'
+        envSettings['MODELNAME'] = 'unittest_ckptperiodic'
+        envSettings['RENDER'] = False
+        hyParams['NGAMES'] = 3
+        hyParams['NAGENTSTEPS'] = 2
+        hyParams['REPLAYMEMORYSIZE'] = 100
+        hyParams['REPLAYMEMORYSIZEMIN'] = 3
+        hyParams['MINIBATCHSIZE'] = 3
+        hyParams['NHIDDENNODES'] = [5] * 2
+        hyParams['HIDDENACTIVATIONS'] = ['relu'] * 2
+        hyParams['DROPOUTS'] = [0.0] * 2
+        hyParams['CROSSVALIDATEEVERY'] = 10
+        hyParams['NGAMESCROSSVALIDATED'] = 1
+        hyParams['CHECKPOINTEVERY'] = 2
+
+        from flopyarcade import FloPyAgent, FloPyEnv
+        env = FloPyEnv(
+            envSettings['ENVTYPE'], None, None,
+            envSettings['MODELNAME'], flagRender=False,
+            NAGENTSTEPS=2, OBSPREP='perceptron')
+        agent = FloPyAgent(
+            env.observationsVectorNormalized,
+            env.actionSpace, hyParams, envSettings, 'DQN')
+
+        with mock.patch.object(agent, 'save_dqn_checkpoint', wraps=agent.save_dqn_checkpoint) as mock_save:
+            agent.runDQN(env)
+
+        self.assertEqual(mock_save.call_count, 1,
+                         f'Expected 1 checkpoint, got {mock_save.call_count}')
+
+
 if __name__ == '__main__':
     unittest.main(exit=False)
 
