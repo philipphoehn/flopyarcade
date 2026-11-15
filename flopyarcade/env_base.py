@@ -277,6 +277,9 @@ class EnvBaseMixin:
         self._blit_enabled = False
         self._blit_artists = {}
         self._fps = 0.0
+        self.SMOOTH_TRAJ_FRAMES = 4
+        self.SMOOTH_TRAJ_SUBDIV = 10
+        self._prevParticleCoords = None
         from collections import deque as _deque
         self._frame_times = _deque(maxlen=60)
         self.renderFlag = self.RENDER
@@ -1913,6 +1916,12 @@ class EnvBaseMixin:
                 self.render_blit_frame()
             else:
                 self.fig.canvas.draw()
+            # B1: smooth particle transition between steps
+            if getattr(self, 'SMOOTH_TRAJ_FRAMES', 1) > 1:
+                self.render_particle_transition(
+                    n_frames=self.SMOOTH_TRAJ_FRAMES,
+                    pause_sec=0.03
+                )
             self.renderFPS()
             show(block=False)
             pause(self.MANUALCONTROLTIME)

@@ -83,6 +83,10 @@ if 'ipykernel' in modules:
     from IPython import display
 from time import sleep, time
 from xmipy import XmiWrapper
+try:
+    from scipy.interpolate import PchipInterpolator as _Pchip
+except ImportError:
+    _Pchip = None
 
 import flopy.utils.binaryfile as bf
 
@@ -1227,8 +1231,56 @@ class RenderMixin:
                 self.ax2.transData.transform([(x, y)])
             )
 
+    def _smooth_segment(self, x_raw, y_raw, n_subdiv=10):
+        """PCHIP-interpolate a trajectory segment for smooth rendering.
+
+        Args:
+            x_raw (array): Raw x-coordinates of the segment.
+            y_raw (array): Raw y-coordinates of the segment.
+            n_subdiv (int): Subdivision factor for interpolation.
+
+        Returns:
+            tuple: (xs, ys) smoothed arrays.
+        """
+        x_raw = np.asarray(x_raw, dtype=np.float64)
+        y_raw = np.asarray(y_raw, dtype=np.float64)
+        if len(x_raw) < 3:
+            if len(x_raw) == 2:
+                return (np.linspace(x_raw[0], x_raw[1], 20),
+                        np.linspace(y_raw[0], y_raw[1], 20))
+            return x_raw, y_raw
+        dx = np.diff(x_raw)
+        dy = np.diff(y_raw)
+        seg = np.sqrt(dx**2 + dy**2)
+        s_orig = np.concatenate([[0.0], np.cumsum(seg)])
+        if s_orig[-1] < 1e-10:
+            return x_raw, y_raw
+        keep = np.concatenate([[True], np.diff(s_orig) > 1e-12])
+        x_dedup = x_raw[keep]
+        y_dedup = y_raw[keep]
+        s_dedup = s_orig[keep]
+        if len(s_dedup) >= 3:
+            n_pts = len(s_dedup) * n_subdiv
+            if n_pts < 20:
+                n_pts = 20
+            s_new = np.linspace(0.0, float(s_dedup[-1]), int(n_pts))
+            if _Pchip is not None:
+                try:
+                    xs = _Pchip(s_dedup, x_dedup)(s_new)
+                    ys = _Pchip(s_dedup, y_dedup)(s_new)
+                except Exception:
+                    xs = np.interp(s_new, s_dedup, x_dedup)
+                    ys = np.interp(s_new, s_dedup, y_dedup)
+            else:
+                xs = np.interp(s_new, s_dedup, x_dedup)
+                ys = np.interp(s_new, s_dedup, y_dedup)
+        else:
+            xs = np.linspace(x_dedup[0], x_dedup[-1], 20)
+            ys = np.linspace(y_dedup[0], y_dedup[-1], 20)
+        return xs, ys
+
     def _blit_update_trajectory(self):
-        """Update the trajectory artists for blitting mode."""
+        """Update the trajectory artists for blitting mode (PCHIP-smoothed)."""
         if self.timeStep <= 0:
             return
         for line in self._blit_artists.get('trajectory', []):
@@ -1237,15 +1289,80 @@ class RenderMixin:
         total, lengths = self._count_trajectory_points()
         colors = self._generate_fade_colors(total)
         idx = 0
+        n_sub = getattr(self, 'SMOOTH_TRAJ_SUBDIV', 10)
         for i, length in enumerate(lengths):
             color = colors[idx + length - 1]
-            line, = self.ax2.plot(
-                self.trajectories['x'][i],
-                self.trajectories['y'][i],
-                lw=2, c=color, zorder=6
-            )
+            x_raw = self.trajectories['x'][i]
+            y_raw = self.trajectories['y'][i]
+            xs, ys = self._smooth_segment(x_raw, y_raw, n_sub)
+            line, = self.ax2.plot(xs, ys, lw=2, c=color, zorder=6)
             self._blit_artists['trajectory'].append(line)
             idx += length
+
+    def render_particle_transition(self, n_frames=4, pause_sec=0.03):
+        """Animate the particle from its previous position to the current one.
+
+        Interpolates the particle dot along the straight-line path between
+        the last stored position and the current position, rendering
+        intermediate sub-frames for smooth visual motion.
+
+        Uses blit for fast updates when available; falls back to a single
+        canvas.draw() at the end for non-blit mode (avoids per-frame redraw).
+
+        Args:
+            n_frames (int): Number of sub-frames to interpolate.
+            pause_sec (float): Pause duration per sub-frame in seconds.
+        """
+        if n_frames <= 1:
+            return
+        try:
+            x_now, y_now = self._get_particle_coords()
+        except (IndexError, TypeError):
+            return
+        prev = getattr(self, '_prevParticleCoords', None)
+        if prev is None:
+            self._prevParticleCoords = (x_now, y_now)
+            return
+        x_prev, y_prev = prev
+        # Skip if no movement
+        if abs(x_now - x_prev) < 1e-8 and abs(y_now - y_prev) < 1e-8:
+            self._prevParticleCoords = (x_now, y_now)
+            return
+
+        use_blit = (self._blit_enabled and
+                    self._blit_artists.get('particle') is not None)
+
+        if use_blit:
+            # Fast path: blit-based sub-frame animation
+            particle = self._blit_artists['particle']
+            dx = x_now - x_prev
+            dy = y_now - y_prev
+            for i in range(1, n_frames + 1):
+                t = i / n_frames
+                x_i = x_prev + t * dx
+                y_i = y_prev + t * dy
+                particle.set_offsets(
+                    self.ax2.transData.transform([(x_i, y_i)])
+                )
+                self.fig.canvas.blit(self._blit_background)
+                if pause_sec > 0:
+                    sleep(pause_sec)
+        else:
+            # Slow path: single draw at final position (avoids artist leak)
+            # Remove any stale transition artists
+            for art in self._blit_artists.get('_transition_artists', []):
+                art.remove()
+            self._blit_artists['_transition_artists'] = []
+            # Draw a single line showing the transition path
+            art, = self.ax2.plot([x_prev, x_now], [y_prev, y_now],
+                                 'r-', lw=1, alpha=0.5, zorder=5)
+            dot, = self.ax2.plot([x_now], [y_now], 'ro', markersize=6,
+                                 zorder=6, alpha=0.9)
+            self._blit_artists['_transition_artists'] = [art, dot]
+            self.fig.canvas.draw()
+
+        # Final position
+        self._prevParticleCoords = (x_now, y_now)
 
     def _blit_update_score_text(self):
         """Update the score/time text for blitting mode."""
