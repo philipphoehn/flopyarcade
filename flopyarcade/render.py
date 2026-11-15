@@ -1344,7 +1344,7 @@ class RenderMixin:
                 particle.set_offsets(
                     self.ax2.transData.transform([(x_i, y_i)])
                 )
-                self.fig.canvas.blit(self._blit_background)
+                self.fig.canvas.blit(self.fig.bbox)
                 if pause_sec > 0:
                     sleep(pause_sec)
         else:
