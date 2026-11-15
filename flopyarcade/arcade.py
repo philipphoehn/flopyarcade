@@ -156,7 +156,8 @@ class FloPyArcade:
                  PATHMP6=None, surrogateSimulator=None, flagSavePlot=False,
                  flagManualControl=False, actions=None, flagRender=False,
                  keepTimeSeries=False, ENVTYPE='1s-d', nLay=1, nRow=100,
-                 nCol=100, OBSPREP='perceptron', flagBlit=True):
+                 nCol=100, OBSPREP='perceptron', flagBlit=True,
+                 smoothFrames=4, smoothSubdiv=10):
         """Constructor.
 
         Args:
@@ -185,14 +186,15 @@ class FloPyArcade:
             agent, modelNameLoad, modelName, animationFolder, NAGENTSTEPS,
             PATHMF2005, PATHMP6, surrogateSimulator, flagSavePlot,
             flagManualControl, actions, flagRender, keepTimeSeries,
-            ENVTYPE, nLay, nRow, nCol, OBSPREP, flagBlit
+            ENVTYPE, nLay, nRow, nCol, OBSPREP, flagBlit,
+            smoothFrames, smoothSubdiv
         )
 
     def _init_config(self, agent, modelNameLoad, modelName, animationFolder,
                      NAGENTSTEPS, PATHMF2005, PATHMP6, surrogateSimulator,
                      flagSavePlot, flagManualControl, actions, flagRender,
                      keepTimeSeries, ENVTYPE, nLay, nRow, nCol, OBSPREP,
-                     flagBlit=True):
+                     flagBlit=True, smoothFrames=4, smoothSubdiv=10):
         """Initialize configuration for FloPyArcade.
 
         Args:
@@ -209,6 +211,8 @@ class FloPyArcade:
         self.MANUALCONTROL = flagManualControl
         self.RENDER = flagRender
         self.BLIT = flagBlit
+        self.SMOOTH_FRAMES = smoothFrames
+        self.SMOOTH_SUBDIV = smoothSubdiv
         self.MODELNAME = modelName or modelNameLoad or "untitled"
         self.ANIMATIONFOLDER = (
             animationFolder or modelName or modelNameLoad or "untitled"
@@ -276,6 +280,8 @@ class FloPyArcade:
                 nCol=self.nCol, OBSPREP=self.OBSPREP, initWithSolution=True
             )
             self.env._blit_enabled = self.BLIT
+            self.env.SMOOTH_TRAJ_FRAMES = self.SMOOTH_FRAMES
+            self.env.SMOOTH_TRAJ_SUBDIV = self.SMOOTH_SUBDIV
         else:
             self.env = FloPyEnvSurrogate(
                 self.SURROGATESIMULATOR, ENVTYPE, MODELNAME=self.MODELNAME,
