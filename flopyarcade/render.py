@@ -83,6 +83,10 @@ if 'ipykernel' in modules:
     from IPython import display
 from time import sleep, time
 from xmipy import XmiWrapper
+try:
+    from scipy.interpolate import PchipInterpolator as _Pchip
+except ImportError:
+    _Pchip = None
 
 import flopy.utils.binaryfile as bf
 
@@ -1260,11 +1264,14 @@ class RenderMixin:
             if n_pts < 20:
                 n_pts = 20
             s_new = np.linspace(0.0, float(s_dedup[-1]), int(n_pts))
-            from scipy.interpolate import PchipInterpolator
-            try:
-                xs = PchipInterpolator(s_dedup, x_dedup)(s_new)
-                ys = PchipInterpolator(s_dedup, y_dedup)(s_new)
-            except Exception:
+            if _Pchip is not None:
+                try:
+                    xs = _Pchip(s_dedup, x_dedup)(s_new)
+                    ys = _Pchip(s_dedup, y_dedup)(s_new)
+                except Exception:
+                    xs = np.interp(s_new, s_dedup, x_dedup)
+                    ys = np.interp(s_new, s_dedup, y_dedup)
+            else:
                 xs = np.interp(s_new, s_dedup, x_dedup)
                 ys = np.interp(s_new, s_dedup, y_dedup)
         else:
@@ -1295,9 +1302,12 @@ class RenderMixin:
     def render_particle_transition(self, n_frames=4, pause_sec=0.03):
         """Animate the particle from its previous position to the current one.
 
-        Interpolates the particle dot along the straight-line (or PCHIP) path
-        between the last stored position and the current position, rendering
+        Interpolates the particle dot along the straight-line path between
+        the last stored position and the current position, rendering
         intermediate sub-frames for smooth visual motion.
+
+        Uses blit for fast updates when available; falls back to a single
+        canvas.draw() at the end for non-blit mode (avoids per-frame redraw).
 
         Args:
             n_frames (int): Number of sub-frames to interpolate.
@@ -1318,21 +1328,39 @@ class RenderMixin:
         if abs(x_now - x_prev) < 1e-8 and abs(y_now - y_prev) < 1e-8:
             self._prevParticleCoords = (x_now, y_now)
             return
-        ts = np.linspace(0.0, 1.0, n_frames + 1)[1:]
-        for t in ts:
-            x_interp = x_prev + t * (x_now - x_prev)
-            y_interp = y_prev + t * (y_now - y_prev)
-            if self._blit_enabled and self._blit_artists.get('particle') is not None:
-                self._blit_artists['particle'].set_offsets(
-                    self.ax2.transData.transform([(x_interp, y_interp)])
+
+        use_blit = (self._blit_enabled and
+                    self._blit_artists.get('particle') is not None)
+
+        if use_blit:
+            # Fast path: blit-based sub-frame animation
+            particle = self._blit_artists['particle']
+            dx = x_now - x_prev
+            dy = y_now - y_prev
+            for i in range(1, n_frames + 1):
+                t = i / n_frames
+                x_i = x_prev + t * dx
+                y_i = y_prev + t * dy
+                particle.set_offsets(
+                    self.ax2.transData.transform([(x_i, y_i)])
                 )
-            else:
-                self.ax2.plot([x_interp], [y_interp], 'ro', markersize=6,
-                             zorder=6, alpha=0.9)
+                self.fig.canvas.blit(self._blit_background)
+                if pause_sec > 0:
+                    sleep(pause_sec)
+        else:
+            # Slow path: single draw at final position (avoids artist leak)
+            # Remove any stale transition artists
+            for art in self._blit_artists.get('_transition_artists', []):
+                art.remove()
+            self._blit_artists['_transition_artists'] = []
+            # Draw a single line showing the transition path
+            art, = self.ax2.plot([x_prev, x_now], [y_prev, y_now],
+                                 'r-', lw=1, alpha=0.5, zorder=5)
+            dot, = self.ax2.plot([x_now], [y_now], 'ro', markersize=6,
+                                 zorder=6, alpha=0.9)
+            self._blit_artists['_transition_artists'] = [art, dot]
             self.fig.canvas.draw()
-            if pause_sec > 0:
-                from time import sleep as _sleep
-                _sleep(pause_sec)
+
         # Final position
         self._prevParticleCoords = (x_now, y_now)
 
