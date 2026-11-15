@@ -9,8 +9,6 @@
 # set PYTHONWARNINGS=ignore::ResourceWarning
 # python -m coverage run --source=flopyarcade -m unittest
 
-import flopyarcade.examples.train_dqn as train_dqn
-from flopyarcade import FloPyArcade
 from glob import glob
 from os import remove
 from os.path import abspath, dirname, isdir, isfile, join
@@ -20,24 +18,23 @@ import unittest
 
 class TestFloPyAgentDQN(unittest.TestCase):
 
+    def _get_train_dqn(self):
+        import flopyarcade.examples.train_dqn as train_dqn
+        return train_dqn
+
     def test_FloPyAgentDQN_noExceptionRaised(self):
         """Test an agent using the deep Q-Learning algorithm on a
         computationally simple case.
         """
-
-        # from train_dqn import envSettings, hyParams
+        train_dqn = self._get_train_dqn()
         envSettings, hyParams = train_dqn.envSettings, train_dqn.hyParams
 
         failed = []
-        # for ENVTYPE in FloPyArcade().ENVTYPES:
         for ENVTYPE in ['1s-d']:
             raised = False
-            # try:
-            # environment settings
             envSettings['ENVTYPE'] = '1s-d'
             envSettings['MODELNAME'] = 'unittest'
             envSettings['RENDER'] = False
-            # hyperparameters
             hyParams['NGAMES'] = 4
             hyParams['NAGENTSTEPS'] = 3
             hyParams['REPLAYMEMORYSIZE'] = 10000
@@ -50,18 +47,13 @@ class TestFloPyAgentDQN(unittest.TestCase):
             hyParams['CROSSVALIDATEEVERY'] = 2
             hyParams['NGAMESCROSSVALIDATED'] = 2
             train_dqn.main(envSettings, hyParams)
-            # FloPyArcadeDQN.main(envSettings, hyParams)
             print('Test of deep Q-network agent in environment ' + ENVTYPE + ' succeeded.')
-            # except Exception as e:
-            #     raised = True
-            #     failed.append(ENVTYPE)
-            #     print('error train_dqn:', e)
         for ENVTYPE in failed:
             self.assertFalse(ENVTYPE, 'Test of deep Q-network agent in environment ' + ENVTYPE + ' failed.')
 
-
     def test_targetModel_exists_after_init(self):
         """Verify that targetModel is created during DQN agent initialization."""
+        train_dqn = self._get_train_dqn()
         envSettings, hyParams = train_dqn.envSettings, train_dqn.hyParams
         envSettings['ENVTYPE'] = '1s-d'
         envSettings['MODELNAME'] = 'unittest_ddqn'
@@ -87,6 +79,7 @@ class TestFloPyAgentDQN(unittest.TestCase):
 
     def test_targetModel_same_architecture_as_mainModel(self):
         """Verify targetModel has the same architecture as mainModel."""
+        train_dqn = self._get_train_dqn()
         envSettings, hyParams = train_dqn.envSettings, train_dqn.hyParams
         envSettings['ENVTYPE'] = '1s-d'
         envSettings['MODELNAME'] = 'unittest_ddqn'
@@ -106,7 +99,6 @@ class TestFloPyAgentDQN(unittest.TestCase):
             env.observationsVectorNormalized,
             env.actionSpace, hyParams, envSettings, 'DQN')
 
-        # Compare layer-by-layer architecture
         main_layers = agent.mainModel.layers
         target_layers = agent.targetModel.layers
         self.assertEqual(len(main_layers), len(target_layers),
@@ -121,6 +113,7 @@ class TestFloPyAgentDQN(unittest.TestCase):
         """Verify that train() uses targetModel (not mainModel) for Q-target computation."""
         import numpy as np
         from unittest.mock import patch
+        train_dqn = self._get_train_dqn()
         envSettings, hyParams = train_dqn.envSettings, train_dqn.hyParams
         envSettings['ENVTYPE'] = '1s-d'
         envSettings['MODELNAME'] = 'unittest_ddqn'
@@ -143,7 +136,6 @@ class TestFloPyAgentDQN(unittest.TestCase):
             env.observationsVectorNormalized,
             env.actionSpace, hyParams, envSettings, 'DQN')
 
-        # Create fake replay memory entries with correct observation shape
         obs_len = len(env.observationsVectorNormalized)
         fake_transitions = []
         for _ in range(hyParams['REPLAYMEMORYSIZEMIN']):
@@ -155,7 +147,6 @@ class TestFloPyAgentDQN(unittest.TestCase):
             fake_transitions.append([state, action, reward, next_state, done])
         agent.replayMemory.extend(fake_transitions)
 
-        # Patch targetModel.predict to track calls
         with patch.object(agent.targetModel, 'predict', wraps=agent.targetModel.predict) as target_predict_mock:
             with patch.object(agent.mainModel, 'predict', wraps=agent.mainModel.predict):
                 with patch.object(agent.mainModel, 'fit', wraps=agent.mainModel.fit):
@@ -165,13 +156,13 @@ class TestFloPyAgentDQN(unittest.TestCase):
                         'targetModel.predict was not called during train() - '
                         'Double-DQN bootstrapping is not using the target network')
 
-
     def test_dqn_checkpoint_save_load(self):
         """Verify save_dqn_checkpoint and load_dqn_checkpoint restore all state."""
         import numpy as np
         import tempfile
         import shutil
 
+        train_dqn = self._get_train_dqn()
         envSettings, hyParams = train_dqn.envSettings, train_dqn.hyParams
         envSettings['ENVTYPE'] = '1s-d'
         envSettings['MODELNAME'] = 'unittest_ckpt'
@@ -240,6 +231,7 @@ class TestFloPyAgentDQN(unittest.TestCase):
         """Verify periodic checkpointing is triggered during runDQN."""
         import unittest.mock as mock
 
+        train_dqn = self._get_train_dqn()
         envSettings, hyParams = train_dqn.envSettings, train_dqn.hyParams
         envSettings['ENVTYPE'] = '1s-d'
         envSettings['MODELNAME'] = 'unittest_ckptperiodic'
@@ -275,9 +267,6 @@ class TestFloPyAgentDQN(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main(exit=False)
 
-    # detected bug: with gameSettings['NAGENTSTEPS'] = 2 reward may be gained from lost games
-
-    # deleting all test-related files, except unittestAgent.h5
     wrkspc = dirname(abspath(__file__))
     unittestFilesAndFolders = glob(join(wrkspc, 'models', 'unittest*'))
     for obj in unittestFilesAndFolders:
