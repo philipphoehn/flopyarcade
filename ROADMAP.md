@@ -71,7 +71,7 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | # | Task | Impact | Status |
 |---|------|--------|--------|
 | B1 | **Smooth trajectory** (interpolate in-between MODPATH steps) | High UX | ✅ PR [#62](https://github.com/philipphoehn/flopyarcade/pull/62) merged (2026-11-15) |
-| B2 | **Split-screen GUI**: 4 panels (random / inexperienced / experienced / agent) | High UX | ❌ Not implemented |
+| B2 | **Split-screen GUI**: 2-player (human vs human / replay / policy) | High UX | ✅ Merged (2026-11-15) + `feat/b2-policy-replay` branch |
 | B3 | **Actions bar at top**, colormap scaled by reward | Med UX | ❌ Not implemented |
 | B4 | **Store & plot all well trajectories** (ensemble) | Med UX | ❌ Only last game stored |
 | B5 | **Generational trajectory ensemble plot** | Med UX | ❌ Not implemented |
