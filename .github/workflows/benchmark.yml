@@ -45,9 +45,14 @@ jobs:
       - name: Run benchmark
         id: bench
         run: |
-          MODEL_PATH="${{ github.event.inputs.model_path || (github.workspace + '/flopyarcade/examples/policymodels/model_3s-d.p') }}"
+          MODEL_PATH="${{ github.event.inputs.model_path || '' }}"
+          if [ -z "$MODEL_PATH" ]; then
+            MODEL_PATH="$GITHUB_WORKSPACE/flopyarcade/examples/policymodels/model_3s-d.p"
+          fi
           ENVTYPE="${{ github.event.inputs.envtype || '3s-d' }}"
           GAMES="${{ github.event.inputs.games || '1000' }}"
+          echo "Model path: $MODEL_PATH"
+          ls -la "$MODEL_PATH" || { echo "FATAL: model file not found at $MODEL_PATH"; ls -laR "$GITHUB_WORKSPACE/flopyarcade/examples/policymodels/" 2>&1; exit 1; }
           flopyarcade-benchmark \
             --model "$MODEL_PATH" \
             --envtype "$ENVTYPE" \
