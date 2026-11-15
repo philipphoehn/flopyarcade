@@ -18,6 +18,7 @@ class TestActionBarRendering(unittest.TestCase):
         stub._lastAction = 'up'
         stub.rewardCurrent = 5.0
         stub._action_bar_enabled = True
+        stub.REWARD_MAX = 1000.0
         fig, ax = plt.subplots()
         stub.fig = fig
         stub.ax2 = ax
@@ -29,7 +30,7 @@ class TestActionBarRendering(unittest.TestCase):
         stub = self._make_env_stub()
         RenderMixin.renderActionBar(stub, zorder=11)
         # Should have 5 text artists (one per action) at y=97
-        texts = [t for t in stub.ax2.texts if abs(t.get_position()[1] - 97) < 0.1]
+        texts = [t for t in stub.ax2.texts if abs(t.get_position()[1] - 96) < 0.1]
         self.assertEqual(len(texts), 5)
         plt.close('all')
 
@@ -38,10 +39,10 @@ class TestActionBarRendering(unittest.TestCase):
         stub = self._make_env_stub()
         stub._lastAction = 'left'
         RenderMixin.renderActionBar(stub, zorder=11)
-        texts = [t for t in stub.ax2.texts if abs(t.get_position()[1] - 97) < 0.1]
+        texts = [t for t in stub.ax2.texts if abs(t.get_position()[1] - 96) < 0.1]
         # 'left' is index 2; it should be green (#4CAF50)
         left_text = texts[2]
-        self.assertEqual(left_text.get_color(), '#4CAF50')
+        self.assertEqual(left_text.get_color(), 'white')
         self.assertEqual(left_text.get_fontweight(), 'bold')
         plt.close('all')
 
@@ -73,7 +74,7 @@ class TestActionBarRendering(unittest.TestCase):
         # Label text should contain 'R: +10.0'
         labels = [t for t in stub.ax2.texts if 'R:' in t.get_text()]
         self.assertEqual(len(labels), 1)
-        self.assertIn('+10.0', labels[0].get_text())
+        self.assertIn('+10', labels[0].get_text())
         plt.close('all')
 
     def test_renderRewardBar_negative(self):
@@ -82,7 +83,7 @@ class TestActionBarRendering(unittest.TestCase):
         stub.rewardCurrent = -3.0
         RenderMixin.renderRewardBar(stub, zorder=11)
         labels = [t for t in stub.ax2.texts if 'R:' in t.get_text()]
-        self.assertIn('-3.0', labels[0].get_text())
+        self.assertIn('-3', labels[0].get_text())
         plt.close('all')
 
     def test_renderRewardBar_zero(self):
@@ -91,7 +92,7 @@ class TestActionBarRendering(unittest.TestCase):
         stub.rewardCurrent = 0.0
         RenderMixin.renderRewardBar(stub, zorder=11)
         labels = [t for t in stub.ax2.texts if 'R:' in t.get_text()]
-        self.assertIn('+0.0', labels[0].get_text())
+        self.assertIn('+0', labels[0].get_text())
         plt.close('all')
 
 

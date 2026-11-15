@@ -1407,7 +1407,7 @@ class RenderMixin:
             return
         n = len(actions)
         seg_width = 9.0
-        bar_y = 97
+        bar_y = 96
         x_end = 97.0
         x_start = x_end - n * seg_width
         for i, act in enumerate(actions):
@@ -1438,7 +1438,7 @@ class RenderMixin:
         seg_width = 9.0
         x_end = 97.0
         x_start = x_end - n * seg_width
-        bar_y = 94
+        bar_y = 93
         bar_w = n * seg_width
         bar_h = 1.6
         self.ax2.add_patch(
@@ -1477,7 +1477,7 @@ class RenderMixin:
             return
         n = len(actions)
         seg_width = 9.0
-        bar_y = 97
+        bar_y = 96
         x_end = 97.0
         x_start = x_end - n * seg_width
         for i, act in enumerate(actions):
@@ -1500,7 +1500,7 @@ class RenderMixin:
             self._action_bar_artists.append(txt)
         reward = getattr(self, 'rewardCurrent', 0.0) or 0.0
         frac = py_min(1.0, py_max(0.0, reward) / 1000.0)
-        bar_y2 = 94
+        bar_y2 = 93
         bar_w = n * seg_width
         bar_h = 1.6
         bg = self.ax2.add_patch(
