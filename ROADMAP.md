@@ -70,13 +70,13 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 
 | # | Task | Impact | Status |
 |---|------|--------|--------|
-| B1 | **Smooth trajectory** (interpolate in-between MODPATH steps) | High UX | ❌ Not implemented |
+| B1 | **Smooth trajectory** (interpolate in-between MODPATH steps) | High UX | ✅ PR [#62](https://github.com/philipphoehn/flopyarcade/pull/62) merged (2026-11-15) |
 | B2 | **Split-screen GUI**: 4 panels (random / inexperienced / experienced / agent) | High UX | ❌ Not implemented |
 | B3 | **Actions bar at top**, colormap scaled by reward | Med UX | ❌ Not implemented |
 | B4 | **Store & plot all well trajectories** (ensemble) | Med UX | ❌ Only last game stored |
 | B5 | **Generational trajectory ensemble plot** | Med UX | ❌ Not implemented |
-| B6 | **Matplotlib blitting** for 60+ FPS in `play.py` | Med Perf | 🔄 PR [#42](https://github.com/philipphoehn/flopyarcade/pull/42) open |
-| B7 | **FPS counter in 2D HUD** (`play.py`) | Med Perf | 🔄 PR [#43](https://github.com/philipphoehn/flopyarcade/pull/43) open |
+| B6 | **Matplotlib blitting** for 60+ FPS in `play.py` | Med Perf | ✅ PR [#42](https://github.com/philipphoehn/flopyarcade/pull/42) merged (2026-11-03) |
+| B7 | **FPS counter in 2D HUD** (`play.py`) | Med Perf | ❌ PR [#43](https://github.com/philipphoehn/flopyarcade/pull/43) closed (unmerged) — needs rework |
 | B8 | **HDF5 novelty archive** (lazy load, append-only) | Med Perf | 🔄 PR [#44](https://github.com/philipphoehn/flopyarcade/pull/44) open |
 | B9 | **Auto-profile runtimes** (cProfile / line_profiler integration) | Med Perf | ❌ Not implemented |
 | B10 | **RAM-disk / in-memory filesystem** for MODFLOW work files | Med Perf | ❌ Not implemented |
@@ -342,7 +342,7 @@ Phase 3:
 | 2 | Novelty metric fix | `feat/novelty-fix` | M | Unlocks reliable neuroevolution |
 | 3 | Env hardening (multi-particle, K-region) | `feat/env-hardening` | M | Richer game, more realistic |
 | 4 | ConvNet full-field input | `feat/convnet-field` | M | State-of-the-art RL path |
-| 5 | Matplotlib blitting + smooth trajectory | `feat/perf-render` | S | 2–5× interactive speed |
+| 5 | ~~Matplotlib blitting~~ (B6 ✅ merged) + ~~smooth trajectory~~ (B1 ✅ merged) | — | S | ✅ Done (2026-11-15) |
 
 ---
 
@@ -368,6 +368,7 @@ Phase 3:
 
 | Date | Change |
 |------|--------|
+| 2026-11-15 | Merged B1 smooth trajectory (PR #62): PCHIP arc-length interpolation + blit-based particle transition, 10 new tests, <0.5 ms overhead. Corrected B6 status (merged 2026-11-03), B7 status (closed unmerged). |
 | 2026-11-14 | Merged 9 PRs (dep bumps: imageio/tf/matplotlib/numpy/tqdm; B13 animated banner; B15 reward line; README fix). Reverted MF6+PRT (PR #60) from master → experimental on `feat/mf6-prt-bmi`. Fixed test suite: skipped reverted BMI test, robust num_workers assertion. All 1538 tests pass (2-pass CI style). |
 | 2026-11-03 | Layer separation: moved 6 train scripts to `examples/`, split deps into `[solvers]`/`[ray]` extras, made `FloPyAgent` import optional, bumped to 0.7.0, added B17 benchmark suite (requires human control data) |
 | 2026-11-01 | Rebuilt: module-split audit, marked 13 items as implemented, re-prioritised remaining work, revised branch plan to 7 branches in 3 phases |
