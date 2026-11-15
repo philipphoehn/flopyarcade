@@ -71,12 +71,12 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | # | Task | Impact | Status |
 |---|------|--------|--------|
 | B1 | **Smooth trajectory** (interpolate in-between MODPATH steps) | High UX | ✅ PR [#62](https://github.com/philipphoehn/flopyarcade/pull/62) merged (2026-11-15) |
-| B2 | **Split-screen GUI**: 4 panels (random / inexperienced / experienced / agent) | High UX | ❌ Not implemented |
+| B2 | **Split-screen GUI**: 2-player WASD vs Arrows | High UX | ✅ PR merged (2026-11-15) |
 | B3 | **Actions bar at top**, colormap scaled by reward | Med UX | ❌ Not implemented |
 | B4 | **Store & plot all well trajectories** (ensemble) | Med UX | ❌ Only last game stored |
 | B5 | **Generational trajectory ensemble plot** | Med UX | ❌ Not implemented |
 | B6 | **Matplotlib blitting** for 60+ FPS in `play.py` | Med Perf | ✅ PR [#42](https://github.com/philipphoehn/flopyarcade/pull/42) merged (2026-11-03) |
-| B7 | **FPS counter in 2D HUD** (`play.py`) | Med Perf | ❌ PR [#43](https://github.com/philipphoehn/flopyarcade/pull/43) closed (unmerged) — needs rework |
+| B7 | **FPS counter in 2D HUD** (`play.py`) | Med Perf | ✅ In master (since PR #42, 2026-11-03) |
 | B8 | **HDF5 novelty archive** (lazy load, append-only) | Med Perf | 🔄 PR [#44](https://github.com/philipphoehn/flopyarcade/pull/44) open |
 | B9 | **Auto-profile runtimes** (cProfile / line_profiler integration) | Med Perf | ❌ Not implemented |
 | B10 | **RAM-disk / in-memory filesystem** for MODFLOW work files | Med Perf | ❌ Not implemented |
