@@ -8,7 +8,7 @@ Requires: stable-baselines3>=2.0, flopy>=3.9.2, gymnasium, numpy
 """
 
 from argparse import ArgumentParser
-from common import (
+from common_sb3 import (
     add_common_args, make_flopy_env, setup_logging,
     run_evaluation, get_outdir, effective_seed, parse_net_arch
 )
