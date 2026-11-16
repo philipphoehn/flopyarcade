@@ -512,25 +512,51 @@ class RenderMixin:
             except Exception:
                 pass
 
-        # After maximizing, resize the figure to fit the actual canvas
-        # so the plot content is not clipped by window decorations.
+        # The window manager applies the maximize asynchronously, so poll the
+        # real Tk toplevel geometry until it changes from the initial figure
+        # size. We then size the figure to the window's NATIVE aspect ratio
+        # (not forced square) so the equal-data-aspect grid is limited by the
+        # smaller axis and centered on the larger one -- this prevents both
+        # top/bottom clipping and the 'tiny plot in a big window' effect.
+        import time
+        dpi = self.fig.dpi
+        win = self.figManager.window
+        initial_w = initial_h = None
         try:
-            import time
-            time.sleep(0.1)  # allow window manager to apply the resize
-            canvas = self.fig.canvas
-            w_px, h_px = canvas.get_width_height()
-            if w_px > 0 and h_px > 0:
-                dpi = self.fig.dpi
-                # 5% safety margin for window decorations / taskbar
-                margin = 0.95
-                new_w = (w_px / dpi) * margin
-                new_h = (h_px / dpi) * margin
-                # Keep square if window is roughly square
-                side = min(new_w, new_h)
-                self.fig.set_size_inches(side, side)
-                self.fig.tight_layout(pad=0.)
+            initial_w = win.winfo_width()
+            initial_h = win.winfo_height()
         except Exception:
             pass
+
+        target_w = target_h = None
+        deadline = time.time() + 1.2
+        while time.time() < deadline:
+            try:
+                w = win.winfo_width()
+                h = win.winfo_height()
+            except Exception:
+                break
+            if w > 0 and h > 0 and (w != initial_w or h != initial_h):
+                target_w, target_h = w, h
+                break
+            time.sleep(0.05)
+
+        # Fallback to the canvas size if the toplevel query never resolved.
+        if target_w is None or target_h is None:
+            try:
+                cw, ch = self.fig.canvas.get_width_height()
+                if cw and ch:
+                    target_w, target_h = cw, ch
+            except Exception:
+                target_w = target_h = None
+
+        if target_w and target_h:
+            margin = 0.98  # small safety margin for window decorations
+            new_w = (target_w / dpi) * margin
+            new_h = (target_h / dpi) * margin
+            if new_w > 1 and new_h > 1:
+                self.fig.set_size_inches(new_w, new_h)
+                self.fig.tight_layout(pad=0.)
 
     def _finalize_figure(self):
         """Finalize the figure by removing axes and adjusting layout.
