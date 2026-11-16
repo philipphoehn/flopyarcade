@@ -61,6 +61,7 @@ from matplotlib.pyplot import margins, NullLocator
 from matplotlib.pyplot import waitforbuttonpress
 from matplotlib import text as mtext
 from matplotlib.transforms import Bbox
+from matplotlib import patches as _mpatches
 import numpy as np
 from numpy import cos as numpyCos
 from numpy import sin as numpySin
@@ -372,7 +373,7 @@ class RenderMixin:
         y_coords = np.linspace(self.minY, self.minY + self.extentY, self.nRow + 1)
         self.headsplot = self.ax.pcolormesh(
             x_coords, y_coords, heads_2d,
-            shading='flat', alpha=0.5, zorder=2, cmap=colormaps['terrain']
+            shading='flat', alpha=1.0, zorder=2, cmap=colormaps['terrain']
         )
         # Plot ibound boundary (masked cells) as black patches
         if hasattr(self, 'ibound'):
@@ -397,6 +398,10 @@ class RenderMixin:
         self.renderParticle(zorder=6)
         self.renderParticleTrajectory(zorder=6)
         self.renderTextOnCanvasTimeAndScore(zorder=10)
+        # B3: action bar + reward indicator
+        if getattr(self, '_action_bar_enabled', True):
+            self.renderActionBar(zorder=11)
+            self.renderRewardBar(zorder=11)
         self.renderRemoveAxesTicks()
         self.renderSetAxesLimits()
         self.renderAddAxesTextLabels()
@@ -1282,6 +1287,9 @@ class RenderMixin:
         self._blit_update_particle()
         self._blit_update_trajectory()
         self._blit_update_score_text()
+        # B3: update action bar + reward bar
+        if getattr(self, '_action_bar_enabled', True):
+            self._blit_update_action_bar()
         # Full canvas draw since the head array changes every timestep,
         # making a static-background blit approach inapplicable.
         self.fig.canvas.draw()
@@ -1451,6 +1459,148 @@ class RenderMixin:
             )
         else:
             self._blit_artists['score_text'].set_text(display_text)
+
+
+    # ------------------------------------------------------------------
+    # B3: Action bar + Reward indicator
+    # ------------------------------------------------------------------
+
+    _ACTION_ICONS = {
+        'up': '↑', 'down': '↓', 'left': '←', 'right': '→',
+        'keep': '●', 'keepQ': '●', 'moreQ': '▲', 'lessQ': '▼',
+    }
+
+    def renderActionBar(self, zorder=11):
+        """Draw a horizontal action bar at the top showing available actions.
+
+        The currently-selected action is highlighted with a filled background.
+        """
+        actions = getattr(self, 'actionSpace', None)
+        if not actions:
+            return
+        last_action = getattr(self, '_lastAction', None)
+        if last_action is None:
+            return
+        n = len(actions)
+        seg_width = 9.0
+        bar_y = 96
+        x_end = 97.0
+        x_start = x_end - n * seg_width
+        for i, act in enumerate(actions):
+            x0 = x_start + i * seg_width
+            is_current = (act == last_action)
+            if is_current:
+                fg, bg, alpha, weight = 'white', '#E53935', 0.95, 'bold'
+            else:
+                fg, bg, alpha, weight = '#C62828', '#FFCDD2', 0.7, 'normal'
+            icon = self._ACTION_ICONS.get(act, act[0].upper())
+            self.ax2.text(
+                x0 + seg_width / 2, bar_y, icon,
+                fontsize=11, ha='center', va='center', zorder=zorder,
+                color=fg, fontweight=weight,
+                bbox=dict(
+                    facecolor=bg, edgecolor='#C62828',
+                    alpha=alpha, pad=1.5, boxstyle='round'
+                )
+            )
+
+    REWARD_MAX = 1000.0
+
+    def renderRewardBar(self, zorder=11):
+        """Draw a filled reward bar (0-1000 scale) at the top-right, below the action bar."""
+        reward = getattr(self, 'rewardCurrent', 0.0) or 0.0
+        frac = py_min(1.0, py_max(0.0, reward) / self.REWARD_MAX)
+        n = len(getattr(self, 'actionSpace', None) or [0])
+        seg_width = 9.0
+        x_end = 97.0
+        x_start = x_end - n * seg_width
+        bar_y = 93
+        bar_w = n * seg_width
+        bar_h = 1.6
+        self.ax2.add_patch(
+            _mpatches.FancyBboxPatch(
+                (x_start, bar_y - bar_h / 2), bar_w, bar_h,
+                boxstyle='round,pad=0.2',
+                facecolor='#FFCDD2', edgecolor='#C62828', alpha=0.7, zorder=zorder
+            )
+        )
+        if frac > 0.005:
+            self.ax2.add_patch(
+                _mpatches.FancyBboxPatch(
+                    (x_start, bar_y - bar_h / 2), bar_w * frac, bar_h,
+                    boxstyle='round,pad=0.2',
+                    facecolor='#E53935', edgecolor='none', alpha=0.9, zorder=zorder + 1
+                )
+            )
+        self.ax2.text(
+            x_start - 1.0, bar_y, f"R: {reward:+.0f}",
+            fontsize=8, va='center', ha='right', color='#C62828', zorder=zorder
+        )
+
+    def _blit_update_action_bar(self):
+        """Update action bar + reward bar for blit mode."""
+        for art in getattr(self, '_action_bar_artists', []):
+            try:
+                art.remove()
+            except Exception:
+                pass
+        self._action_bar_artists = []
+        actions = getattr(self, 'actionSpace', None)
+        if not actions:
+            return
+        last_action = getattr(self, '_lastAction', None)
+        if last_action is None:
+            return
+        n = len(actions)
+        seg_width = 9.0
+        bar_y = 96
+        x_end = 97.0
+        x_start = x_end - n * seg_width
+        for i, act in enumerate(actions):
+            x0 = x_start + i * seg_width
+            is_current = (act == last_action)
+            if is_current:
+                fg, bg, alpha, weight = 'white', '#E53935', 0.95, 'bold'
+            else:
+                fg, bg, alpha, weight = '#C62828', '#FFCDD2', 0.7, 'normal'
+            icon = self._ACTION_ICONS.get(act, act[0].upper())
+            txt = self.ax2.text(
+                x0 + seg_width / 2, bar_y, icon,
+                fontsize=11, ha='center', va='center', zorder=11,
+                color=fg, fontweight=weight,
+                bbox=dict(
+                    facecolor=bg, edgecolor='#C62828',
+                    alpha=alpha, pad=1.5, boxstyle='round'
+                )
+            )
+            self._action_bar_artists.append(txt)
+        reward = getattr(self, 'rewardCurrent', 0.0) or 0.0
+        frac = py_min(1.0, py_max(0.0, reward) / 1000.0)
+        bar_y2 = 93
+        bar_w = n * seg_width
+        bar_h = 1.6
+        bg = self.ax2.add_patch(
+            _mpatches.FancyBboxPatch(
+                (x_start, bar_y2 - bar_h / 2), bar_w, bar_h,
+                boxstyle='round,pad=0.2',
+                facecolor='#FFCDD2', edgecolor='#C62828', alpha=0.7, zorder=11
+            )
+        )
+        self._action_bar_artists.append(bg)
+        if frac > 0.005:
+            fill = self.ax2.add_patch(
+                _mpatches.FancyBboxPatch(
+                    (x_start, bar_y2 - bar_h / 2), bar_w * frac, bar_h,
+                    boxstyle='round,pad=0.2',
+                    facecolor='#E53935', edgecolor='none', alpha=0.9, zorder=12
+                )
+            )
+            self._action_bar_artists.append(fill)
+        label = self.ax2.text(
+            x_start - 1.0, bar_y2, f"R: {reward:+.0f}",
+            fontsize=8, va='center', ha='right', color='#C62828', zorder=11
+        )
+        self._action_bar_artists.append(label)
 
     def renderFPS(self, zorder=10):
         """Render FPS counter text in the upper-right corner."""
