@@ -373,7 +373,7 @@ class RenderMixin:
         y_coords = np.linspace(self.minY, self.minY + self.extentY, self.nRow + 1)
         self.headsplot = self.ax.pcolormesh(
             x_coords, y_coords, heads_2d,
-            shading='flat', alpha=0.5, zorder=2, cmap=colormaps['terrain']
+            shading='flat', alpha=1.0, zorder=2, cmap=colormaps['terrain']
         )
         # Plot ibound boundary (masked cells) as black patches
         if hasattr(self, 'ibound'):
