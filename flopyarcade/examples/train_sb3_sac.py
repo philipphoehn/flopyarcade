@@ -1,122 +1,143 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""FloPyArcade — Stable-Baselines3 SAC training.
 
-# FloPyArcade - Stable-Baselines3 SAC training
-# Soft Actor-Critic for continuous action spaces
+Soft Actor-Critic: off-policy, continuous actions, entropy-regularized.
+
+Requires: stable-baselines3>=2.0, flopy>=3.9.2, gymnasium, numpy
+"""
 
 from argparse import ArgumentParser
-from os import makedirs
-from os.path import abspath, dirname, join, exists
+from common import (
+    add_common_args, make_flopy_env, setup_logging,
+    run_evaluation, get_outdir, effective_seed, parse_net_arch
+)
 
-import numpy as np
 from stable_baselines3 import SAC
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.common.callbacks import (
     CheckpointCallback, EvalCallback,
     StopTrainingOnRewardThreshold, CallbackList
 )
-
-from flopyarcade import FloPyEnv
-
-
-def str_to_bool(value):
-    if isinstance(value, bool):
-        return value
-    if value.lower() in {'false', 'f', '0', 'no', 'n'}:
-        return False
-    elif value.lower() in {'true', 't', '1', 'yes', 'y'}:
-        return True
-    raise ValueError(f'{value} is not a valid boolean value')
-
-
-parser = ArgumentParser(description='FloPyArcade training with SAC (Stable-Baselines3)')
-parser.add_argument('--envtype', default='3s-c', type=str,
-    help='string defining environment type')
-parser.add_argument('--seed', default=1, type=int,
-    help='random seed for reproducibility')
-parser.add_argument('--timesteps', default=1000000, type=int,
-    help='total timesteps for training')
-parser.add_argument('--lr', default=0.0003, type=float,
-    help='learning rate')
-parser.add_argument('--batchsize', default=256, type=int,
-    help='mini-batch size')
-parser.add_argument('--buffer-size', default=1000000, type=int,
-    help='replay buffer size')
-parser.add_argument('--render', default=False, type=str_to_bool,
-    help='enable rendering during training')
-args = parser.parse_args()
-
-
-def make_env(envtype, render=False):
-    """Create a FloPyArcade environment."""
-    env_config = {'ENVTYPE': envtype}
-    if render:
-        env_config['flagRender'] = True
-    return FloPyEnv(env_config=env_config)
+import numpy as np
+from os.path import join
 
 
 def main():
-    wrkspc = abspath(dirname(__file__))
-    outdir = join(wrkspc, 'results', f'{args.envtype}-SAC')
-    makedirs(outdir, exist_ok=True)
+    parser = ArgumentParser(description=__doc__)
+    add_common_args(parser, default_envtype='3s-c')
+    # SAC-specific
+    parser.add_argument('--tau', default=0.005, type=float,
+        help='soft update coefficient for target networks (default: 0.005)')
+    parser.add_argument('--n-critics', default=2, type=int,
+        help='number of critics (default: 2)')
+    parser.add_argument('--train-freq', default=1, type=int,
+        help='train N gradient steps per env step (default: 1)')
+    parser.add_argument('--buffer-size', default=1_000_000, type=int,
+        help='replay buffer capacity (default: 1000000)')
+    parser.add_argument('--batch-size', default=256, type=int,
+        help='mini-batch size (default: 256)')
+    parser.add_argument('--noise-sigma', default=0.1, type=float,
+        help='exploration noise sigma (default: 0.1)')
+    args = parser.parse_args()
 
-    env = make_env(args.envtype)
-    eval_env = make_env(args.envtype)
+    setup_logging(args.verbose)
 
+    # Quick test mode
+    if args.quick_test:
+        args.timesteps = 200
+        args.eval_episodes = 1
+        args.save_freq = 100
+
+    outdir = get_outdir(args, 'SAC')
+    seed = args.seed
+    env_seed = effective_seed(args)
+
+    env = make_flopy_env(args.envtype, seed_env=env_seed)
+    eval_env = make_flopy_env(args.envtype, seed_env=env_seed)
+
+    # Noise
     n_actions = env.action_space.shape[-1]
     action_noise = NormalActionNoise(
         mean=np.zeros(n_actions),
-        sigma=0.1 * np.ones(n_actions)
+        sigma=args.noise_sigma * np.ones(n_actions)
     )
+
+    # Build policy_kwargs
+    policy_kwargs = {}
+    net_arch = parse_net_arch(args.net_arch)
+    if net_arch:
+        policy_kwargs['net_arch'] = net_arch
+    if args.n_critics != 2:
+        policy_kwargs['n_critics'] = args.n_critics
+
+    # Resume or fresh
+    if args.resume:
+        print(f'Resuming from {args.resume}')
+        model = SAC.load(args.resume, env=env)
+        model.noise = action_noise
+    else:
+        model = SAC(
+            'MlpPolicy',
+            env,
+            action_noise=action_noise,
+            learning_rate=args.lr,
+            gamma=args.gamma,
+            tau=args.tau,
+            buffer_size=args.buffer_size,
+            batch_size=args.batch_size,
+            train_freq=(args.train_freq, 'steps'),
+            seed=seed,
+            tensorboard_log=outdir,
+            policy_kwargs=policy_kwargs,
+            verbose=args.verbose,
+        )
+
+    # Eval-only mode
+    if args.eval_only:
+        print(f'Eval-only from {args.eval_only}')
+        model = SAC.load(args.eval_only, env=env)
+        run_evaluation(model, eval_env, max_episodes=args.eval_episodes,
+                       max_steps=args.max_steps_eval, verbose=args.verbose)
+        return
 
     # Callbacks
     checkpoint_cb = CheckpointCallback(
-        save_freq=100000,
+        save_freq=args.save_freq,
         save_path=outdir,
-        name_prefix=f'sac_{args.envtype}'
+        name_prefix=f'sac_{args.envtype}',
+        save_replay_buffer=True,
     )
-    stop_on_reward = StopTrainingOnRewardThreshold(reward_threshold=990, verbose=1)
+    stop_on_reward = StopTrainingOnRewardThreshold(
+        reward_threshold=args.reward_threshold, verbose=1
+    )
     eval_cb = EvalCallback(
         eval_env,
         best_model_save_path=join(outdir, 'best_model'),
         log_path=join(outdir, 'results'),
-        n_eval_episodes=5,
-        eval_freq=100000,
+        n_eval_episodes=args.eval_episodes,
+        eval_freq=args.save_freq,
         callback_on_new_best=stop_on_reward,
-        verbose=1
+        verbose=1,
     )
     callback = CallbackList([checkpoint_cb, eval_cb])
 
-    model = SAC(
-        'MlpPolicy',
-        env,
-        action_noise=action_noise,
-        learning_rate=args.lr,
-        buffer_size=args.buffer_size,
-        batch_size=args.batchsize,
-        seed=args.seed,
-        tensorboard_log=outdir,
-        verbose=1
-    )
-
+    # Train
     model.learn(
         total_timesteps=args.timesteps,
         log_interval=10,
-        callback=callback
+        callback=callback,
+        reset_num_timesteps=(args.resume is None),
     )
 
-    model.save(join(outdir, 'sac_final'))
-    print(f'Model saved to {outdir}/sac_final')
+    # Save final
+    final_path = join(outdir, 'sac_final')
+    model.save(final_path)
+    print(f'\nModel saved to {final_path}')
 
-    # Quick evaluation
-    obs, _ = eval_env.reset()
-    done = False
-    reward_total = 0.
-    while not done:
-        action, _ = model.predict(obs)
-        obs, reward, done, truncated, info = eval_env.step(action)
-        reward_total += reward
-    print(f'Final evaluation reward: {reward_total:.2f}')
+    # Final evaluation
+    run_evaluation(model, eval_env, max_episodes=args.eval_episodes,
+                   max_steps=args.max_steps_eval, verbose=args.verbose)
 
 
 if __name__ == '__main__':
