@@ -543,18 +543,21 @@ class RenderMixin:
         v_band = 90   # vertical headroom for title bar + taskbar
         h_band = 16   # small horizontal headroom for window borders
         sw, sh = int(sw), int(sh)
-        target_w = py_max(400, sw - h_band)
-        target_h = py_max(400, sh - v_band)
+        avail_w = py_max(400, sw - h_band)
+        avail_h = py_max(400, sh - v_band)
 
-        # Choose the figure size (inches) so that figsize * dpi == target px,
-        # i.e. the canvas pixel size equals the window-geometry pixel size.
-        self.fig.set_size_inches(target_w / dpi, target_h / dpi)
+        # Size the figure to the SMALLER screen dimension (typically height),
+        # producing a square canvas that the equal-aspect grid fills without
+        # stretching or clipping. The toplevel window can be wider; the square
+        # canvas is centred by matplotlib.
+        side = py_min(avail_w, avail_h)
+        self.fig.set_size_inches(side / dpi, side / dpi)
         self.fig.tight_layout(pad=0.)
 
-        # Pin the toplevel to the same pixel geometry at the top-left so the
-        # window fills the safe screen area. Synchronous -> no flicker.
+        # Pin the toplevel to the full safe screen area at top-left.
+        # Synchronous -> no flicker. The square canvas is centred within it.
         try:
-            win.geometry("%dx%d+0+0" % (target_w, target_h))
+            win.geometry("%dx%d+0+0" % (avail_w, avail_h))
         except Exception:
             pass
 
