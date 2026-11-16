@@ -543,8 +543,8 @@ class RenderMixin:
         v_band = 90   # vertical headroom for title bar + taskbar
         h_band = 16   # small horizontal headroom for window borders
         sw, sh = int(sw), int(sh)
-        target_w = max(400, sw - h_band)
-        target_h = max(400, sh - v_band)
+        target_w = py_max(400, sw - h_band)
+        target_h = py_max(400, sh - v_band)
 
         # Choose the figure size (inches) so that figsize * dpi == target px,
         # i.e. the canvas pixel size equals the window-geometry pixel size.
