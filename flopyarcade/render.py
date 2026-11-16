@@ -509,85 +509,53 @@ class RenderMixin:
         
         """
         self.figManager = get_current_fig_manager()
-        try:
-            self.figManager.window.state('zoomed')
-        except Exception:
-            try:
-                self.figManager.full_screen_toggle()
-            except Exception:
-                pass
-
-        # The window manager applies the maximize asynchronously, so poll the
-        # toplevel until it grows past its initial size. The toplevel's own
-        # winfo_* can report the OUTER (frame-inclusive) size on some WMs, so
-        # we then read the CANVAS widget -- the actual drawable client area --
-        # and size the figure strictly inside it. This keeps the equal-data-
-        # aspect grid limited by the smaller axis and centered on the larger
-        # one, eliminating both the 'tiny plot in a big window' effect and the
-        # top/bottom overfill/clipping caused by trusting the toplevel size.
-        import time
-        dpi = self.fig.dpi
         win = self.figManager.window
+        dpi = self.fig.dpi
 
-        # Resolve the real Tk canvas widget (TkAgg) which fills the client area.
-        canvas_widget = None
+        # v0.7.8 -- a different maximization strategy.
+        #
+        # Previous versions asked the window manager to maximize
+        # (state('zoomed')) and then measured the result. That is an
+        # asynchronous WM operation: it produced the resolution flicker and, on
+        # WMs whose toplevel reports a frame-inclusive size, the top/bottom
+        # overfill. We avoid all of that here.
+        #
+        # Instead we (1) query the SCREEN pixel size synchronously (a
+        # deterministic read, no WM round-trip), (2) subtract a modest safety
+        # band to absorb window-manager decorations / client-side title bars /
+        # the taskbar, and (3) pin BOTH the matplotlib figure size and the Tk
+        # toplevel geometry to exactly that same pixel size.
+        #
+        # Why this neither clips nor shrinks: Tk's window geometry defines the
+        # client (drawable) area, while the figure size defines the canvas
+        # size. Setting them equal makes the canvas fill the client exactly,
+        # so there is no overfill (clipping) and no 'tiny plot in a big
+        # window'. The equal-data-aspect grid is limited by the smaller axis
+        # and centered on the larger one, so it is never stretched. Because
+        # nothing waits on the WM, there is no resolution flicker either.
         try:
-            canvas_widget = self.fig.canvas.canvas
+            sw = win.winfo_screenwidth()
+            sh = win.winfo_screenheight()
         except Exception:
-            canvas_widget = None
+            # Headless / unsupported backend: keep the default figure size.
+            return
 
-        initial_w = initial_h = None
+        v_band = 90   # vertical headroom for title bar + taskbar
+        h_band = 16   # small horizontal headroom for window borders
+        target_w = max(400, sw - h_band)
+        target_h = max(400, sh - v_band)
+
+        # Choose the figure size (inches) so that figsize * dpi == target px,
+        # i.e. the canvas pixel size equals the window-geometry pixel size.
+        self.fig.set_size_inches(target_w / dpi, target_h / dpi)
+        self.fig.tight_layout(pad=0.)
+
+        # Pin the toplevel to the same pixel geometry at the top-left so the
+        # window fills the safe screen area. Synchronous -> no flicker.
         try:
-            initial_w = win.winfo_width()
-            initial_h = win.winfo_height()
+            win.geometry("%dx%d+0+0" % (target_w, target_h))
         except Exception:
             pass
-
-        # Wait for the WM to actually apply the maximize.
-        deadline = time.time() + 1.2
-        while time.time() < deadline:
-            try:
-                w = win.winfo_width()
-                h = win.winfo_height()
-            except Exception:
-                break
-            if w > 0 and h > 0 and (w != initial_w or h != initial_h):
-                break
-            time.sleep(0.05)
-
-        # Truth = the canvas client area, not the possibly-frame-inclusive
-        # toplevel. Read it now that the window has settled.
-        target_w = target_h = None
-        if canvas_widget is not None:
-            try:
-                target_w = canvas_widget.winfo_width()
-                target_h = canvas_widget.winfo_height()
-            except Exception:
-                target_w = target_h = None
-
-        # Fallbacks if the canvas query failed.
-        if not target_w or not target_h:
-            try:
-                cw, ch = self.fig.canvas.get_width_height()
-                if cw and ch:
-                    target_w, target_h = cw, ch
-            except Exception:
-                pass
-        if not target_w or not target_h:
-            try:
-                target_w, target_h = win.winfo_width(), win.winfo_height()
-            except Exception:
-                target_w = target_h = None
-
-        if target_w and target_h and target_w > 0 and target_h > 0:
-            # Slightly inset so the figure never overflows the true client
-            # area (guards against decoration/DPI rounding differences).
-            margin = 0.96
-            new_w = (target_w / dpi) * margin
-            new_h = (target_h / dpi) * margin
-            if new_w > 1 and new_h > 1:
-                self.fig.set_size_inches(new_w, new_h)
-                self.fig.tight_layout(pad=0.)
 
     def _finalize_figure(self):
         """Finalize the figure by removing axes and adjusting layout.
