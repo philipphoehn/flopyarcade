@@ -513,14 +513,24 @@ class RenderMixin:
                 pass
 
         # The window manager applies the maximize asynchronously, so poll the
-        # real Tk toplevel geometry until it changes from the initial figure
-        # size. We then size the figure to the window's NATIVE aspect ratio
-        # (not forced square) so the equal-data-aspect grid is limited by the
-        # smaller axis and centered on the larger one -- this prevents both
-        # top/bottom clipping and the 'tiny plot in a big window' effect.
+        # toplevel until it grows past its initial size. The toplevel's own
+        # winfo_* can report the OUTER (frame-inclusive) size on some WMs, so
+        # we then read the CANVAS widget -- the actual drawable client area --
+        # and size the figure strictly inside it. This keeps the equal-data-
+        # aspect grid limited by the smaller axis and centered on the larger
+        # one, eliminating both the 'tiny plot in a big window' effect and the
+        # top/bottom overfill/clipping caused by trusting the toplevel size.
         import time
         dpi = self.fig.dpi
         win = self.figManager.window
+
+        # Resolve the real Tk canvas widget (TkAgg) which fills the client area.
+        canvas_widget = None
+        try:
+            canvas_widget = self.fig.canvas.canvas
+        except Exception:
+            canvas_widget = None
+
         initial_w = initial_h = None
         try:
             initial_w = win.winfo_width()
@@ -528,7 +538,7 @@ class RenderMixin:
         except Exception:
             pass
 
-        target_w = target_h = None
+        # Wait for the WM to actually apply the maximize.
         deadline = time.time() + 1.2
         while time.time() < deadline:
             try:
@@ -537,21 +547,37 @@ class RenderMixin:
             except Exception:
                 break
             if w > 0 and h > 0 and (w != initial_w or h != initial_h):
-                target_w, target_h = w, h
                 break
             time.sleep(0.05)
 
-        # Fallback to the canvas size if the toplevel query never resolved.
-        if target_w is None or target_h is None:
+        # Truth = the canvas client area, not the possibly-frame-inclusive
+        # toplevel. Read it now that the window has settled.
+        target_w = target_h = None
+        if canvas_widget is not None:
+            try:
+                target_w = canvas_widget.winfo_width()
+                target_h = canvas_widget.winfo_height()
+            except Exception:
+                target_w = target_h = None
+
+        # Fallbacks if the canvas query failed.
+        if not target_w or not target_h:
             try:
                 cw, ch = self.fig.canvas.get_width_height()
                 if cw and ch:
                     target_w, target_h = cw, ch
             except Exception:
+                pass
+        if not target_w or not target_h:
+            try:
+                target_w, target_h = win.winfo_width(), win.winfo_height()
+            except Exception:
                 target_w = target_h = None
 
-        if target_w and target_h:
-            margin = 0.98  # small safety margin for window decorations
+        if target_w and target_h and target_w > 0 and target_h > 0:
+            # Slightly inset so the figure never overflows the true client
+            # area (guards against decoration/DPI rounding differences).
+            margin = 0.96
             new_w = (target_w / dpi) * margin
             new_h = (target_h / dpi) * margin
             if new_w > 1 and new_h > 1:
