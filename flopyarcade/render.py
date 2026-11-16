@@ -1372,7 +1372,10 @@ class RenderMixin:
             # Slow path: single draw at final position (avoids artist leak)
             # Remove any stale transition artists
             for art in self._blit_artists.get('_transition_artists', []):
-                art.remove()
+                try:
+                    art.remove()
+                except (NotImplementedError, Exception):
+                    pass
             self._blit_artists['_transition_artists'] = []
             # Draw a single line showing the transition path
             art, = self.ax2.plot([x_prev, x_now], [y_prev, y_now],
