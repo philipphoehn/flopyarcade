@@ -493,10 +493,11 @@ class RenderMixin:
         self.fig = figure(figsize=(7, 7))
 
     def _maximize_figure_window(self):
-        """Maximize the figure window if possible.
+        """Maximize the figure window and resize figure to fit.
 
         Attempts to maximize the figure window using platform-specific methods.
-        Falls back gracefully if methods are unsupported.
+        After maximizing, resizes the figure to match the actual canvas size
+        so content is not clipped by window decorations or DPI scaling.
 
         Args:
             self (object): The instance containing the figure manager.
@@ -510,6 +511,26 @@ class RenderMixin:
                 self.figManager.full_screen_toggle()
             except Exception:
                 pass
+
+        # After maximizing, resize the figure to fit the actual canvas
+        # so the plot content is not clipped by window decorations.
+        try:
+            import time
+            time.sleep(0.1)  # allow window manager to apply the resize
+            canvas = self.fig.canvas
+            w_px, h_px = canvas.get_width_height()
+            if w_px > 0 and h_px > 0:
+                dpi = self.fig.dpi
+                # 5% safety margin for window decorations / taskbar
+                margin = 0.95
+                new_w = (w_px / dpi) * margin
+                new_h = (h_px / dpi) * margin
+                # Keep square if window is roughly square
+                side = min(new_w, new_h)
+                self.fig.set_size_inches(side, side)
+                self.fig.tight_layout(pad=0.)
+        except Exception:
+            pass
 
     def _finalize_figure(self):
         """Finalize the figure by removing axes and adjusting layout.
