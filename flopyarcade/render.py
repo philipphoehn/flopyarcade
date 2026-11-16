@@ -554,10 +554,12 @@ class RenderMixin:
         self.fig.set_size_inches(side / dpi, side / dpi)
         self.fig.tight_layout(pad=0.)
 
-        # Pin the toplevel to the full safe screen area at top-left.
-        # Synchronous -> no flicker. The square canvas is centred within it.
+        # Pin the toplevel to a SQUARE of the same size as the figure, centred
+        # horizontally on screen. This prevents Tk from stretching the canvas
+        # to a wider toplevel (which would re-stretch the grid and clip it).
+        x_off = py_max(0, (avail_w - side) // 2)
         try:
-            win.geometry("%dx%d+0+0" % (avail_w, avail_h))
+            win.geometry("%dx%d+%d+0" % (side, side, x_off))
         except Exception:
             pass
 
