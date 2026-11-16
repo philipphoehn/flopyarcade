@@ -1,57 +1,33 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""FloPyArcade — Ray RLlib ES (Evolution Strategies) training.
 
-# FloPyArcade - Ray RLlib ES training
-# Evolution Strategies — lightweight, GPU-friendly, no critic needed
+Evolution Strategies: lightweight, no critic, discrete or continuous.
 
-import os
+Requires: ray[default]>=2.9, flopy>=3.9.2, gymnasium, tensorflow
+"""
+
 import logging
-
 logging.disable(logging.WARNING)
+import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-
-from argparse import ArgumentParser
-from os.path import abspath, dirname, join
-from os import makedirs
-from ray import tune
-from ray import init as rayInit
-from ray.tune.registry import register_env
-from ray.rllib.algorithms.es import ESConfig
 import warnings
 warnings.filterwarnings('ignore', 'SelectableGroups dict interface')
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 
+from argparse import ArgumentParser
+from common import (
+    add_common_args, make_flopy_env, setup_logging,
+    get_outdir, effective_seed, parse_net_arch
+)
+from ray import tune
+from ray import init as rayInit
+from ray.tune.registry import register_env
+from ray.rllib.algorithms.es import ESConfig
+
 from flopyarcade import FloPyEnv
 
-
-def str_to_bool(value):
-    if isinstance(value, bool):
-        return value
-    if value.lower() in {'false', 'f', '0', 'no', 'n'}:
-        return False
-    elif value.lower() in {'true', 't', '1', 'yes', 'y'}:
-        return True
-    raise ValueError(f'{value} is not a valid boolean value')
-
-
-parser = ArgumentParser(description='FloPyArcade training with ES (Ray RLlib)')
-parser.add_argument('--envtype', default='6s-c', type=str,
-    help='string defining environment type')
-parser.add_argument('--seed', default=1, type=int,
-    help='random seed for reproducibility')
-parser.add_argument('--cpus', default=16, type=int,
-    help='number of CPU workers (ES benefits from many workers)')
-parser.add_argument('--gpus', default=0, type=int,
-    help='number of GPUs')
-parser.add_argument('--timesteps', default=500000, type=int,
-    help='total timesteps for training')
-parser.add_argument('--sigma', default=0.2, type=float,
-    help='perturbation sigma for ES')
-parser.add_argument('--render', default=False, type=str_to_bool,
-    help='enable rendering for benchmark visualization')
-args = parser.parse_args()
-
-ENVTYPE = args.envtype
+ENVTYPE = None
 
 
 def env_creator(env_config):
@@ -61,12 +37,40 @@ def env_creator(env_config):
 
 
 def main():
-    if not args.render:
-        rayInit()
-    else:
-        rayInit(log_to_driver=False, logging_level=logging.FATAL)
+    global ENVTYPE
 
+    parser = ArgumentParser(description=__doc__)
+    add_common_args(parser, default_envtype='1s-d', default_timesteps=2_000_000)
+    parser.add_argument('--lr', default=0.01, type=float,
+        help='learning rate (default: 0.01)')
+    parser.add_argument('--popsize', default=512, type=int,
+        help='population size (default: 512)')
+    parser.add_argument('--sigma', default=0.5, type=float,
+        help='mutation noise sigma (default: 0.5)')
+    parser.add_argument('--framework', default='tf', type=str,
+        choices=['tf', 'torch'], help='deep learning framework (default: tf)')
+    args = parser.parse_args()
+
+    ENVTYPE = args.envtype
+    setup_logging(args.verbose)
+
+    if args.quick_test:
+        args.timesteps = 200
+        args.eval_episodes = 1
+        args.popsize = 32
+
+    outdir = get_outdir(args, 'ES')
+
+    rayInit(log_to_driver=not args.render, logging_level=logging.FATAL if args.render else logging.ERROR)
     register_env('flopy_es', env_creator)
+
+    model_cfg = {
+        "fcnet_hiddens": [128, 128],
+        "fcnet_activation": "relu",
+    }
+    net_arch = parse_net_arch(args.net_arch)
+    if net_arch:
+        model_cfg["fcnet_hiddens"] = net_arch
 
     config = (
         ESConfig()
@@ -74,26 +78,25 @@ def main():
         .seed(args.seed)
         .num_workers(args.cpus)
         .num_gpus(args.gpus)
-        .framework("tf")
-        .learning_rate(0.01)
-        .train_batch_size(1)
-        .timesteps_per_iteration(1000)
-        .min_iter_time_s(10)
-        .model({
-            "fcnet_hiddens": [256, 256],
-            "fcnet_activation": "tanh",
+        .framework(args.framework)
+        .lr(args.lr)
+        .gamma(args.gamma)
+        .train_batch_size(args.popsize)
+        .model(model_cfg)
+        .evaluation_config({
+            "n_steps": args.max_steps_eval,
+            "episode_reward_threshold": args.reward_threshold,
+            "evaluation_interval": 1,
+            "evaluation_num_episodes": args.eval_episodes,
         })
-        # ES-specific
-        .sigma(args.sigma)
     )
+    # ES-specific: mutation sigma
+    config["sigma"] = args.sigma
 
     stop = {
         "timesteps_total": args.timesteps,
-        "episode_reward_mean": 990,
+        "episode_reward_mean": args.reward_threshold,
     }
-
-    wrkspc = abspath(dirname(__file__))
-    outdir = join(wrkspc, 'results', f'{ENVTYPE}-ES')
 
     results = tune.run(
         "ES",
@@ -104,7 +107,6 @@ def main():
         verbose=2,
         checkpoint_at_end=True,
     )
-
     print(f'\nTraining complete. Best trial: {results.best_trial}')
     print(f'Results saved to: {outdir}')
 

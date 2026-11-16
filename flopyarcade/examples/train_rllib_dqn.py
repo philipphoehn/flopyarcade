@@ -1,59 +1,33 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""FloPyArcade — Ray RLlib DQN training.
 
-# FloPyArcade - Ray RLlib DQN training
-# Deep Q-Network for discrete actions (baseline)
+Deep Q-Network: off-policy, discrete actions.
 
-import os
+Requires: ray[default]>=2.9, flopy>=3.9.2, gymnasium, tensorflow
+"""
+
 import logging
-
 logging.disable(logging.WARNING)
+import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-
-from argparse import ArgumentParser
-from os.path import abspath, dirname, join
-from os import makedirs
-from ray import tune
-from ray import init as rayInit
-from ray.tune.registry import register_env
-from ray.rllib.algorithms.dqn import DQNConfig
 import warnings
 warnings.filterwarnings('ignore', 'SelectableGroups dict interface')
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 
+from argparse import ArgumentParser
+from common import (
+    add_common_args, make_flopy_env, setup_logging,
+    get_outdir, effective_seed, parse_net_arch
+)
+from ray import tune
+from ray import init as rayInit
+from ray.tune.registry import register_env
+from ray.rllib.algorithms.dqn import DQNConfig
+
 from flopyarcade import FloPyEnv
 
-
-def str_to_bool(value):
-    if isinstance(value, bool):
-        return value
-    if value.lower() in {'false', 'f', '0', 'no', 'n'}:
-        return False
-    elif value.lower() in {'true', 't', '1', 'yes', 'y'}:
-        return True
-    raise ValueError(f'{value} is not a valid boolean value')
-
-
-parser = ArgumentParser(description='FloPyArcade training with DQN (Ray RLlib)')
-parser.add_argument('--envtype', default='6s-c', type=str,
-    help='string defining environment type')
-parser.add_argument('--seed', default=1, type=int,
-    help='random seed for reproducibility')
-parser.add_argument('--cpus', default=4, type=int,
-    help='number of CPU workers')
-parser.add_argument('--gpus', default=0, type=int,
-    help='number of GPUs')
-parser.add_argument('--timesteps', default=1000000, type=int,
-    help='total timesteps for training')
-parser.add_argument('--lr', default=0.00005, type=float,
-    help='learning rate')
-parser.add_argument('--buffer-size', default=3000000, type=int,
-    help='replay buffer size')
-parser.add_argument('--render', default=False, type=str_to_bool,
-    help='enable rendering for benchmark visualization')
-args = parser.parse_args()
-
-ENVTYPE = args.envtype
+ENVTYPE = None
 
 
 def env_creator(env_config):
@@ -63,41 +37,72 @@ def env_creator(env_config):
 
 
 def main():
-    if not args.render:
-        rayInit()
-    else:
-        rayInit(log_to_driver=False, logging_level=logging.FATAL)
+    global ENVTYPE
 
+    parser = ArgumentParser(description=__doc__)
+    add_common_args(parser, default_envtype='1s-d', default_timesteps=5_000_000)
+    parser.add_argument('--lr', default=5e-5, type=float,
+        help='learning rate (default: 0.00005)')
+    parser.add_argument('--buffer-size', default=1_000_000, type=int,
+        help='replay buffer capacity (default: 1000000)')
+    parser.add_argument('--learning-starts', default=50_000, type=int,
+        help='random steps before learning starts (default: 50000)')
+    parser.add_argument('--target-update-freq', default=10_000, type=int,
+        help='target network update frequency (default: 10000)')
+    parser.add_argument('--framework', default='tf', type=str,
+        choices=['tf', 'torch'], help='deep learning framework (default: tf)')
+    args = parser.parse_args()
+
+    ENVTYPE = args.envtype
+    setup_logging(args.verbose)
+
+    if args.quick_test:
+        args.timesteps = 200
+        args.eval_episodes = 1
+        args.learning_starts = 50
+
+    outdir = get_outdir(args, 'DQN')
+
+    rayInit(log_to_driver=not args.render, logging_level=logging.FATAL if args.render else logging.ERROR)
     register_env('flopy_dqn', env_creator)
+
+    model_cfg = {
+        "fcnet_hiddens": [256, 256],
+        "fcnet_activation": "relu",
+    }
+    net_arch = parse_net_arch(args.net_arch)
+    if net_arch:
+        model_cfg["fcnet_hiddens"] = net_arch
 
     config = (
         DQNConfig()
         .environment('flopy_dqn')
         .seed(args.seed)
-        .num_workers(args.cpus - 1 if args.cpus >= 2 else 1)
+        .num_workers(args.cpus)
         .num_gpus(args.gpus)
-        .framework("tf")
+        .framework(args.framework)
         .lr(args.lr)
-        .replay_buffer_config({"capacity": args.buffer_size})
-        .exploration_config({"type": "PerWorkerEpsilonGreedy"})
-        .train_batch_size(512)
+        .gamma(args.gamma)
+        .buffer_size(args.buffer_size)
+        .learning_starts(args.learning_starts)
+        .target_network_update_freq(args.target_update_freq)
+        .train_batch_size(256)
         .timesteps_per_iteration(10000)
-        .target_network_update_freq(10000)
-        .learning_starts(50000)
         .min_iter_time_s(30)
-        .model({
-            "fcnet_hiddens": [512, 256],
-            "fcnet_activation": "relu",
+        .model(model_cfg)
+        .exploration_config({"type": "PerWorkerEpsilonGreedy"})
+        .evaluation_config({
+            "n_steps": args.max_steps_eval,
+            "episode_reward_threshold": args.reward_threshold,
+            "evaluation_interval": 1,
+            "evaluation_num_episodes": args.eval_episodes,
         })
     )
 
     stop = {
         "timesteps_total": args.timesteps,
-        "episode_reward_mean": 990,
+        "episode_reward_mean": args.reward_threshold,
     }
-
-    wrkspc = abspath(dirname(__file__))
-    outdir = join(wrkspc, 'results', f'{ENVTYPE}-DQN')
 
     results = tune.run(
         "DQN",
@@ -108,7 +113,6 @@ def main():
         verbose=2,
         checkpoint_at_end=True,
     )
-
     print(f'\nTraining complete. Best trial: {results.best_trial}')
     print(f'Results saved to: {outdir}')
 
