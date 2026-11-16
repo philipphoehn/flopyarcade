@@ -18,6 +18,11 @@ except ImportError:
     # injects its own mocks, so no patching needed here.
     pass
 
+# ray.rllib disables TF eager execution; re-enable it for Keras/TF tests
+import tensorflow as tf
+if not tf.executing_eagerly():
+    tf.compat.v1.enable_eager_execution()
+
 # Set sys.argv before play_againstai module-level parse_args()
 sys.argv = ["play_againstai.py", "--envtype", "1s-d", "--cpus", "4", "--gpus", "0",
             "--playbenchmark", "False", "--external", "True", "--suffix", "_test"]

@@ -48,6 +48,25 @@ def _try_layer_get(policy: dict, prefix: str, name: str) -> tuple:
     return k, b
 
 
+def _resolve_model_path(model_path: str) -> str:
+    """Resolve model path, falling back to package-relative location if CWD-relative fails."""
+    if os.path.exists(model_path):
+        return model_path
+    # Try relative to the package root (handles CI CWD mismatches)
+    try:
+        pkg_dir = os.path.dirname(os.path.abspath(__file__))
+        fallback = os.path.join(pkg_dir, 'examples', 'policymodels', os.path.basename(model_path))
+        if os.path.exists(fallback):
+            return fallback
+        # Also try the full relative path from package root
+        fallback2 = os.path.join(os.path.dirname(pkg_dir), model_path)
+        if os.path.exists(fallback2):
+            return fallback2
+    except (NameError, AttributeError):
+        pass
+    return model_path
+
+
 def load_keras_agent(model_path: str):
     """Load a policy model from various formats.
 
@@ -58,6 +77,7 @@ def load_keras_agent(model_path: str):
 
     Returns a Keras model (or RLlib policy object with predict_on_batch).
     """
+    model_path = _resolve_model_path(model_path)
     from tensorflow.keras.models import load_model, Sequential
     from tensorflow.keras.layers import Dense, Activation
     import numpy as np
@@ -381,7 +401,7 @@ def main():
     # Print final JSON summary to stdout (for CI capture)
     print('\n=== RESULTS JSON ===')
     print(json.dumps(results, indent=2))
-    return results
+    return 0
 
 
 if __name__ == '__main__':
