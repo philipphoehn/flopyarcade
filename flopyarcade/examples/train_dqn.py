@@ -96,6 +96,10 @@ parser.add_argument('--crossvalidateevery', default=50, type=int,
     help='integer defining the number of games between cross-validation')
 parser.add_argument('--ngamescrossvalidated', default=10, type=int,
     help='integer defining the number of games during cross-validation')
+parser.add_argument('--checkpointevery', default=10, type=int,
+    help='integer defining the number of games between automatic checkpoints (0 to disable)')
+parser.add_argument('--resume', default=None, type=str,
+    help='path to checkpoint directory to resume training from')
 args, _ = parser.parse_known_args()
 
 
@@ -142,7 +146,9 @@ hyParams = {
     'EPSILONDECAY': args.epsilondecay,                  # float defining the factor to decay the exploration fraction
     'EPSILONMIN': args.epsilonmin,				        # float defining the lowest exploration fraction following decay
     'CROSSVALIDATEEVERY': args.crossvalidateevery,      # integer defining the number of games between cross-validation
-    'NGAMESCROSSVALIDATED': args.ngamescrossvalidated   # integer defining the number of games during cross-validation
+    'NGAMESCROSSVALIDATED': args.ngamescrossvalidated,  # integer defining the number of games during cross-validation
+    'CHECKPOINTEVERY': args.checkpointevery,            # integer defining games between automatic checkpoints
+    'RESUME': args.resume                                # path to checkpoint directory for resuming
 }
 
 
@@ -165,6 +171,11 @@ def main(envSettings, hyParams):
         envSettings,
         'DQN')
     agent.GPUAllowMemoryGrowth()
+
+    # loading checkpoint if resuming
+    if hyParams.get('RESUME'):
+        agent.load_dqn_checkpoint(hyParams['RESUME'])
+        print(f'Resumed from game {agent.dqnGameCounter}')
 
     # running training of DQN agent
     agent.runDQN(env)

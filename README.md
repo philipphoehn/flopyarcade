@@ -139,7 +139,7 @@ flopyarcade/                        # CORE — Gymnasium environments
 ### Install
 
 ```bash
-# Python 3.9–3.12
+# Python >= 3.10 (numpy 2.x requirement)
 # Environments only (lightweight, ~200 MB):
 python -m pip install flopyarcade
 
@@ -164,10 +164,13 @@ from numpy.random import choice
 
 env = FloPyEnv(ENVTYPE='3s-d')
 reward_total = 0.0
+
 while not env.done:
     action = choice(env.actionSpace)
-    obs, reward, done, info = env.step(action)
+    obs, reward, *rest = env.step(action)
     reward_total += reward
+    env.render()
+
 print(f"Episode reward: {reward_total:.1f}")
 env.close()
 ```

@@ -123,11 +123,18 @@ def _import_module(name, relpath):
     # Install ray mocks
     ray_mocks = _make_ray_mocks()
     with mock.patch.dict(sys.modules, ray_mocks):
-        # Also mock FloPyEnv/FloPyAgent to avoid heavy imports
+        # Mock the entire flopyarcade package to avoid heavy flopy imports
+        fake_pkg = types.ModuleType("flopyarcade")
+        fake_pkg.__path__ = []
+        fake_pkg.FloPyEnv = mock.MagicMock(name="FloPyEnv")
+        fake_pkg.FloPyAgent = mock.MagicMock(name="FloPyAgent")
+        fake_pkg.FloPyArcade = mock.MagicMock(name="FloPyArcade")
         fake_flopy = types.ModuleType("flopyarcade.flopyarcade")
-        fake_flopy.FloPyEnv = mock.MagicMock(name="FloPyEnv")
-        fake_flopy.FloPyAgent = mock.MagicMock(name="FloPyAgent")
-        with mock.patch.dict(sys.modules, {"flopyarcade.flopyarcade": fake_flopy}):
+        fake_flopy.FloPyEnv = fake_pkg.FloPyEnv
+        fake_flopy.FloPyAgent = fake_pkg.FloPyAgent
+        fake_arcade = types.ModuleType("flopyarcade.arcade")
+        fake_arcade.FloPyArcade = fake_pkg.FloPyArcade
+        with mock.patch.dict(sys.modules, {"flopyarcade": fake_pkg, "flopyarcade.flopyarcade": fake_flopy, "flopyarcade.arcade": fake_arcade}):
             # Set argv before import (module-level parse_args)
             with mock.patch.object(sys, "argv", ["prog", "--envtype", "1s-d", "--cpus", "1", "--gpus", "0"]):
                 spec = importlib.util.spec_from_file_location(mod_name, mod_path)

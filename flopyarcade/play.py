@@ -59,6 +59,8 @@ def main(
     'MANUALCONTROL': False,
     'RENDER': True,
     'BLIT': True,
+    'SMOOTH_FRAMES': 4,
+    'SMOOTH_SUBDIV': 10,
     'MODELNAMELOAD': None,
     'MODELNAME': 'FloPyArcade',
     'PATHMF2005': None,
@@ -89,6 +91,12 @@ def main(
         help='boolean defining if displaying runs')
     parser.add_argument('--blit', default=True, type=str_to_bool,
         help='boolean enabling matplotlib blitting for 60+ FPS (default: True)')
+    parser.add_argument('--smooth-frames', default=4, type=int,
+        help='number of sub-frames for smooth particle transition (default: 4, set 1 to disable)')
+    parser.add_argument('--smooth-subdiv', default=10, type=int,
+        help='PCHIP subdivision factor for trajectory smoothing (default: 10)')
+    parser.add_argument('--split-screen', default=False, type=str_to_bool,
+        help='enable 2-player split-screen mode (Left: WASD, Right: arrows)')
     parser.add_argument('--modelnameload', default=None, type=str,
         help='string defining model to load')
     parser.add_argument('--modelname', default='FloPyArcade', type=str,
@@ -119,6 +127,8 @@ def main(
             'MANUALCONTROL': args.manualcontrol,                # boolean defining manual control model
             'RENDER': args.render,                              # boolean defining if displaying runs
             'BLIT': args.blit,                              # boolean enabling matplotlib blitting
+            'SMOOTH_FRAMES': args.smooth_frames,            # int sub-frames for smooth particle
+            'SMOOTH_SUBDIV': args.smooth_subdiv,            # int PCHIP subdivision factor
             'MODELNAMELOAD': args.modelnameload,                # string defining model to load
             'MODELNAME': args.modelname,                        # string defining model basename
             'PATHMF2005': args.pathmf2005,                      # string defining local path to MODFLOW 2005 executable
@@ -134,6 +144,25 @@ def main(
 
     # print('envSettings[ENVTYPE]', envSettings['ENVTYPE'])
 
+    # B2: split-screen mode dispatch
+    if getattr(args, 'split_screen', False) if has_arguments(parser, args) else False:
+        from flopyarcade.play_split import SplitScreenGame
+        game_split = SplitScreenGame(
+            envtype=args.envtype,
+            seed=args.seedenv,
+            nlay=args.nlay,
+            nrow=args.nrow,
+            ncol=args.ncol,
+            nagentsteps=args.nagentsteps,
+            smooth_frames=args.smooth_frames,
+            smooth_subdiv=args.smooth_subdiv,
+            pathmf2005=args.pathmf2005,
+            pathmp6=args.pathmp6,
+            modelname=args.modelname
+        )
+        game_split.play(ngames=args.ngames)
+        return None
+
     game = FloPyArcade(
         ENVTYPE=envSettings['ENVTYPE'],
         modelNameLoad=envSettings['MODELNAMELOAD'],
@@ -146,6 +175,8 @@ def main(
         flagManualControl=envSettings['MANUALCONTROL'],
         flagRender=envSettings['RENDER'],
         flagBlit=envSettings['BLIT'],
+        smoothFrames=envSettings['SMOOTH_FRAMES'],
+        smoothSubdiv=envSettings['SMOOTH_SUBDIV'],
         nLay=envSettings['NLAY'],
         nRow=envSettings['NROW'],
         nCol=envSettings['NCOL'],

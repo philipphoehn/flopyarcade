@@ -137,15 +137,21 @@ class Render3D:
             n = len(traj)
             # Cubic spline subdivision for smooth curved rendering
             if n >= 3:
-                from scipy.interpolate import PchipInterpolator
                 d = np.diff(traj, axis=0)
                 seg = np.sqrt((d**2).sum(axis=1))
                 s_orig = np.concatenate([[0.0], np.cumsum(seg)])
-                s_new = np.linspace(0.0, s_orig[-1], n * 10)
-                traj = np.column_stack([
-                    PchipInterpolator(s_orig, traj[:, c])(s_new)
-                    for c in range(3)
-                ])
+                # Deduplicate: PCHIP requires strictly increasing x
+                s_unique, idx_unique = np.unique(s_orig, return_index=True)
+                traj_u = traj[idx_unique]
+                if len(s_unique) >= 3:
+                    from scipy.interpolate import PchipInterpolator
+                    s_new = np.linspace(0.0, s_unique[-1], len(s_unique) * 10)
+                    traj = np.column_stack([
+                        PchipInterpolator(s_unique, traj_u[:, c])(s_new)
+                        for c in range(3)
+                    ])
+                else:
+                    traj = np.linspace(traj_u[0], traj_u[-1], 20)
                 n = len(traj)
             elif n == 2:
                 traj = np.linspace(traj[0], traj[1], 20)
