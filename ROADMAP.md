@@ -64,6 +64,7 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | A8 | **Reward scaling 0→1** across all env types (unify with cost mode) | Med-High | ⚠️ Partial (cost mode yes, others no) |
 | A9 | **Combine multiple initial runs** → high-variability seed set | Med-High | ❌ Not implemented |
 | A10 | **Prevent protection-zone overlap** for multi-well envs | Med-High | ❌ Not implemented |
+| A11 | **Neuroevolution via external libraries**: explore and create example training scripts using modern external neuroevolution / evolutionary-strategy libraries (replacing or complementing the built-in GA). **Required:** CMA-ES (`cma`/`cmaes`), Ray RLlib ES + neuroevolution, EvoTorch. **Also evaluate:** pyribs (MAP-Elites + novelty search), QDax (JAX, MAP-Elites + novelty), NEAT-Python / TensorNEAT (topology evolution), EvoX (distributed GPU ES). Prefer libraries with built-in novelty search or quality-diversity. Deliverables: `examples/train_cmaes.py`, `examples/train_rllib_es.py`, `examples/train_evotorch.py` (+ optional `train_pyribs.py`, `train_qdax.py`), benchmark comparison table vs built-in GA, README section | Very High | ❌ Not implemented |
 
 ---
 
@@ -370,6 +371,7 @@ Phase 3:
 
 | Date | Change |
 |------|--------|
+| 2026-11-16 | Added A11: Neuroevolution via external libraries (CMA-ES, Ray RLlib ES, EvoTorch, pyribs, QDax, NEAT/TensorNEAT, EvoX). Replaced obsolete GARNE student-project GA. |
 | 2026-11-15 | Merged B1 smooth trajectory (PR #62): PCHIP arc-length interpolation + blit-based particle transition, 10 new tests, <0.5 ms overhead. Corrected B6 status (merged 2026-11-03), B7 status (closed unmerged). |
 | 2026-11-14 | Merged 9 PRs (dep bumps: imageio/tf/matplotlib/numpy/tqdm; B13 animated banner; B15 reward line; README fix). Reverted MF6+PRT (PR #60) from master → experimental on `feat/mf6-prt-bmi`. Fixed test suite: skipped reverted BMI test, robust num_workers assertion. All 1538 tests pass (2-pass CI style). |
 | 2026-11-03 | Layer separation: moved 6 train scripts to `examples/`, split deps into `[solvers]`/`[ray]` extras, made `FloPyAgent` import optional, bumped to 0.7.0, added B17 benchmark suite (requires human control data) |
