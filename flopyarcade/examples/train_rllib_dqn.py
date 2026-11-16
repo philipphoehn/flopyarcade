@@ -16,7 +16,7 @@ warnings.filterwarnings('ignore', 'SelectableGroups dict interface')
 warnings.filterwarnings('ignore', category=DeprecationWarning)
 
 from argparse import ArgumentParser
-from common import (
+from common_rllib import (
     add_common_args, make_flopy_env, setup_logging,
     get_outdir, effective_seed, parse_net_arch
 )
@@ -98,6 +98,16 @@ def main():
             "evaluation_num_episodes": args.eval_episodes,
         })
     )
+
+    # Resume from checkpoint
+    if args.resume:
+        print(f"Resuming from {args.resume}")
+        import ray.rllib.algorithms as alg
+        DQN_algo = alg.DQN.from_checkpoint(args.resume)
+        DQN_algo.train()
+        DQN_algo.save()
+        print(f"Checkpoint saved to {DQN_algo.checkpoint_path}")
+        return
 
     stop = {
         "timesteps_total": args.timesteps,
