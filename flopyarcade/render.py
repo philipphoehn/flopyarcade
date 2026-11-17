@@ -197,7 +197,7 @@ class RenderMixin:
 
         """
         self.fig = figure(figsize=(8, 8))
-        self.ax = self.fig.add_subplot(1, 1, 1, aspect='equal', adjustable='box')
+        self.ax = self.fig.add_subplot(1, 1, 1, aspect='equal', adjustable='datalim')
         self.plotArrays = []
 
     def _plot_base_map(self):
