@@ -64,6 +64,7 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | A8 | **Reward scaling 0→1** across all env types (unify with cost mode) | Med-High | ⚠️ Partial (cost mode yes, others no) |
 | A9 | **Combine multiple initial runs** → high-variability seed set | Med-High | ❌ Not implemented |
 | A10 | **Prevent protection-zone overlap** for multi-well envs | Med-High | ❌ Not implemented |
+| A11 | **Neuroevolution via external libraries**: explore and create example training scripts using modern external neuroevolution / evolutionary-strategy libraries (replacing or complementing the built-in GA). **Required:** CMA-ES (`cma`/`cmaes`), Ray RLlib ES + neuroevolution, EvoTorch. **Also evaluate:** pyribs (MAP-Elites + novelty search), QDax (JAX, MAP-Elites + novelty), NEAT-Python / TensorNEAT (topology evolution), EvoX (distributed GPU ES). Prefer libraries with built-in novelty search or quality-diversity. Deliverables: `examples/train_cmaes.py`, `examples/train_rllib_es.py`, `examples/train_evotorch.py` (+ optional `train_pyribs.py`, `train_qdax.py`), benchmark comparison table vs built-in GA, README section | Very High | ❌ Not implemented |
 
 ---
 
@@ -77,14 +78,14 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | B4 | **Store & plot all well trajectories** (ensemble) | Med UX | ❌ Only last game stored |
 | B5 | **Generational trajectory ensemble plot** | Med UX | ❌ Not implemented |
 | B6 | **Matplotlib blitting** for 60+ FPS in `play.py` | Med Perf | ✅ PR [#42](https://github.com/philipphoehn/flopyarcade/pull/42) merged (2026-11-03) |
-| B7 | **FPS counter in 2D HUD** (`play.py`) | Med Perf | ❌ PR [#43](https://github.com/philipphoehn/flopyarcade/pull/43) closed (unmerged) — needs rework |
+| B7 | **FPS counter in 2D HUD** (`play.py`) | Med Perf | ✅ In master (since PR #42, 2026-11-03) |
 | B8 | **HDF5 novelty archive** (lazy load, append-only) | Med Perf | 🔄 PR [#44](https://github.com/philipphoehn/flopyarcade/pull/44) open |
 | B9 | **Auto-profile runtimes** (cProfile / line_profiler integration) | Med Perf | ❌ Not implemented |
 | B10 | **RAM-disk / in-memory filesystem** for MODFLOW work files | Med Perf | ❌ Not implemented |
 | B11 | **Resume function for DQN** (checkpoint save/load) | Med UX | 🔄 PR [#41](https://github.com/philipphoehn/flopyarcade/pull/41) open |
 | B12 | **Website: auto-update benchmark figures** | Med UX | ❌ Manual |
 | B13 | **Website: animated GIF logo** | Low UX | ✅ PR #53 merged (2026-11-14) |
-| B14 | **Scale linewidth around well** with pumping rate | Low UX | ❌ Not implemented |
+| B14 | **Scale linewidth around well** with pumping rate | Low UX | ✅ Implemented (render.py:641) + 11 tests (feat/b14-well-linewidth) |
 | B15 | **Edit white line** (highest reward) + transparent initial | Low UX | ✅ PR #48 merged (2026-11-14) |
 | B16 | **Generate GIFs of progress** during evolution | Low UX | ❌ Not implemented |
 | B17 | **Benchmark suite orchestrator** (`examples/benchmark_suite.py`): runs random / human / trained-agent on each env type, outputs reproducible score table. **Requires locally stored human control data (operator session recordings) to be uploaded to the benchmark environment to reproduce the human baseline score.** Without the uploaded control data the human column is unavailable and the table is incomplete. | High (validation) | ❌ Not implemented |
@@ -370,6 +371,7 @@ Phase 3:
 
 | Date | Change |
 |------|--------|
+| 2026-11-16 | Added A11: Neuroevolution via external libraries (CMA-ES, Ray RLlib ES, EvoTorch, pyribs, QDax, NEAT/TensorNEAT, EvoX). Replaced obsolete GARNE student-project GA. |
 | 2026-11-15 | Merged B1 smooth trajectory (PR #62): PCHIP arc-length interpolation + blit-based particle transition, 10 new tests, <0.5 ms overhead. Corrected B6 status (merged 2026-11-03), B7 status (closed unmerged). |
 | 2026-11-14 | Merged 9 PRs (dep bumps: imageio/tf/matplotlib/numpy/tqdm; B13 animated banner; B15 reward line; README fix). Reverted MF6+PRT (PR #60) from master → experimental on `feat/mf6-prt-bmi`. Fixed test suite: skipped reverted BMI test, robust num_workers assertion. All 1538 tests pass (2-pass CI style). |
 | 2026-11-03 | Layer separation: moved 6 train scripts to `examples/`, split deps into `[solvers]`/`[ray]` extras, made `FloPyAgent` import optional, bumped to 0.7.0, added B17 benchmark suite (requires human control data) |
