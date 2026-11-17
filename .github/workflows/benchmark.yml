@@ -45,31 +45,36 @@ jobs:
       - name: Run benchmark
         id: bench
         run: |
-          MODEL_PATH="${{ github.event.inputs.model_path || 'flopyarcade/examples/policymodels/model_3s-d.p' }}"
+          MODEL_PATH="${{ github.event.inputs.model_path || '' }}"
+          if [ -z "$MODEL_PATH" ]; then
+            MODEL_PATH="$GITHUB_WORKSPACE/flopyarcade/examples/policymodels/model_3s-d.p"
+          fi
           ENVTYPE="${{ github.event.inputs.envtype || '3s-d' }}"
           GAMES="${{ github.event.inputs.games || '1000' }}"
+          echo "Model path: $MODEL_PATH"
+          ls -la "$MODEL_PATH" || { echo "FATAL: model file not found at $MODEL_PATH"; ls -laR "$GITHUB_WORKSPACE/flopyarcade/examples/policymodels/" 2>&1; exit 1; }
           flopyarcade-benchmark \
             --model "$MODEL_PATH" \
             --envtype "$ENVTYPE" \
             --games "$GAMES" \
             --seed 42 \
-            --output benchmark_results.json
+            --output "$GITHUB_WORKSPACE/benchmark_results.json"
 
       - name: Upload results
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
-          path: benchmark_results.json
+          path: ${{ github.workspace }}/benchmark_results.json
 
       - name: Print summary
-        run: cat benchmark_results.json
+        run: cat "$GITHUB_WORKSPACE/benchmark_results.json"
 
       - name: Update leaderboard
         if: github.event_name == 'workflow_dispatch'
         run: |
           python -c "
-          import json, datetime
-          with open('benchmark_results.json') as f:
+          import json, datetime, os
+          with open(os.path.join(os.environ.get('GITHUB_WORKSPACE', '.'), 'benchmark_results.json')) as f:
               r = json.load(f)
           line = f'| {r[\"envtype\"]} | {r[\"model\"]} | {r[\"n_games\"]} | {r[\"mean_reward\"]} | {r[\"std_reward\"]} | {r[\"median_reward\"]} | {r[\"max_reward\"]} | {r[\"pct_nonzero\"]}% | {r[\"total_runtime_s\"]}s | {datetime.datetime.utcnow().isoformat()[:10]} |\n'
           with open('LEADERBOARD_ADDITIONS.md', 'a') as f:
