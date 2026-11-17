@@ -61,6 +61,7 @@ from matplotlib.pyplot import margins, NullLocator
 from matplotlib.pyplot import waitforbuttonpress
 from matplotlib import text as mtext
 from matplotlib.transforms import Bbox
+from matplotlib import patches as _mpatches
 import numpy as np
 from numpy import cos as numpyCos
 from numpy import sin as numpySin
@@ -196,7 +197,7 @@ class RenderMixin:
 
         """
         self.fig = figure(figsize=(8, 8))
-        self.ax = self.fig.add_subplot(1, 1, 1, aspect='equal', adjustable='box')
+        self.ax = self.fig.add_subplot(1, 1, 1, aspect='equal', adjustable='datalim')
         self.plotArrays = []
 
     def _plot_base_map(self):
@@ -369,10 +370,11 @@ class RenderMixin:
         heads_raw = np.squeeze(heads_raw)
         heads_2d = np.ma.masked_where(heads_raw == 999.0, heads_raw)
         x_coords = np.linspace(self.minX, self.minX + self.extentX, self.nCol + 1)
-        y_coords = np.linspace(self.minY, self.minY + self.extentY, self.nRow + 1)
+        # Row 0 (north) at TOP, matching well/particle display convention
+        y_coords = np.linspace(self.minY + self.extentY, self.minY, self.nRow + 1)
         self.headsplot = self.ax.pcolormesh(
             x_coords, y_coords, heads_2d,
-            shading='flat', alpha=0.5, zorder=2, cmap=colormaps['terrain']
+            shading='flat', alpha=1.0, zorder=2, cmap=colormaps['terrain']
         )
         # Plot ibound boundary (masked cells) as black patches
         if hasattr(self, 'ibound'):
@@ -383,7 +385,7 @@ class RenderMixin:
                 for c in range(self.nCol):
                     if ibound_2d[r, c] <= 0:
                         x0 = self.minX + c * self.dCol
-                        y0 = self.minY + r * self.dRow
+                        y0 = self.minY + (self.nRow - 1 - r) * self.dRow
                         rect = Rectangle(
                             (x0, y0), self.dCol, self.dRow,
                             facecolor='black', alpha=0.7, zorder=3
@@ -397,6 +399,10 @@ class RenderMixin:
         self.renderParticle(zorder=6)
         self.renderParticleTrajectory(zorder=6)
         self.renderTextOnCanvasTimeAndScore(zorder=10)
+        # B3: action bar + reward indicator
+        if getattr(self, '_action_bar_enabled', True):
+            self.renderActionBar(zorder=11)
+            self.renderRewardBar(zorder=11)
         self.renderRemoveAxesTicks()
         self.renderSetAxesLimits()
         self.renderAddAxesTextLabels()
@@ -493,23 +499,73 @@ class RenderMixin:
         self.fig = figure(figsize=(7, 7))
 
     def _maximize_figure_window(self):
-        """Maximize the figure window if possible.
+        """Maximize the figure window and resize figure to fit.
 
         Attempts to maximize the figure window using platform-specific methods.
-        Falls back gracefully if methods are unsupported.
+        After maximizing, resizes the figure to match the actual canvas size
+        so content is not clipped by window decorations or DPI scaling.
 
         Args:
             self (object): The instance containing the figure manager.
         
         """
         self.figManager = get_current_fig_manager()
+        dpi = self.fig.dpi
+
+        # v0.7.8 -- a different maximization strategy.
+        #
+        # Previous versions asked the window manager to maximize
+        # (state('zoomed')) and then measured the result. That is an
+        # asynchronous WM operation: it produced the resolution flicker and, on
+        # WMs whose toplevel reports a frame-inclusive size, the top/bottom
+        # overfill. We avoid all of that here.
+        #
+        # Instead we (1) query the SCREEN pixel size synchronously (a
+        # deterministic read, no WM round-trip), (2) subtract a modest safety
+        # band to absorb window-manager decorations / client-side title bars /
+        # the taskbar, and (3) pin BOTH the matplotlib figure size and the Tk
+        # toplevel geometry to exactly that same pixel size.
+        #
+        # Why this neither clips nor shrinks: Tk's window geometry defines the
+        # client (drawable) area, while the figure size defines the canvas
+        # size. Setting them equal makes the canvas fill the client exactly,
+        # so there is no overfill (clipping) and no 'tiny plot in a big
+        # window'. The equal-data-aspect grid is limited by the smaller axis
+        # and centered on the larger one, so it is never stretched. Because
+        # nothing waits on the WM, there is no resolution flicker either.
         try:
-            self.figManager.window.state('zoomed')
+            win = self.figManager.window
+            sw = win.winfo_screenwidth()
+            sh = win.winfo_screenheight()
         except Exception:
-            try:
-                self.figManager.full_screen_toggle()
-            except Exception:
-                pass
+            # Headless / unsupported backend: keep the default figure size.
+            return
+
+        v_band = 90   # vertical headroom for title bar + taskbar
+        h_band = 16   # small horizontal headroom for window borders
+        sw, sh = int(sw), int(sh)
+        avail_w = py_max(400, sw - h_band)
+        avail_h = py_max(400, sh - v_band)
+
+        # Size the figure to the SMALLER screen dimension (typically height),
+        # producing a square canvas that the equal-aspect grid fills without
+        # stretching or clipping. The toplevel window can be wider; the square
+        # canvas is centred by matplotlib.
+        side = py_min(avail_w, avail_h)
+        self.fig.set_size_inches(side / dpi, side / dpi)
+        self.fig.tight_layout(pad=0.)
+
+        # Pin the toplevel to a SQUARE of the same size as the figure, centred
+        # horizontally on screen. This prevents Tk from stretching the canvas
+        # to a wider toplevel (which would re-stretch the grid and clip it).
+        x_off = py_max(0, (avail_w - side) // 2)
+        try:
+            win.geometry("%dx%d+%d+0" % (side, side, x_off))
+            # Force Tk to process the geometry change NOW so the first
+            # canvas.draw() renders at the correct size (not the default 7x7).
+            win.update_idletasks()
+        except Exception:
+            pass
 
     def _finalize_figure(self):
         """Finalize the figure by removing axes and adjusting layout.
@@ -557,7 +613,8 @@ class RenderMixin:
         heads_arr = np.squeeze(np.asarray(self.heads, dtype=np.float64))
         self.levels = linspace(float(np.min(heads_arr)), float(np.max(heads_arr)), n)
         x_coords = np.linspace(self.minX, self.minX + self.extentX, self.nCol)
-        y_coords = np.linspace(self.minY, self.minY + self.extentY, self.nRow)
+        # Row 0 (north) at TOP, matching pcolormesh & well
+        y_coords = np.linspace(self.minY + self.extentY, self.minY, self.nRow)
         heads_plot = np.ma.masked_where(heads_arr == 999.0, heads_arr)
         self.contours = self.ax.contour(
             x_coords, y_coords, heads_plot,
@@ -1209,6 +1266,9 @@ class RenderMixin:
         self._blit_update_particle()
         self._blit_update_trajectory()
         self._blit_update_score_text()
+        # B3: update action bar + reward bar
+        if getattr(self, '_action_bar_enabled', True):
+            self._blit_update_action_bar()
         # Full canvas draw since the head array changes every timestep,
         # making a static-background blit approach inapplicable.
         self.fig.canvas.draw()
@@ -1351,7 +1411,10 @@ class RenderMixin:
             # Slow path: single draw at final position (avoids artist leak)
             # Remove any stale transition artists
             for art in self._blit_artists.get('_transition_artists', []):
-                art.remove()
+                try:
+                    art.remove()
+                except (NotImplementedError, Exception):
+                    pass
             self._blit_artists['_transition_artists'] = []
             # Draw a single line showing the transition path
             art, = self.ax2.plot([x_prev, x_now], [y_prev, y_now],
@@ -1375,6 +1438,148 @@ class RenderMixin:
             )
         else:
             self._blit_artists['score_text'].set_text(display_text)
+
+
+    # ------------------------------------------------------------------
+    # B3: Action bar + Reward indicator
+    # ------------------------------------------------------------------
+
+    _ACTION_ICONS = {
+        'up': '↑', 'down': '↓', 'left': '←', 'right': '→',
+        'keep': '●', 'keepQ': '●', 'moreQ': '▲', 'lessQ': '▼',
+    }
+
+    def renderActionBar(self, zorder=11):
+        """Draw a horizontal action bar at the top showing available actions.
+
+        The currently-selected action is highlighted with a filled background.
+        """
+        actions = getattr(self, 'actionSpace', None)
+        if not actions:
+            return
+        last_action = getattr(self, '_lastAction', None)
+        if last_action is None:
+            return
+        n = len(actions)
+        seg_width = 9.0
+        bar_y = 96
+        x_end = 97.0
+        x_start = x_end - n * seg_width
+        for i, act in enumerate(actions):
+            x0 = x_start + i * seg_width
+            is_current = (act == last_action)
+            if is_current:
+                fg, bg, alpha, weight = 'white', '#E53935', 0.95, 'bold'
+            else:
+                fg, bg, alpha, weight = '#C62828', '#FFCDD2', 0.7, 'normal'
+            icon = self._ACTION_ICONS.get(act, act[0].upper())
+            self.ax2.text(
+                x0 + seg_width / 2, bar_y, icon,
+                fontsize=11, ha='center', va='center', zorder=zorder,
+                color=fg, fontweight=weight,
+                bbox=dict(
+                    facecolor=bg, edgecolor='#C62828',
+                    alpha=alpha, pad=1.5, boxstyle='round'
+                )
+            )
+
+    REWARD_MAX = 1000.0
+
+    def renderRewardBar(self, zorder=11):
+        """Draw a filled reward bar (0-1000 scale) at the top-right, below the action bar."""
+        reward = getattr(self, 'rewardCurrent', 0.0) or 0.0
+        frac = py_min(1.0, py_max(0.0, reward) / self.REWARD_MAX)
+        n = len(getattr(self, 'actionSpace', None) or [0])
+        seg_width = 9.0
+        x_end = 97.0
+        x_start = x_end - n * seg_width
+        bar_y = 93
+        bar_w = n * seg_width
+        bar_h = 1.6
+        self.ax2.add_patch(
+            _mpatches.FancyBboxPatch(
+                (x_start, bar_y - bar_h / 2), bar_w, bar_h,
+                boxstyle='round,pad=0.2',
+                facecolor='#FFCDD2', edgecolor='#C62828', alpha=0.7, zorder=zorder
+            )
+        )
+        if frac > 0.005:
+            self.ax2.add_patch(
+                _mpatches.FancyBboxPatch(
+                    (x_start, bar_y - bar_h / 2), bar_w * frac, bar_h,
+                    boxstyle='round,pad=0.2',
+                    facecolor='#E53935', edgecolor='none', alpha=0.9, zorder=zorder + 1
+                )
+            )
+        self.ax2.text(
+            x_start - 1.0, bar_y, f"R: {reward:+.0f}",
+            fontsize=8, va='center', ha='right', color='#C62828', zorder=zorder
+        )
+
+    def _blit_update_action_bar(self):
+        """Update action bar + reward bar for blit mode."""
+        for art in getattr(self, '_action_bar_artists', []):
+            try:
+                art.remove()
+            except Exception:
+                pass
+        self._action_bar_artists = []
+        actions = getattr(self, 'actionSpace', None)
+        if not actions:
+            return
+        last_action = getattr(self, '_lastAction', None)
+        if last_action is None:
+            return
+        n = len(actions)
+        seg_width = 9.0
+        bar_y = 96
+        x_end = 97.0
+        x_start = x_end - n * seg_width
+        for i, act in enumerate(actions):
+            x0 = x_start + i * seg_width
+            is_current = (act == last_action)
+            if is_current:
+                fg, bg, alpha, weight = 'white', '#E53935', 0.95, 'bold'
+            else:
+                fg, bg, alpha, weight = '#C62828', '#FFCDD2', 0.7, 'normal'
+            icon = self._ACTION_ICONS.get(act, act[0].upper())
+            txt = self.ax2.text(
+                x0 + seg_width / 2, bar_y, icon,
+                fontsize=11, ha='center', va='center', zorder=11,
+                color=fg, fontweight=weight,
+                bbox=dict(
+                    facecolor=bg, edgecolor='#C62828',
+                    alpha=alpha, pad=1.5, boxstyle='round'
+                )
+            )
+            self._action_bar_artists.append(txt)
+        reward = getattr(self, 'rewardCurrent', 0.0) or 0.0
+        frac = py_min(1.0, py_max(0.0, reward) / 1000.0)
+        bar_y2 = 93
+        bar_w = n * seg_width
+        bar_h = 1.6
+        bg = self.ax2.add_patch(
+            _mpatches.FancyBboxPatch(
+                (x_start, bar_y2 - bar_h / 2), bar_w, bar_h,
+                boxstyle='round,pad=0.2',
+                facecolor='#FFCDD2', edgecolor='#C62828', alpha=0.7, zorder=11
+            )
+        )
+        self._action_bar_artists.append(bg)
+        if frac > 0.005:
+            fill = self.ax2.add_patch(
+                _mpatches.FancyBboxPatch(
+                    (x_start, bar_y2 - bar_h / 2), bar_w * frac, bar_h,
+                    boxstyle='round,pad=0.2',
+                    facecolor='#E53935', edgecolor='none', alpha=0.9, zorder=12
+                )
+            )
+            self._action_bar_artists.append(fill)
+        label = self.ax2.text(
+            x_start - 1.0, bar_y2, f"R: {reward:+.0f}",
+            fontsize=8, va='center', ha='right', color='#C62828', zorder=11
+        )
+        self._action_bar_artists.append(label)
 
     def renderFPS(self, zorder=10):
         """Render FPS counter text in the upper-right corner."""

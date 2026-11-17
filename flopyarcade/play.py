@@ -65,7 +65,8 @@ def main(
     'MODELNAME': 'FloPyArcade',
     'PATHMF2005': None,
     'PATHMP6': None,
-    'SURROGATESIMULATOR': None
+    'SURROGATESIMULATOR': None,
+    'ACTION_BAR': True
     },
     gameSettings={
     'NGAMES': 100,
@@ -97,6 +98,8 @@ def main(
         help='PCHIP subdivision factor for trajectory smoothing (default: 10)')
     parser.add_argument('--split-screen', default=False, type=str_to_bool,
         help='enable 2-player split-screen mode (Left: WASD, Right: arrows)')
+    parser.add_argument('--action-bar', default=True, type=str_to_bool,
+        help='show action bar and reward indicator overlay (default: True)')
     parser.add_argument('--modelnameload', default=None, type=str,
         help='string defining model to load')
     parser.add_argument('--modelname', default='FloPyArcade', type=str,
@@ -133,7 +136,8 @@ def main(
             'MODELNAME': args.modelname,                        # string defining model basename
             'PATHMF2005': args.pathmf2005,                      # string defining local path to MODFLOW 2005 executable
             'PATHMP6': args.pathmp6,                            # string defining local path to MODPATH 6 executable
-            'SURROGATESIMULATOR': args.surrogatesimulator       # currently unavailable
+            'SURROGATESIMULATOR': args.surrogatesimulator,     # currently unavailable
+            'ACTION_BAR': args.action_bar                  # B3: show action bar
         }
 
         # game settings
@@ -177,6 +181,7 @@ def main(
         flagBlit=envSettings['BLIT'],
         smoothFrames=envSettings['SMOOTH_FRAMES'],
         smoothSubdiv=envSettings['SMOOTH_SUBDIV'],
+        actionBar=envSettings.get('ACTION_BAR', True),
         nLay=envSettings['NLAY'],
         nRow=envSettings['NROW'],
         nCol=envSettings['NCOL'],
@@ -199,4 +204,4 @@ def main(
 
 
 if __name__ == '__main__':
-    main(envSettings, gameSettings)
+    main()

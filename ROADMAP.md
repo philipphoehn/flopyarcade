@@ -12,6 +12,7 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 
 | Module | Responsibility |
 |--------|----------------|
+| 2026-11-15 | Removed `1-runRandomAgent.ipynb` from master; added review task C22; created branch `feat/review-runrandomagent-notebook` for review. |
 | `env_base.py` | Environment setup, MODFLOW/MODPATH coupling, step loop |
 | `actions.py` | `ActionsMixin` — action initialisation, mutation, application |
 | `agent.py` | Agent logic, novelty search, DQN, neuroevolution, RLlib |
@@ -211,6 +212,7 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | # | Idea | Impact | Status |
 |---|------|--------|--------|
 | C21 | **Zenodo DOI + reproducible benchmark package**: archive results + config + seeds → DOI; cite in paper | Med-High | ❌ Not implemented |
+| C22 | **Review & update** `1-runRandomAgent.ipynb` example notebook (removed from master 2026-11-15, pending review on `feat/review-runrandomagent-notebook`) | Low | ☐ Review pending |
 
 ---
 
