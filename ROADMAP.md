@@ -84,7 +84,7 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | B11 | **Resume function for DQN** (checkpoint save/load) | Med UX | 🔄 PR [#41](https://github.com/philipphoehn/flopyarcade/pull/41) open |
 | B12 | **Website: auto-update benchmark figures** | Med UX | ❌ Manual |
 | B13 | **Website: animated GIF logo** | Low UX | ✅ PR #53 merged (2026-11-14) |
-| B14 | **Scale linewidth around well** with pumping rate | Low UX | ❌ Not implemented |
+| B14 | **Scale linewidth around well** with pumping rate | Low UX | ✅ Implemented (render.py:641) + 11 tests (feat/b14-well-linewidth) |
 | B15 | **Edit white line** (highest reward) + transparent initial | Low UX | ✅ PR #48 merged (2026-11-14) |
 | B16 | **Generate GIFs of progress** during evolution | Low UX | ❌ Not implemented |
 | B17 | **Benchmark suite orchestrator** (`examples/benchmark_suite.py`): runs random / human / trained-agent on each env type, outputs reproducible score table. **Requires locally stored human control data (operator session recordings) to be uploaded to the benchmark environment to reproduce the human baseline score.** Without the uploaded control data the human column is unavailable and the table is incomplete. | High (validation) | ❌ Not implemented |
