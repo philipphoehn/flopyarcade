@@ -157,7 +157,7 @@ class FloPyArcade:
                  flagManualControl=False, actions=None, flagRender=False,
                  keepTimeSeries=False, ENVTYPE='1s-d', nLay=1, nRow=100,
                  nCol=100, OBSPREP='perceptron', flagBlit=True,
-                 smoothFrames=4, smoothSubdiv=10):
+                 smoothFrames=4, smoothSubdiv=10, actionBar=True):
         """Constructor.
 
         Args:
@@ -187,14 +187,14 @@ class FloPyArcade:
             PATHMF2005, PATHMP6, surrogateSimulator, flagSavePlot,
             flagManualControl, actions, flagRender, keepTimeSeries,
             ENVTYPE, nLay, nRow, nCol, OBSPREP, flagBlit,
-            smoothFrames, smoothSubdiv
+            smoothFrames, smoothSubdiv, actionBar
         )
 
     def _init_config(self, agent, modelNameLoad, modelName, animationFolder,
                      NAGENTSTEPS, PATHMF2005, PATHMP6, surrogateSimulator,
                      flagSavePlot, flagManualControl, actions, flagRender,
                      keepTimeSeries, ENVTYPE, nLay, nRow, nCol, OBSPREP,
-                     flagBlit=True, smoothFrames=4, smoothSubdiv=10):
+                     flagBlit=True, smoothFrames=4, smoothSubdiv=10, actionBar=True):
         """Initialize configuration for FloPyArcade.
 
         Args:
@@ -213,6 +213,7 @@ class FloPyArcade:
         self.BLIT = flagBlit
         self.SMOOTH_FRAMES = smoothFrames
         self.SMOOTH_SUBDIV = smoothSubdiv
+        self.ACTION_BAR = actionBar
         self.MODELNAME = modelName or modelNameLoad or "untitled"
         self.ANIMATIONFOLDER = (
             animationFolder or modelName or modelNameLoad or "untitled"
@@ -282,6 +283,7 @@ class FloPyArcade:
             self.env._blit_enabled = self.BLIT
             self.env.SMOOTH_TRAJ_FRAMES = self.SMOOTH_FRAMES
             self.env.SMOOTH_TRAJ_SUBDIV = self.SMOOTH_SUBDIV
+            self.env._action_bar_enabled = self.ACTION_BAR
         else:
             self.env = FloPyEnvSurrogate(
                 self.SURROGATESIMULATOR, ENVTYPE, MODELNAME=self.MODELNAME,
