@@ -370,7 +370,8 @@ class RenderMixin:
         heads_raw = np.squeeze(heads_raw)
         heads_2d = np.ma.masked_where(heads_raw == 999.0, heads_raw)
         x_coords = np.linspace(self.minX, self.minX + self.extentX, self.nCol + 1)
-        y_coords = np.linspace(self.minY, self.minY + self.extentY, self.nRow + 1)
+        # Row 0 (north) at TOP, matching well/particle display convention
+        y_coords = np.linspace(self.minY + self.extentY, self.minY, self.nRow + 1)
         self.headsplot = self.ax.pcolormesh(
             x_coords, y_coords, heads_2d,
             shading='flat', alpha=1.0, zorder=2, cmap=colormaps['terrain']
@@ -384,7 +385,7 @@ class RenderMixin:
                 for c in range(self.nCol):
                     if ibound_2d[r, c] <= 0:
                         x0 = self.minX + c * self.dCol
-                        y0 = self.minY + r * self.dRow
+                        y0 = self.minY + (self.nRow - 1 - r) * self.dRow
                         rect = Rectangle(
                             (x0, y0), self.dCol, self.dRow,
                             facecolor='black', alpha=0.7, zorder=3
@@ -509,7 +510,6 @@ class RenderMixin:
         
         """
         self.figManager = get_current_fig_manager()
-        win = self.figManager.window
         dpi = self.fig.dpi
 
         # v0.7.8 -- a different maximization strategy.
@@ -534,6 +534,7 @@ class RenderMixin:
         # and centered on the larger one, so it is never stretched. Because
         # nothing waits on the WM, there is no resolution flicker either.
         try:
+            win = self.figManager.window
             sw = win.winfo_screenwidth()
             sh = win.winfo_screenheight()
         except Exception:
@@ -560,6 +561,9 @@ class RenderMixin:
         x_off = py_max(0, (avail_w - side) // 2)
         try:
             win.geometry("%dx%d+%d+0" % (side, side, x_off))
+            # Force Tk to process the geometry change NOW so the first
+            # canvas.draw() renders at the correct size (not the default 7x7).
+            win.update_idletasks()
         except Exception:
             pass
 
@@ -609,7 +613,8 @@ class RenderMixin:
         heads_arr = np.squeeze(np.asarray(self.heads, dtype=np.float64))
         self.levels = linspace(float(np.min(heads_arr)), float(np.max(heads_arr)), n)
         x_coords = np.linspace(self.minX, self.minX + self.extentX, self.nCol)
-        y_coords = np.linspace(self.minY, self.minY + self.extentY, self.nRow)
+        # Row 0 (north) at TOP, matching pcolormesh & well
+        y_coords = np.linspace(self.minY + self.extentY, self.minY, self.nRow)
         heads_plot = np.ma.masked_where(heads_arr == 999.0, heads_arr)
         self.contours = self.ax.contour(
             x_coords, y_coords, heads_plot,

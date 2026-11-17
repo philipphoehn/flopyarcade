@@ -1,0 +1,12 @@
+[run]
+source = flopyarcade
+parallel = False
+data_file = .coverage
+omit =
+    */tests/*
+    */test_*
+    */__pycache__/*
+
+[report]
+show_missing = True
+skip_empty = True
