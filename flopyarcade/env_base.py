@@ -1009,6 +1009,8 @@ class EnvBaseMixin:
         new_recharge = self.get_recharge()
         self.update_well_cells()
 
+        # B3: track last action
+        self._lastAction = action if isinstance(action, str) else str(action)
         self.actionsDict = self.changeActionDict(self.actionsDict, action)
         self.actionsDict = self.getActionValues(self.actionsDict)
         self.update_well_Q()
@@ -1044,6 +1046,9 @@ class EnvBaseMixin:
 
     def _step_apply_action(self, action):
         """Pipeline stage 1: apply action to model."""
+        # B3: track last action for action bar display
+        if self.actionType == 'discrete' and isinstance(action, str):
+            self._lastAction = action
         self.setActionValue(action)
         self.initializeState(self.state)
         self.updateModel()
