@@ -370,6 +370,74 @@ def run_benchmark(
     return results
 
 
+def upload_and_grade(
+    source: str,
+    envtype: str = '1s-d',
+    n_games: int = 100,
+    seed: int = 42,
+    n_steps: int = 200,
+    verbose: bool = False,
+) -> dict:
+    """Upload (or reference) a model and run the autograder benchmark.
+
+    Accepts a local file path or an http/https URL to a model artifact.
+    If a URL is given the file is downloaded to a temp location first.
+
+    Args:
+        source: Local path or URL to a model file (.keras, .h5, .p) or
+                an RLlib checkpoint directory.
+        envtype: FloPyArcade environment type.
+        n_games: Number of games to play (default 100 for quick grading).
+        seed: Base random seed.
+        n_steps: Max steps per game.
+        verbose: Print progress.
+
+    Returns:
+        dict with keys: status, envtype, mean_reward, std_reward,
+        min_reward, max_reward, median_reward, pct_nonzero,
+        avg_runtime_s, total_runtime_s, n_games, source.
+    """
+    import tempfile
+    import shutil
+
+    local_path = source
+    tmp_dir = None
+
+    # Download if URL
+    if source.startswith(('http://', 'https://')):
+        import urllib.request
+        tmp_dir = tempfile.mkdtemp(prefix='flopyarcade_grade_')
+        filename = os.path.basename(source.split('?')[0]) or 'model.keras'
+        local_path = os.path.join(tmp_dir, filename)
+        if verbose:
+            print(f'Downloading {source} -> {local_path}', flush=True)
+        urllib.request.urlretrieve(source, local_path)
+
+    try:
+        results = run_benchmark(
+            model_path=local_path,
+            envtype=envtype,
+            n_games=n_games,
+            seed=seed,
+            n_steps=n_steps,
+            verbose=verbose,
+        )
+        results['status'] = 'success'
+        results['source'] = source
+        return results
+    except Exception as e:
+        return {
+            'status': 'error',
+            'error': str(e),
+            'envtype': envtype,
+            'source': source,
+            'n_games': n_games,
+        }
+    finally:
+        if tmp_dir and os.path.exists(tmp_dir):
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description='FloPyArcade autograder benchmark')
     parser.add_argument('--model', required=True, type=str,
