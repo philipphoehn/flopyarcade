@@ -81,7 +81,7 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | B7 | **FPS counter in 2D HUD** (`play.py`) | Med Perf | ✅ In master (since PR #42, 2026-11-03) |
 | B8 | **HDF5 novelty archive** (lazy load, append-only) | Med Perf | 🔄 PR [#44](https://github.com/philipphoehn/flopyarcade/pull/44) open |
 | B9 | **Auto-profile runtimes** (cProfile / line_profiler integration) | Med Perf | ❌ Not implemented |
-| B10 | **RAM-disk / in-memory filesystem** for MODFLOW work files | Med Perf | ❌ Not implemented |
+| B10 | **RAM-disk / in-memory filesystem** for MODFLOW work files. *Approach: explore [XMiPy](https://github.com/xmipty/xmiPy) — in-process C-API control of MODFLOW 6 (dynamic well rates per timestep, no subprocess). See `fastenv.py` lines 130–186 in `flopyarcade_debug.zip` as a starting sketch.* | Med Perf | ❌ Not implemented |
 | B11 | **Resume function for DQN** (checkpoint save/load) | Med UX | 🔄 PR [#41](https://github.com/philipphoehn/flopyarcade/pull/41) open |
 | B12 | **Website: auto-update benchmark figures** | Med UX | ❌ Manual |
 | B13 | **Website: animated GIF logo** | Low UX | ✅ PR #53 merged (2026-11-14) |
