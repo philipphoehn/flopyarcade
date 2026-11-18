@@ -114,6 +114,8 @@ def main(
         help='integer defining number of games played in a row')
     parser.add_argument('--nagentsteps', default=200, type=int,
         help='integer defining the number of steps taken per game')
+    parser.add_argument('--profile', default=False, type=str_to_bool,
+        help='enable cProfile to show top 20 functions by cumulative time')
     args, _ = parser.parse_known_args()
 
     # print(has_arguments(parser, args))
@@ -187,18 +189,32 @@ def main(
         nCol=envSettings['NCOL'],
         )
 
-    for run in range(gameSettings['NGAMES']):
-        print('game #:', run + 1)
-        t0 = time.time()
-        randomInteger = randint(100000000, size=1)[0] if envSettings['SEEDENV'] == None else envSettings['SEEDENV'] # randint(100000000, size=1)[0]
-        game.play(
-            ENVTYPE=envSettings['ENVTYPE'],
-            seed=randomInteger,
-            verbose=True
+    def _game_loop():
+        for run in range(gameSettings['NGAMES']):
+            print('game #:', run + 1)
+            t0 = time.time()
+            randomInteger = randint(100000000, size=1)[0] if envSettings['SEEDENV'] == None else envSettings['SEEDENV']
+            game.play(
+                ENVTYPE=envSettings['ENVTYPE'],
+                seed=randomInteger,
+                verbose=True
             )
-        print('time taken', time.time() - t0)
-        # if game.success:
-        #     break
+            print('time taken', time.time() - t0)
+
+    if args.profile:
+        import cProfile
+        import pstats
+        import io
+        print('=== B9: cProfile enabled ===')
+        profiler = cProfile.Profile()
+        profiler.runcall(_game_loop)
+        stream = io.StringIO()
+        stats = pstats.Stats(profiler, stream=stream)
+        stats.sort_stats('cumulative')
+        stats.print_stats(20)
+        print(stream.getvalue())
+    else:
+        _game_loop()
 
     return game.env.envhash
 
