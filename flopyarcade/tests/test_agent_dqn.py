@@ -20,6 +20,10 @@ import unittest
 
 class TestFloPyAgentDQN(unittest.TestCase):
 
+    def _get_train_dqn(self):
+        """Return the train_dqn example module with envSettings and hyParams."""
+        return train_dqn
+
     def test_FloPyAgentDQN_noExceptionRaised(self):
         """Test an agent using the deep Q-Learning algorithm on a
         computationally simple case.

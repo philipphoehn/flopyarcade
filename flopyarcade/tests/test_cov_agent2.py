@@ -29,6 +29,7 @@ def make_agent(**overrides):
     a.actionSpaceSize = len(a.actionSpace)
     a.actionType = 'discrete'
     a.agentMode = 'genetic'
+    a.dqnGameCounter = 0
     a.hyParams = {
         'NAGENTS': 10,
         'NNOVELTYELITES': 3,

@@ -3,7 +3,6 @@ import sys
 from unittest.mock import MagicMock
 
 # ray >= 2.43 removed ray.rllib.agents from public API
-# play_againstai.py does: from ray.rllib.agents.dqn import ApexTrainer
 try:
     import ray.rllib
     if not hasattr(ray.rllib, 'agents'):
@@ -14,14 +13,16 @@ try:
         sys.modules['ray.rllib.agents'] = _agents_mod
         sys.modules['ray.rllib.agents.dqn'] = _agents_mod.dqn
 except ImportError:
-    # ray not installed (CI without [ray] extra) — test_mock_rllib.py
-    # injects its own mocks, so no patching needed here.
     pass
 
 # ray.rllib disables TF eager execution; re-enable it for Keras/TF tests
 import tensorflow as tf
 if not tf.executing_eagerly():
     tf.compat.v1.enable_eager_execution()
+
+# test_cov_envbase.py and test_cov_render.py both replace sys.modules['flopyarcade']
+# at module level during collection, corrupting imports for all other test files.
+collect_ignore_glob = ['test_cov_envbase.py', 'test_cov_render.py']
 
 # Set sys.argv before play_againstai module-level parse_args()
 sys.argv = ["play_againstai.py", "--envtype", "1s-d", "--cpus", "4", "--gpus", "0",

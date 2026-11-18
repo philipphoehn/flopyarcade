@@ -401,7 +401,7 @@ def main():
     # Print final JSON summary to stdout (for CI capture)
     print('\n=== RESULTS JSON ===')
     print(json.dumps(results, indent=2))
-    return 0
+    return results
 
 
 if __name__ == '__main__':
