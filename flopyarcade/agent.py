@@ -1615,6 +1615,22 @@ class FloPyAgent:
                 '_noveltyArchive.p')
             self.sortedParentIdxs = self.pickleLoad(indexespth)
             self.noveltyArchive = self.pickleLoad(noveltyArchivepth)
+            # C4 fix: restore novelty state to prevent duplicate agents after restart
+            self.noveltyItemCount = len(self.noveltyArchive)
+            self.agentsUnique, self.agentsUniqueIDs = [], []
+            self.agentsDuplicate = []
+            for _iAgent in range(self.noveltyItemCount):
+                _agentStr = f'agent{_iAgent+1}'
+                _entry = self.noveltyArchive[_agentStr]
+                if 'actionsUniqueID' in _entry:
+                    _uid = _entry['actionsUniqueID']
+                    if _uid not in self.agentsUniqueIDs:
+                        self.agentsUnique.append(_iAgent)
+                        self.agentsUniqueIDs.append(_uid)
+                    else:
+                        self.agentsDuplicate.append(_iAgent)
+                else:
+                    self.agentsUnique.append(_iAgent)
             if not self.envSettings['KEEPMODELHISTORY']:
                 self.mutationHistory = self.pickleLoad(join(self.tempModelPrefix + '_mutationHistory.p'))
             self.flagSkipGeneration, continueFlag = True, True
