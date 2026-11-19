@@ -1,0 +1,23 @@
+name: flopyarcade
+dependencies:
+  - python=3.11
+  - numpy>=1.24
+  - pandas>=2.0
+  - matplotlib>=3.7
+  - scipy>=1.10
+  - pip
+  - jupyterlab>=4.0
+  - notebook>=7.0
+  - ipywidgets>=8.0
+  - pip:
+    - flopy>=3.9.2
+    - gymnasium>=0.29.1
+    - imageio>=2.22.4
+    - joblib>=1.2.0
+    - lz4>=4.0.2
+    - pillow>=10.4.0
+    - scikit-image>=0.23.0
+    - tqdm>=4.64.1
+    - pathos>=0.3.0
+    - pygame>=2.1.2
+    - "flopyarcade @ git+https://github.com/philipphoehn/flopyarcade.git@master#egg=flopyarcade"

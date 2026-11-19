@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Post-build script for MyBinder / BinderHub
+# Install any additional system dependencies needed by FloPyArcade
+set -e
+
+# pygame needs SDL2 system libraries
+if command -v apt-get &> /dev/null; then
+    apt-get update -qq
+    apt-get install -y -qq --no-install-recommends \
+        libsdl2-dev \
+        libasound2-dev 2>/dev/null || true
+fi
+
+# Verify the package imports correctly
+python -c "import flopyarcade; print(f'flopyarcade {flopyarcade.__version__} ready')"
