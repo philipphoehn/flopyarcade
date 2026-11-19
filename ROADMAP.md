@@ -183,6 +183,7 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | V6 | **Cross-env transfer 6×6 heatmap**: colour = score; p-value significance stars | Med-High | ❌ Not implemented |
 | V7 | **Well-activation timeline Gantt**: per-step pumping rate per well; stacked bar | Med | ❌ Not implemented |
 | V8 | **Benchmark drift line chart**: score vs date; 95% CI band; alert marker on >5% drop | Med-High | ❌ Not implemented |
+| V9 | **Browser 3D viewer (Three.js/WebGL)**: self-contained HTML with terrain mesh, neon wells, glowing trajectory, OrbitControls | Med | ✅ `feat/v5-browser-3d-viewer` |
 
 ### Tooling & Workflows (4)
 
