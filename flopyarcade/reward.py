@@ -279,6 +279,45 @@ class RewardMixin:
         """
         return -pump * self.costQm3dPump - recharge * self.costQm3dRecharge
 
+    def get_reward_normalized(self, scale: float = 1.0) -> float:
+        """Map the current reward to [0, 1] using a sigmoid transform.
+
+        The transform maps 0 → 0.5, positive rewards → (0.5, 1],
+        and negative rewards → [0, 0.5). The `scale` parameter controls
+        the steepness of the curve (higher = sharper transition).
+
+        Args:
+            scale: Scaling factor controlling sigmoid steepness (default 1.0).
+
+        Returns:
+            float: Normalized reward in [0, 1].
+        """
+        import math
+        raw = self.reward if hasattr(self, 'reward') else 0.0
+        return 1.0 / (1.0 + math.exp(-scale * raw))
+
+    @staticmethod
+    def normalize_reward_to_unit(reward: float, scale: float = 1.0) -> float:
+        """Map any reward value to [0, 1] via sigmoid.
+
+        This is the core normalization used to unify reward scales
+        across all FloPyArcade environment types.
+
+        Args:
+            reward: Raw reward value (any real number).
+            scale: Steepness parameter (default 1.0).
+
+        Returns:
+            float: Value in [0, 1]. 0 → 0.5, large positive → 1, large negative → 0.
+        """
+        import math
+        x = scale * reward
+        if x > 700:
+            return 1.0
+        if x < -700:
+            return 0.0
+        return 1.0 / (1.0 + math.exp(-x))
+
     def format_score(self) -> str:
         """Return formatted score string depending on environment type.
 
