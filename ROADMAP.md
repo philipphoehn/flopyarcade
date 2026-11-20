@@ -155,6 +155,7 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | B25 | **Agent-vs-human paired test**: same 10 seeds, paired t-test + Cohen's d | High | ❌ Not implemented |
 | B26 | **Longitudinal benchmark archive**: append-only JSONL (`benchmarks/history.jsonl`); every CI run appends | Med-High | ❌ Not implemented |
 | B27 | **Sample efficiency metric**: episodes-to-80%-of-best per algorithm × env | Med-High | ❌ Not implemented |
+| B28 | **Convert all example PNGs to SVG** (scalable vector for website/docs) | Low UX | ❌ Not implemented |
 
 ### Reporting & Data Export (10)
 
