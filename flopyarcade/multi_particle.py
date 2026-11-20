@@ -8,17 +8,38 @@ reach the capture well within the step limit.
 Reward is proportional to the capture ratio:
     reward = (captured / total) * base_reward
 
-This module provides the state management, spawn logic, and reward
-calculation. It is designed to be plugged into the existing
-``modpath_runner.py`` and ``env_base.py`` pipeline without modifying
-the single-particle path (backward compatible: ``n_particles=1``
-behaves identically to the current implementation).
+**ENVTYPE Naming Convention**
+
+Single-particle environments keep their existing names unchanged:
+    ``1s-d``, ``2s-c``, ``3r-d``, etc.
+
+Multi-particle environments append a ``-Np`` suffix:
+    ``1s-d-2p``  (2 particles, 1 source, divergent)
+    ``1s-d-5p``  (5 particles, 1 source, divergent)
+    ``2s-c-3p``  (3 particles, 2 sources, convergent)
+    ``3r-d-10p`` (10 particles, 3 recharge, divergent)
+
+Use :func:`make_envtype` to build the string and :func:`parse_envtype`
+to decompose it. Both are idempotent for single-particle names.
+
+This module provides the state management, spawn logic, reward
+calculation, and envtype naming helpers. It is designed to be plugged
+into the existing ``modpath_runner.py`` and ``env_base.py`` pipeline
+without modifying the single-particle path (backward compatible:
+``n_particles=1`` behaves identically to the current implementation).
 
 Usage::
 
     from flopyarcade.multi_particle import (
         MultiParticleController, spawn_particles, compute_reward,
+        make_envtype, parse_envtype,
     )
+
+    # Naming
+    make_envtype('1s-d', 2)   # -> '1s-d-2p'
+    make_envtype('1s-d', 1)   # -> '1s-d'  (no suffix for single)
+    parse_envtype('1s-d-5p')  # -> ('1s-d', 5)
+    parse_envtype('2s-c')     # -> ('2s-c', 1)
 
     controller = MultiParticleController(n_particles=5)
     positions = spawn_particles(
@@ -34,11 +55,86 @@ Usage::
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
 import numpy as np
 from random import uniform
+
+
+# ---------------------------------------------------------------------------
+# Envtype naming helpers
+# ---------------------------------------------------------------------------
+
+_SINGLE_PARTICLE_RE = re.compile(r'^\d+[sr]-[dc]$')
+_MULTI_PARTICLE_RE = re.compile(r'^(\d+[sr]-[dc])-(\d+)p$')
+
+
+def make_envtype(base: str, n_particles: int) -> str:
+    """Build an envtype string with optional particle-count suffix.
+
+    Single-particle environments (``n_particles == 1``) return the
+    base name unchanged.  Multi-particle environments get a ``-Np``
+    suffix appended.
+
+    Args:
+        base: Base envtype, e.g. ``'1s-d'``, ``'2s-c'``, ``'3r-d'``.
+        n_particles: Number of particles (>= 1).
+
+    Returns:
+        Envtype string.  ``'1s-d'`` for n=1, ``'1s-d-5p'`` for n=5.
+
+    Raises:
+        ValueError: If base is not a valid envtype or n_particles < 1.
+
+    Examples::
+
+        make_envtype('1s-d', 1)   # -> '1s-d'
+        make_envtype('1s-d', 2)   # -> '1s-d-2p'
+        make_envtype('3r-d', 10)  # -> '3r-d-10p'
+    """
+    if n_particles < 1:
+        raise ValueError(f"n_particles must be >= 1, got {n_particles}")
+    if not _SINGLE_PARTICLE_RE.match(base):
+        raise ValueError(
+            f"base envtype '{base}' is not a valid single-particle envtype "
+            f"(expected pattern like '1s-d', '2s-c', '3r-d')"
+        )
+    if n_particles == 1:
+        return base
+    return f"{base}-{n_particles}p"
+
+
+def parse_envtype(envtype: str) -> Tuple[str, int]:
+    """Decompose an envtype string into (base, n_particles).
+
+    Args:
+        envtype: Envtype string, e.g. ``'1s-d'``, ``'1s-d-5p'``.
+
+    Returns:
+        Tuple of (base_envtype, n_particles).
+
+    Raises:
+        ValueError: If envtype is not recognised.
+
+    Examples::
+
+        parse_envtype('1s-d')      # -> ('1s-d', 1)
+        parse_envtype('1s-d-5p')   # -> ('1s-d', 5)
+        parse_envtype('3r-d-10p')  # -> ('3r-d', 10)
+    """
+    m = _SINGLE_PARTICLE_RE.match(envtype)
+    if m:
+        return (envtype, 1)
+    m = _MULTI_PARTICLE_RE.match(envtype)
+    if m:
+        return (m.group(1), int(m.group(2)))
+    raise ValueError(
+        f"Unrecognised envtype '{envtype}'. "
+        f"Expected single-particle (e.g. '1s-d') or "
+        f"multi-particle suffix form (e.g. '1s-d-5p')."
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -8,7 +8,67 @@ from flopyarcade.multi_particle import (
     spawn_particles,
     compute_reward,
     MultiParticleController,
+    make_envtype,
+    parse_envtype,
 )
+
+
+# ---------------------------------------------------------------------------
+# Envtype naming helpers
+# ---------------------------------------------------------------------------
+
+class TestMakeEnvtype:
+    def test_single_particle_no_suffix(self):
+        assert make_envtype('1s-d', 1) == '1s-d'
+
+    def test_two_particles(self):
+        assert make_envtype('1s-d', 2) == '1s-d-2p'
+
+    def test_five_particles(self):
+        assert make_envtype('1s-d', 5) == '1s-d-5p'
+
+    def test_ten_particles(self):
+        assert make_envtype('3r-d', 10) == '3r-d-10p'
+
+    def test_different_base(self):
+        assert make_envtype('2s-c', 3) == '2s-c-3p'
+
+    def test_invalid_n(self):
+        with pytest.raises(ValueError, match='n_particles must be >= 1'):
+            make_envtype('1s-d', 0)
+
+    def test_invalid_base(self):
+        with pytest.raises(ValueError, match='not a valid single-particle'):
+            make_envtype('invalid', 2)
+
+
+class TestParseEnvtype:
+    def test_single_particle(self):
+        base, n = parse_envtype('1s-d')
+        assert base == '1s-d'
+        assert n == 1
+
+    def test_multi_particle(self):
+        base, n = parse_envtype('1s-d-5p')
+        assert base == '1s-d'
+        assert n == 5
+
+    def test_multi_particle_10(self):
+        base, n = parse_envtype('3r-d-10p')
+        assert base == '3r-d'
+        assert n == 10
+
+    def test_roundtrip(self):
+        for base in ['1s-d', '2s-c', '3r-d', '5s-c', '6r-c']:
+            for n in [1, 2, 3, 5, 10, 20]:
+                et = make_envtype(base, n)
+                parsed_base, parsed_n = parse_envtype(et)
+                assert parsed_base == base
+                assert parsed_n == n
+
+    def test_invalid(self):
+        with pytest.raises(ValueError, match='Unrecognised envtype'):
+            parse_envtype('foobar')
 
 
 # ---------------------------------------------------------------------------
