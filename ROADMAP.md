@@ -59,7 +59,7 @@ The monolithic `flopyarcade.py` has been **split into focused modules**:
 | A3 | **ConvNet → full field**: feed head + velocity + pressure 2D arrays (not just sampled points) into Conv2D layers | High | ⚠️ Architecture exists, input shape may be 1D |
 | A4 | **Multi-particle / particle swarm** per episode | High | ❌ Not implemented |
 | A5 | **K-regions** (multiple capture zones / helper wells) | High | ⚠️ Helper wells exist (ENVTYPE 4/5), but no formal K-region abstraction |
-| A6 | **Avoid keep-winning**: cap max distance, random boundary noise | High | ❌ Not implemented |
+| A6 | **Avoid keep-winning**: cap max distance, random boundary noise | High | ❌️ Discarded (2026-11-20): changes reward structure, breaks benchmark reproducibility |
 | A7 | **Hyperparameter optimisation** (Bayesian / Optuna / grid) | Med-High | ❌ Manual only |
 | A8 | **Reward scaling 0→1** across all env types (unify with cost mode) | Med-High | ⚠️ Partial (cost mode yes, others no) |
 | A9 | **Combine multiple initial runs** → high-variability seed set | Med-High | ❌ Not implemented |
@@ -266,7 +266,7 @@ Phase 3:
 |------|--------|
 | A4 | Multi-particle / particle swarm per episode |
 | A5 | K-region abstraction (generalise helper wells) |
-| A6 | Cap max distance, random boundary noise |
+| A6 | **Avoid keep-winning**: cap max distance, random boundary noise | High | ❌️ Discarded (2026-11-20): changes reward structure, breaks benchmark reproducibility |
 | A10 | Prevent protection-zone overlap |
 | C5 | Verify MODFLOW convergence flag |
 | C6 | Fix ENVTYPE 3 reward reset |
