@@ -2,7 +2,7 @@
 """Standalone cProfile wrapper for FloPyArcade game loop.
 
 Usage:
-    python tools/profile.py --envtype 1s-d --episodes 10 --output profile_results.html
+    python tools/profile_game.py --envtype 1s-d --episodes 10 --output profile_results.html
 
 This does NOT modify the game code. It wraps the play loop externally
 and reports the top-N hotspots.
