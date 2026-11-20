@@ -3,6 +3,6 @@ imageio==2.38.0
 ipython==8.10.0
 matplotlib==3.10.9
 numpy==2.2.6
-pathos==0.2.5
+pathos==0.3.5
 tensorflow==2.21.0
 tqdm==4.70.1
