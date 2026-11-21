@@ -1,287 +1,203 @@
-"""Tests for flopyarcade.transfer_heatmap (ROADMAP V6)."""
+"""Tests for B21: Cross-env transfer heatmap."""
 
+import json
 import math
-import os
 import tempfile
+from pathlib import Path
 
 import pytest
 
 from flopyarcade.transfer_heatmap import (
-    TransferScore,
-    TransferMatrix,
-    compare_matrices,
-    format_transfer_report,
-    generate_demo_matrix,
+    TransferCell,
+    build_transfer_matrix,
+    find_best_transfers,
+    find_worst_transfers,
+    format_heatmap,
+    load_matrix,
+    save_matrix,
 )
 
 
-# ---------------------------------------------------------------------------
-# Data model
-# ---------------------------------------------------------------------------
-
-class TestTransferScore:
-    def test_creation(self):
-        ts = TransferScore(
-            source_env="env_a",
-            target_env="env_b",
-            score=0.75,
-            p_value=0.003,
-            n_trials=20,
-        )
-        assert ts.source_env == "env_a"
-        assert ts.target_env == "env_b"
-        assert ts.score == 0.75
-        assert ts.p_value == 0.003
-        assert ts.n_trials == 20
-
-    def test_defaults(self):
-        ts = TransferScore(source_env="a", target_env="b", score=0.5)
-        assert ts.p_value is None
-        assert ts.n_trials == 10
-
-
-# ---------------------------------------------------------------------------
-# Matrix basics
-# ---------------------------------------------------------------------------
-
-class TestTransferMatrixBasics:
-    def test_init_with_3_envtypes(self):
-        tm = TransferMatrix(["a", "b", "c"])
-        assert tm.n_envtypes() == 3
-        assert tm.envtypes == ["a", "b", "c"]
-
-    def test_set_and_get_score(self):
-        tm = TransferMatrix(["x", "y"])
-        tm.set_score("x", "y", 0.65, p_value=0.02, n_trials=15)
-        ts = tm.get_score("x", "y")
-        assert ts.source_env == "x"
-        assert ts.target_env == "y"
-        assert ts.score == 0.65
-        assert ts.p_value == 0.02
-        assert ts.n_trials == 15
-
-    def test_matrix_shape(self):
-        tm = TransferMatrix(["a", "b", "c", "d"])
-        m = tm.matrix()
-        assert len(m) == 4
-        assert all(len(row) == 4 for row in m)
-
-    def test_p_matrix_shape(self):
-        tm = TransferMatrix(["a", "b", "c"])
-        pm = tm.p_matrix()
-        assert len(pm) == 3
-        assert all(len(row) == 3 for row in pm)
-        # all NaN by default
-        for row in pm:
-            for v in row:
-                assert math.isnan(v)
-
-    def test_n_envtypes(self):
-        tm = TransferMatrix(["e1", "e2", "e3", "e4", "e5", "e6"])
-        assert tm.n_envtypes() == 6
+# ── 1. build_transfer_matrix 2x2 basic ──────────────────────────────────
+def test_build_2x2_basic():
+    results = {
+        "env_a": {
+            "env_a": [1.0, 2.0, 3.0],
+            "env_b": [4.0, 5.0],
+        },
+        "env_b": {
+            "env_a": [0.5, 1.5],
+            "env_b": [2.0, 2.0],
+        },
+    }
+    m = build_transfer_matrix(results)
+    assert len(m) == 2
+    assert len(m[0]) == 2
+    # sorted train envs: env_a, env_b
+    # sorted eval envs: env_a, env_b
+    assert m[0][0].train_env == "env_a"
+    assert m[0][0].eval_env == "env_a"
+    assert m[0][0].score == pytest.approx(2.0)
+    assert m[0][1].score == pytest.approx(4.5)
+    assert m[1][0].score == pytest.approx(1.0)
+    assert m[1][1].score == pytest.approx(2.0)
 
 
-# ---------------------------------------------------------------------------
-# Analysis
-# ---------------------------------------------------------------------------
-
-class TestAnalysis:
-    @pytest.fixture
-    def tm3(self):
-        tm = TransferMatrix(["A", "B", "C"])
-        tm.set_score("A", "A", 1.0)
-        tm.set_score("A", "B", 0.8)
-        tm.set_score("A", "C", 0.4)
-        tm.set_score("B", "A", 0.6)
-        tm.set_score("B", "B", 1.0)
-        tm.set_score("B", "C", 0.3)
-        tm.set_score("C", "A", 0.5)
-        tm.set_score("C", "B", 0.7)
-        tm.set_score("C", "C", 1.0)
-        return tm
-
-    def test_best_transfer_off_diagonal(self, tm3):
-        best = tm3.best_transfer()
-        assert best.source_env == "A"
-        assert best.target_env == "B"
-        assert best.score == 0.8
-
-    def test_worst_transfer_off_diagonal(self, tm3):
-        worst = tm3.worst_transfer()
-        assert worst.source_env == "B"
-        assert worst.target_env == "C"
-        assert worst.score == 0.3
-
-    def test_significance_stars(self):
-        tm = TransferMatrix(["X", "Y", "Z"])
-        tm.set_score("X", "Y", 0.5, p_value=0.0005)   # ***
-        tm.set_score("X", "Z", 0.4, p_value=0.005)    # **
-        tm.set_score("Y", "X", 0.3, p_value=0.03)     # *
-        tm.set_score("Y", "Z", 0.2, p_value=0.10)     # ''
-        tm.set_score("Z", "X", 0.6, p_value=None)     # ''
-        tm.set_score("Z", "Y", 0.7, p_value=0.049)    # *
-        stars = tm.significance_stars()
-        assert stars[0][0] == "—"
-        assert stars[0][1] == "***"
-        assert stars[0][2] == "**"
-        assert stars[1][0] == "*"
-        assert stars[1][1] == "—"
-        assert stars[1][2] == ""
-        assert stars[2][0] == ""
-        assert stars[2][1] == "*"
-        assert stars[2][2] == "—"
-
-    def test_row_best(self, tm3):
-        rb = tm3.row_best("A")
-        assert rb["target"] == "B"
-        assert rb["score"] == 0.8
-
-    def test_col_best(self, tm3):
-        cb = tm3.col_best("A")
-        assert cb["source"] == "B"
-        assert cb["score"] == 0.6
+# ── 2. build_transfer_matrix 3x3 ────────────────────────────────────────
+def test_build_3x3():
+    results = {
+        "a": {"a": [1.0], "b": [2.0], "c": [3.0]},
+        "b": {"a": [4.0], "b": [5.0], "c": [6.0]},
+        "c": {"a": [7.0], "b": [8.0], "c": [9.0]},
+    }
+    m = build_transfer_matrix(results)
+    assert len(m) == 3
+    for row in m:
+        assert len(row) == 3
+    assert m[2][2].score == 9.0
 
 
-# ---------------------------------------------------------------------------
-# Export & serialisation
-# ---------------------------------------------------------------------------
-
-class TestExport:
-    def test_heatmap_data_structure(self):
-        tm = generate_demo_matrix(3, seed=1)
-        hd = tm.heatmap_data()
-        assert "labels" in hd
-        assert "values" in hd
-        assert "stars" in hd
-        assert "vmin" in hd
-        assert "vmax" in hd
-        assert len(hd["labels"]) == 3
-        assert len(hd["values"]) == 3
-        assert len(hd["stars"]) == 3
-        assert hd["vmin"] <= hd["vmax"]
-
-    def test_save_load_roundtrip(self):
-        tm = generate_demo_matrix(4, seed=99)
-        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
-            path = f.name
-        tm.save_json(path)
-        tm2 = TransferMatrix.load_json(path)
-        assert tm2.envtypes == tm.envtypes
-        assert tm2.matrix() == tm.matrix()
-        # p_values: compare non-NaN positions
-        for i in range(4):
-            for j in range(4):
-                p1 = tm.p_matrix()[i][j]
-                p2 = tm2.p_matrix()[i][j]
-                if math.isnan(p1):
-                    assert math.isnan(p2)
-                else:
-                    assert p1 == p2
-        os.unlink(path)
+# ── 3. scores are means of provided lists ───────────────────────────────
+def test_scores_are_means():
+    results = {"x": {"y": [10.0, 20.0, 30.0, 40.0]}}
+    m = build_transfer_matrix(results)
+    assert m[0][0].score == pytest.approx(25.0)
 
 
-# ---------------------------------------------------------------------------
-# Statistical tests
-# ---------------------------------------------------------------------------
-
-class TestStatTests:
-    def test_t_test_significant(self):
-        a = [10.0, 10.5, 9.8, 10.2, 10.1, 9.9, 10.3, 10.0]
-        b = [1.0, 1.2, 0.9, 1.1, 1.05, 0.95, 1.0, 1.15]
-        result = TransferMatrix.t_test(a, b)
-        assert result["significant"] is True
-        assert result["t_stat"] > 0
-        assert result["df"] > 0
-        assert result["p_value"] < 0.05
-
-    def test_t_test_not_significant(self):
-        a = [5.0, 5.1, 4.9, 5.0, 5.05]
-        b = [5.0, 4.9, 5.1, 5.0, 4.95]
-        result = TransferMatrix.t_test(a, b)
-        assert result["significant"] is False
-
-    def test_paired_t_test_significant(self):
-        paired = [(10.0, 1.0), (10.5, 1.2), (9.8, 0.9), (10.2, 1.1), (10.1, 1.0)]
-        result = TransferMatrix.paired_t_test(paired)
-        assert result["significant"] is True
-        assert result["df"] == 4
-
-    def test_paired_t_test_insufficient_data(self):
-        result = TransferMatrix.paired_t_test([(1.0, 2.0)])
-        assert result["significant"] is False
-        assert math.isnan(result["t_stat"])
+# ── 4. p_value in [0, 1] ────────────────────────────────────────────────
+def test_p_value_range():
+    results = {"x": {"y": [0.1, -0.1, 0.2, -0.2]}}
+    m = build_transfer_matrix(results)
+    for row in m:
+        for cell in row:
+            assert 0.0 <= cell.p_value <= 1.0
 
 
-# ---------------------------------------------------------------------------
-# Demo generator
-# ---------------------------------------------------------------------------
+# ── 5. significant flag correct ─────────────────────────────────────────
+def test_significant_flag():
+    # Large scores → very small p → significant
+    results = {"x": {"y": [100.0, 101.0, 99.0]}}
+    m = build_transfer_matrix(results)
+    assert m[0][0].significant is True
+    assert m[0][0].p_value < 0.05
 
-class TestDemoMatrix:
-    def test_generate_6x6(self):
-        tm = generate_demo_matrix(6, seed=42)
-        assert tm.n_envtypes() == 6
-        m = tm.matrix()
-        assert len(m) == 6
-        assert all(len(row) == 6 for row in m)
-
-    def test_diagonal_is_one(self):
-        tm = generate_demo_matrix(6, seed=42)
-        m = tm.matrix()
-        for i in range(6):
-            assert m[i][i] == 1.0
-
-    def test_off_diagonal_range(self):
-        tm = generate_demo_matrix(6, seed=42)
-        m = tm.matrix()
-        for i in range(6):
-            for j in range(6):
-                if i != j:
-                    assert 0.3 <= m[i][j] <= 0.8
+    # Tiny scores near zero → p ≈ 1 → not significant
+    results2 = {"x": {"y": [0.001, -0.001, 0.002]}}
+    m2 = build_transfer_matrix(results2)
+    assert m2[0][0].significant is False
+    assert m2[0][0].p_value >= 0.05
 
 
-# ---------------------------------------------------------------------------
-# Compare & format
-# ---------------------------------------------------------------------------
-
-class TestCompareAndFormat:
-    def test_compare_matrices_structure(self):
-        m1 = generate_demo_matrix(4, seed=10)
-        m2 = generate_demo_matrix(4, seed=20)
-        result = compare_matrices(m1, m2)
-        assert "diffs" in result
-        assert "best_improved" in result
-        assert "worst_degraded" in result
-        assert len(result["diffs"]) == 4
-        assert all(len(row) == 4 for row in result["diffs"])
-        if result["best_improved"] is not None:
-            s, t, d = result["best_improved"]
-            assert isinstance(s, str)
-            assert isinstance(d, float)
-
-    def test_format_report_contains_stars(self):
-        tm = TransferMatrix(["A", "B"])
-        tm.set_score("A", "B", 0.7, p_value=0.0003)
-        tm.set_score("B", "A", 0.5, p_value=0.03)
-        report = format_transfer_report(tm)
-        assert "***" in report
-        assert "*" in report
-        assert "A" in report
-        assert "B" in report
+# ── 6. find_best_transfers ordering ─────────────────────────────────────
+def test_find_best_ordering():
+    results = {
+        "a": {"a": [1.0, 1.0], "b": [10.0, 10.0]},
+        "b": {"a": [5.0, 5.0], "b": [2.0, 2.0]},
+    }
+    m = build_transfer_matrix(results)
+    envs = ["a", "b"]
+    best = find_best_transfers(m, envs, top_k=2)
+    assert best[0] == ("a", "b", 10.0)
+    assert best[1] == ("b", "a", 5.0)
 
 
-# ---------------------------------------------------------------------------
-# Edge cases
-# ---------------------------------------------------------------------------
+# ── 7. find_worst_transfers ordering ────────────────────────────────────
+def test_find_worst_ordering():
+    results = {
+        "a": {"a": [10.0, 10.0], "b": [1.0, 1.0]},
+        "b": {"a": [5.0, 5.0], "b": [2.0, 2.0]},
+    }
+    m = build_transfer_matrix(results)
+    envs = ["a", "b"]
+    worst = find_worst_transfers(m, envs, top_k=2)
+    assert worst[0] == ("a", "b", 1.0)
+    assert worst[1] == ("b", "b", 2.0)
 
-class TestEdgeCases:
-    def test_single_env(self):
-        tm = TransferMatrix(["solo"])
-        assert tm.n_envtypes() == 1
-        m = tm.matrix()
-        assert len(m) == 1 and len(m[0]) == 1
-        stars = tm.significance_stars()
-        assert stars[0][0] == "—"
-        # best/worst fallback to diagonal
-        best = tm.best_transfer()
-        assert best.source_env == "solo"
-        assert best.target_env == "solo"
+
+# ── 8. format_heatmap contains env names ────────────────────────────────
+def test_format_heatmap_contains_env_names():
+    results = {
+        "env_one": {"env_one": [1.0, 2.0], "env_two": [3.0, 4.0]},
+        "env_two": {"env_one": [5.0, 6.0], "env_two": [7.0, 8.0]},
+    }
+    m = build_transfer_matrix(results)
+    envs = ["env_one", "env_two"]
+    text = format_heatmap(m, envs)
+    assert "env_one" in text
+    assert "env_two" in text
+
+
+# ── 9. save/load roundtrip ──────────────────────────────────────────────
+def test_save_load_roundtrip():
+    results = {"x": {"y": [1.0, 2.0, 3.0]}}
+    m = build_transfer_matrix(results)
+    envs = ["x", "y"]
+
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+        path = Path(f.name)
+
+    try:
+        save_matrix(m, envs, path)
+        m2, envs2 = load_matrix(path)
+        assert envs2 == envs
+        assert len(m2) == len(m)
+        for i, row in enumerate(m):
+            for j, cell in enumerate(row):
+                assert m2[i][j].train_env == cell.train_env
+                assert m2[i][j].eval_env == cell.eval_env
+                assert m2[i][j].score == cell.score
+                assert m2[i][j].p_value == cell.p_value
+                assert m2[i][j].significant == cell.significant
+    finally:
+        path.unlink(missing_ok=True)
+
+
+# ── 10. empty results returns empty matrix ──────────────────────────────
+def test_empty_results():
+    m = build_transfer_matrix({})
+    assert m == []
+
+
+# ── 11. single env single score ─────────────────────────────────────────
+def test_single_env_single_score():
+    results = {"solo": {"solo": [42.0]}}
+    m = build_transfer_matrix(results)
+    assert len(m) == 1
+    assert len(m[0]) == 1
+    assert m[0][0].score == 42.0
+    # only 1 observation → p_value should be 1.0 (not significant)
+    assert m[0][0].p_value == 1.0
+    assert m[0][0].significant is False
+
+
+# ── 12. diagonal cells (train=eval) handled ─────────────────────────────
+def test_diagonal_cells():
+    results = {
+        "a": {"a": [5.0, 6.0], "b": [1.0, 2.0]},
+        "b": {"a": [3.0, 4.0], "b": [7.0, 8.0]},
+    }
+    m = build_transfer_matrix(results)
+    # diagonal: (a,a) and (b,b)
+    assert m[0][0].train_env == "a"
+    assert m[0][0].eval_env == "a"
+    assert m[0][0].score == pytest.approx(5.5)
+    assert m[1][1].train_env == "b"
+    assert m[1][1].eval_env == "b"
+    assert m[1][1].score == pytest.approx(7.5)
+
+
+# ── Extra: format_heatmap has significance stars ────────────────────────
+def test_format_heatmap_stars():
+    # High scores → significant → should show stars
+    results = {"x": {"x": [100.0, 200.0, 300.0]}}
+    m = build_transfer_matrix(results)
+    text = format_heatmap(m, ["x"])
+    assert "*" in text  # at least one star
+
+
+# ── Extra: find_best with top_k larger than matrix ──────────────────────
+def test_best_top_k_exceeds_matrix():
+    results = {"a": {"a": [1.0, 1.0]}}
+    m = build_transfer_matrix(results)
+    best = find_best_transfers(m, ["a"], top_k=10)
+    assert len(best) == 1
