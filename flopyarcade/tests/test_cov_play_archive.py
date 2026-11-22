@@ -51,7 +51,7 @@ class TestInit:
 
     def test_version_and_author(self):
         import flopyarcade
-        assert flopyarcade.__version__ == '0.7.15'
+        assert flopyarcade.__version__ == '0.7.16'
         assert flopyarcade.__author__ == 'Philipp Hoehn'
 
     def test_all_exports(self):
