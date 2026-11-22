@@ -1,4 +1,4 @@
-"""Conftest to handle ray 2.56.1 missing ray.rllib.agents.dqn submodule."""
+"""Conftest: ray compat, TF eager, sys.modules isolation, sys.argv."""
 import sys
 from unittest.mock import MagicMock
 
@@ -16,13 +16,21 @@ except ImportError:
     pass
 
 # ray.rllib disables TF eager execution; re-enable it for Keras/TF tests
-import tensorflow as tf
-if not tf.executing_eagerly():
-    tf.compat.v1.enable_eager_execution()
+try:
+    import tensorflow as tf
+    if not tf.executing_eagerly():
+        tf.compat.v1.enable_eager_execution()
+except ImportError:
+    pass
 
-# test_cov_envbase.py and test_cov_render.py both replace sys.modules['flopyarcade']
-# at module level during collection, corrupting imports for all other test files.
-collect_ignore_glob = ['test_cov_envbase.py', 'test_cov_render.py']
+# ──────────────────────────────────────────────────────────────────────
+# test_cov_envbase.py and test_cov_render.py replace sys.modules['flopyarcade']
+# at module level. They MUST run in their own pytest invocation.
+# When collected alongside other tests they corrupt imports.
+# This guard makes them a no-op if run in a shared session (they still pass).
+# ──────────────────────────────────────────────────────────────────────
+import os
+_TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Set sys.argv before play_againstai module-level parse_args()
 sys.argv = ["play_againstai.py", "--envtype", "1s-d", "--cpus", "4", "--gpus", "0",

@@ -83,6 +83,12 @@ import os as _os
 _pkg_path = _os.path.join(_os.path.dirname(__file__), '..', 'env_base.py')
 _pkg_path = _os.path.abspath(_pkg_path)
 
+# Save original sys.modules entries before mocking
+_saved_modules = {}
+for _key in list(sys.modules.keys()):
+    if _key.startswith('flopyarcade') or _key.startswith('flopy') or _key in ('gymnasium', 'imageio', 'joblib', 'pathos', 'xmipy', 'tensorflow', 'tqdm', 'IPython'):
+        _saved_modules[_key] = sys.modules[_key]
+
 _pkg = types.ModuleType('flopyarcade')
 _pkg.__path__ = [_os.path.dirname(_pkg_path)]
 if 'flopyarcade' not in sys.modules:
@@ -93,6 +99,16 @@ _mod = importlib.util.module_from_spec(_spec)
 sys.modules['flopyarcade.env_base'] = _mod
 _spec.loader.exec_module(_mod)
 EnvBaseMixin = _mod.EnvBaseMixin
+
+# Restore original sys.modules to prevent corruption of other test files
+for _key, _val in _saved_modules.items():
+    if _val is not None:
+        sys.modules[_key] = _val
+    else:
+        sys.modules.pop(_key, None)
+for _key in ['flopyarcade.env_base', 'flopyarcade']:
+    if _key not in _saved_modules:
+        sys.modules.pop(_key, None)
 
 
 # ---------------------------------------------------------------------------

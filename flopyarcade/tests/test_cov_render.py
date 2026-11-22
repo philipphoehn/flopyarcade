@@ -47,6 +47,12 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 RENDER_PATH = os.path.join(BASE, '..', 'render.py')
 RENDER3D_PATH = os.path.join(BASE, '..', 'render3d.py')
 
+# Save original sys.modules entries before mocking
+_saved_modules = {}
+for _key in list(sys.modules.keys()):
+    if _key.startswith('flopyarcade') or _key.startswith('flopy') or _key in ('gymnasium', 'imageio', 'joblib', 'pathos', 'xmipy', 'tensorflow', 'tqdm', 'ipykernel', 'IPython'):
+        _saved_modules[_key] = sys.modules[_key]
+
 _pkg = types.ModuleType("flopyarcade")
 sys.modules["flopyarcade"] = _pkg
 sys.modules["flopyarcade"].__path__ = [os.path.dirname(RENDER_PATH)]
@@ -64,6 +70,16 @@ sys.modules['flopyarcade.render3d'] = mod_r3d
 spec_r3d.loader.exec_module(mod_r3d)
 Render3D = mod_r3d.Render3D
 render_environment_3d = mod_r3d.render_environment_3d
+
+# Restore original sys.modules to prevent corruption of other test files
+for _key, _val in _saved_modules.items():
+    if _val is not None:
+        sys.modules[_key] = _val
+    else:
+        sys.modules.pop(_key, None)
+for _key in ['flopyarcade.render', 'flopyarcade.render3d', 'flopyarcade']:
+    if _key not in _saved_modules:
+        sys.modules.pop(_key, None)
 
 # ──────────────────────────────────────────────────────────────────────
 # Helper: concrete subclass + mock env builder

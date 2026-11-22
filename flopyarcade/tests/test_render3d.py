@@ -9,7 +9,6 @@ import sys
 import numpy as np
 import pytest
 
-pytestmark = pytest.mark.slow
 
 # Add the flopyarcade package directory to path so we can import
 # render3d and play3d as top-level modules

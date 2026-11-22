@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import unittest
 import pytest
 
-pytestmark = pytest.mark.slow
 
 
 class TestBlitInit(unittest.TestCase):

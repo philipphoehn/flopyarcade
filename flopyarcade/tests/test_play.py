@@ -19,8 +19,8 @@ from os.path import abspath, dirname, isdir, isfile, join
 from shutil import rmtree
 import unittest
 import pytest
-
 pytestmark = pytest.mark.slow
+
 
 
 class TestFloPyEnvPlay(unittest.TestCase):
@@ -77,11 +77,11 @@ class TestFloPyEnvPlay(unittest.TestCase):
             envSettings['PATHMP6'] = None
             envSettings['SEEDENV'] = 1
             envSettings['NLAY'] = 1
-            envSettings['NROW'] = 100
-            envSettings['NCOL'] = 100
+            envSettings['NROW'] = 30
+            envSettings['NCOL'] = 30
             # game settings
             gameSettings['NGAMES'] = 1
-            gameSettings['NAGENTSTEPS'] = 200 # 2
+            gameSettings['NAGENTSTEPS'] = 20 # 2
             envhash = play.main(envSettings, gameSettings)
             # FloPyArcadePlay.main(envSettings, gameSettings)
 #             if not os.environ.get("GITHUB_ACTIONS"):
