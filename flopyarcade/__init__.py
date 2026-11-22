@@ -41,7 +41,10 @@ if not exists(join(wrkspc, 'simulators', 'win64')):
 	remove(join(wrkspc, 'simulators', 'simulators_win64.zip'))
 
 
-from .flopyarcade import FloPyEnv
+try:
+    from .flopyarcade import FloPyEnv
+except ImportError:
+    FloPyEnv = None
 
 try:
     from .arcade import FloPyArcade

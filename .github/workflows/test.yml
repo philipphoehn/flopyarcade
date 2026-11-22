@@ -63,6 +63,14 @@ jobs:
             --ignore=flopyarcade/tests/test_cov_envbase.py \
             --deselect flopyarcade/tests/test_cov_play_actions_obs.py::TestPlayAgainstAI::test_config_structure
 
+      - name: Run slow tests (Pass 3)
+        env:
+          PYTHONWARNINGS: "ignore::ResourceWarning"
+        run: |
+          pytest flopyarcade/tests/test_play.py -v --timeout=3600 \
+            --cov=flopyarcade --cov-append \
+            -m "slow"
+
       - name: Upload coverage to CodeCov
         if: always()
         uses: codecov/codecov-action@v4

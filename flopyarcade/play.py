@@ -8,16 +8,14 @@
 
 import argparse
 from argparse import ArgumentParser
-from flopyarcade import FloPyArcade, FloPyAgent
-FloPyAgent.suppressTensorFlowWarnings(FloPyAgent)
+from flopyarcade import FloPyArcade, FloPyAgent, FloPyEnv
+if FloPyAgent is not None:
+    FloPyAgent.suppressTensorFlowWarnings(FloPyAgent)
 from matplotlib.pyplot import switch_backend
 from numpy.random import randint
 import time
 try: switch_backend('TkAgg')
 except: print('Could not import TkAgg as a backend. Visualization may not show.')
-
-from flopyarcade import FloPyAgent
-from flopyarcade import FloPyEnv
 
 import warnings
 warnings.filterwarnings("ignore", category=ResourceWarning)
@@ -179,8 +177,8 @@ def main(
         flagManualControl=envSettings['MANUALCONTROL'],
         flagRender=envSettings['RENDER'],
         flagBlit=envSettings['BLIT'],
-        smoothFrames=envSettings['SMOOTH_FRAMES'],
-        smoothSubdiv=envSettings['SMOOTH_SUBDIV'],
+        smoothFrames=envSettings.get('SMOOTH_FRAMES', 0),
+        smoothSubdiv=envSettings.get('SMOOTH_SUBDIV', 3),
         actionBar=envSettings.get('ACTION_BAR', True),
         nLay=envSettings['NLAY'],
         nRow=envSettings['NROW'],
