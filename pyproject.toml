@@ -70,6 +70,10 @@ dev = [
 	"coverage",
 ]
 
+[tool.setuptools.packages.find]
+include = ["flopyarcade*"]
+exclude = ["BRANCH_ANALYSIS*", "mac-build*", "tools*", "examples*", "docs*"]
+
 [tool.pytest.ini_options]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
