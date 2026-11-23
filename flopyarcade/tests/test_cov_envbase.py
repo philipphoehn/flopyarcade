@@ -106,7 +106,7 @@ for _key, _val in _saved_modules.items():
         sys.modules[_key] = _val
     else:
         sys.modules.pop(_key, None)
-for _key in ['flopyarcade.env_base', 'flopyarcade']:
+for _key in ['flopyarcade']:  # keep 'flopyarcade.env_base' in sys.modules so patch() targets the same module
     if _key not in _saved_modules:
         sys.modules.pop(_key, None)
 
