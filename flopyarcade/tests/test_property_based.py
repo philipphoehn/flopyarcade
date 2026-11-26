@@ -14,7 +14,6 @@ except ImportError:
 
 if not HAS_HYPOTHESIS:
     pytest.skip('hypothesis not installed', allow_module_level=True)
-from hypothesis import strategies as st
 
 from flopyarcade.multi_particle import (
     spawn_particles,
