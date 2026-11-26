@@ -16,8 +16,10 @@ from os import remove
 from os.path import abspath, dirname, isdir, isfile, join
 from shutil import rmtree
 import unittest
+import pytest
 
 
+pytestmark = pytest.mark.slow
 class TestFloPyAgentDQN(unittest.TestCase):
 
     def _get_train_dqn(self):

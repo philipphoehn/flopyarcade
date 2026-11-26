@@ -13,4 +13,4 @@ include flopyarcade/examples/policymodels/3s-d/3s-d.tune_metadata
 include flopyarcade/simulators/simulators_linux.zip
 include flopyarcade/simulators/simulators_mac.zip
 include flopyarcade/simulators/simulators_win32.zip
-include flopyarcade/simulators/simulators_win64.zip
+include flopyarcade/simulators/simulators_win64.zipinclude flopyarcade/tests/golden_outputs.json

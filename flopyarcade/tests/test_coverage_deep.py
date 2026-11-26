@@ -225,7 +225,6 @@ class TestFloPyAgentLogic:
 
 # === RENDER.PY (35% gap) ===
 
-@pytest.mark.slow
 
 class TestEnvEdge:
     @pytest.fixture

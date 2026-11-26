@@ -16,12 +16,13 @@ from os import remove
 from os.path import abspath, dirname, isdir, isfile, join
 from shutil import rmtree
 import unittest
+import pytest
 
 
 import pytest
 
+pytestmark = pytest.mark.slow
 
-@pytest.mark.slow
 class TestFloPyAgentGenetic(unittest.TestCase):
 
     def test_FloPyAgentGenetic_noExceptionRaised(self):

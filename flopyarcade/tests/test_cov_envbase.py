@@ -83,6 +83,12 @@ import os as _os
 _pkg_path = _os.path.join(_os.path.dirname(__file__), '..', 'env_base.py')
 _pkg_path = _os.path.abspath(_pkg_path)
 
+# Save original sys.modules entries before mocking
+_saved_modules = {}
+for _key in list(sys.modules.keys()):
+    if _key.startswith('flopyarcade') or _key.startswith('flopy') or _key in ('gymnasium', 'imageio', 'joblib', 'pathos', 'xmipy', 'tensorflow', 'tqdm', 'IPython'):
+        _saved_modules[_key] = sys.modules[_key]
+
 _pkg = types.ModuleType('flopyarcade')
 _pkg.__path__ = [_os.path.dirname(_pkg_path)]
 if 'flopyarcade' not in sys.modules:
@@ -93,6 +99,16 @@ _mod = importlib.util.module_from_spec(_spec)
 sys.modules['flopyarcade.env_base'] = _mod
 _spec.loader.exec_module(_mod)
 EnvBaseMixin = _mod.EnvBaseMixin
+
+# Restore original sys.modules to prevent corruption of other test files
+for _key, _val in _saved_modules.items():
+    if _val is not None:
+        sys.modules[_key] = _val
+    else:
+        sys.modules.pop(_key, None)
+for _key in ['flopyarcade']:  # keep 'flopyarcade.env_base' in sys.modules so patch() targets the same module
+    if _key not in _saved_modules:
+        sys.modules.pop(_key, None)
 
 
 # ---------------------------------------------------------------------------
@@ -449,22 +465,22 @@ class TestUpdateHeadSpecs:
 class TestInitializeSimulators:
     def test_platform_info_linux(self):
         env = make_env()
-        with patch('flopyarcade.env_base.platformSystem', return_value='Linux'):
+        with patch.object(_mod, 'platformSystem', return_value='Linux'):
             result = EnvBaseMixin._get_platform_info(env)
             assert result[0] == 'linux'
             assert result[3] is True
 
     def test_platform_info_windows(self):
         env = make_env()
-        with patch('flopyarcade.env_base.platformSystem', return_value='Windows'):
-            with patch('flopyarcade.env_base.sizeof', return_value=8):
-                with patch('flopyarcade.env_base.c_voidp'):
+        with patch.object(_mod, 'platformSystem', return_value='Windows'):
+            with patch.object(_mod, 'sizeof', return_value=8):
+                with patch.object(_mod, 'c_voidp'):
                     result = EnvBaseMixin._get_platform_info(env)
                     assert result[0] == 'win64'
 
     def test_platform_info_unknown(self):
         env = make_env()
-        with patch('flopyarcade.env_base.platformSystem', return_value='Amiga'):
+        with patch.object(_mod, 'platformSystem', return_value='Amiga'):
             result = EnvBaseMixin._get_platform_info(env)
             assert result[0] is None
 
@@ -932,7 +948,7 @@ class TestUpdateWell:
 class TestSetupRch:
     def test_setup_rch_0sc(self):
         env = make_env(gwf=MagicMock())
-        with patch('flopyarcade.env_base.ModflowGwfrcha') as mock_rch:
+        with patch.object(_mod, 'ModflowGwfrcha') as mock_rch:
             EnvBaseMixin.setup_rch_0sc(env, 0.05)
             mock_rch.assert_called_once()
 
@@ -1252,7 +1268,7 @@ class TestInitializeStartHeads:
 class TestLoadHeadFile:
     def test_load_head_file_missing(self):
         env = make_env(model_ws='/nonexistent', MODELNAME='Test')
-        with patch('flopyarcade.env_base.bf.HeadFile', side_effect=Exception('not found')):
+        with patch.object(_mod.bf, 'HeadFile', side_effect=Exception('not found')):
             result = EnvBaseMixin._load_head_file(env)
         assert result is None
 
@@ -1342,7 +1358,7 @@ class TestSetupWells0sc:
             'well0iCol': 1, 'well0iRow': 2, 'well0Q': -100.0,
             'well1iCol': 3, 'well1iRow': 4, 'well1Q': -200.0,
         }
-        with patch('flopyarcade.env_base.ModflowGwfwel') as mock_wel:
+        with patch.object(_mod, 'ModflowGwfwel') as mock_wel:
             EnvBaseMixin.setup_wells_0sc(env)
             mock_wel.assert_called_once()
 
@@ -1356,7 +1372,7 @@ class TestCreateDiscretization:
         env = make_env(nLay=1, nRow=10, nCol=10, dRow=1.0, dCol=1.0,
                        zTop=50.0, botM=np.array([50.0, 0.0]), periodSteadiness=True)
         env.mf = MagicMock()
-        with patch('flopyarcade.env_base.ModflowDis') as mock_dis:
+        with patch.object(_mod, 'ModflowDis') as mock_dis:
             mock_dis.return_value = MagicMock()
             EnvBaseMixin.create_discretization_other(env)
             mock_dis.assert_called_once()
@@ -1366,7 +1382,7 @@ class TestCreateDiscretization:
                        zTop=50.0, botM=np.array([50.0, 0.0]), periodSteadiness=False,
                        periods=1, periodSteps=11, periodLength=1.0)
         env.mf = MagicMock()
-        with patch('flopyarcade.env_base.ModflowDis') as mock_dis:
+        with patch.object(_mod, 'ModflowDis') as mock_dis:
             mock_dis.return_value = MagicMock()
             EnvBaseMixin.create_discretization_other(env)
             mock_dis.assert_called_once()
@@ -1385,8 +1401,8 @@ class TestInitEnvMethods:
         env.add_lib_dependencies = MagicMock()
         env.getActionSpaceSize = MagicMock(return_value=30)
         env.actionsDict = {}
-        with patch('flopyarcade.env_base.makedirs', create=True):
-            with patch('flopyarcade.env_base.platformSystem', return_value='Linux'):
+        with patch.object(_mod, 'makedirs', create=True):
+            with patch.object(_mod, 'platformSystem', return_value='Linux'):
                 EnvBaseMixin._init_env_0s_c(env)
         env.initializeSimulators.assert_called_once()
         env.constructModel.assert_called_once()
@@ -1511,7 +1527,7 @@ class TestFigToArray:
         fig = MagicMock()
         fig.canvas.get_width_height.return_value = (10, 20)
         fig.canvas.tostring_argb.return_value = b'\x00' * 800
-        with patch('flopyarcade.env_base.frombuffer', side_effect=lambda buf, dtype: np.zeros(800, dtype=np.uint8)):
+        with patch.object(_mod, 'frombuffer', side_effect=lambda buf, dtype: np.zeros(800, dtype=np.uint8)):
             result = EnvBaseMixin.figToArray(env, fig)
 
 
@@ -1601,7 +1617,7 @@ class TestAddCurvedText:
         ax = MagicMock()
         x = np.array([0.0, 1.0, 2.0])
         y = np.array([0.0, 1.0, 2.0])
-        with patch('flopyarcade.env_base.mtext') as mock_mtext:
+        with patch.object(_mod, 'mtext') as mock_mtext:
             result = EnvBaseMixin._add_curved_text(env, x, y, 'test', 'center', ax, '\n', 12, 'red')
 
 
