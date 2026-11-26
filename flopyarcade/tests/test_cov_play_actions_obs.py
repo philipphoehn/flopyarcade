@@ -3,6 +3,11 @@ import sys
 import os
 from unittest.mock import MagicMock, patch, PropertyMock
 import pytest
+
+try:
+    import ray
+except ImportError:
+    pytest.skip("ray not installed", allow_module_level=True)
 import numpy as np
 from copy import deepcopy
 
