@@ -6,7 +6,14 @@ across the multi-particle module and reward computation.
 """
 
 import pytest
-from hypothesis import given, settings, assume
+try:
+    from hypothesis import given, settings, assume
+    HAS_HYPOTHESIS = True
+except ImportError:
+    HAS_HYPOTHESIS = False
+
+if not HAS_HYPOTHESIS:
+    pytest.skip('hypothesis not installed', allow_module_level=True)
 from hypothesis import strategies as st
 
 from flopyarcade.multi_particle import (

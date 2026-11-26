@@ -236,9 +236,9 @@ def format_plume_report(tracker: PlumeTracker) -> str:
     ]
     speed = tracker.front_speed()
     lines += [
-        f"    Mean speed : {speed["mean_speed"]:.6f}",
-        f"    Max  speed : {speed["max_speed"]:.6f}",
-        f"    Min  speed : {speed["min_speed"]:.6f}",
+        f"    Mean speed : {speed['mean_speed']:.6f}",
+        f"    Max  speed : {speed['max_speed']:.6f}",
+        f"    Min  speed : {speed['min_speed']:.6f}",
     ]
     trend = tracker.trend()
     lines += [
