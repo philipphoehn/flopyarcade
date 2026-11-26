@@ -244,17 +244,17 @@ def format_plume_report(tracker: PlumeTracker) -> str:
     lines += [
         "",
         "  Trend (linear fit):",
-        f"    Slope     : {trend["slope"]:.6f}",
-        f"    Intercept : {trend["intercept"]:.6f}",
-        f"    R²        : {trend["r_squared"]:.6f}",
+        f"    Slope     : {trend['slope']:.6f}",
+        f"    Intercept : {trend['intercept']:.6f}",
+        f"    R²        : {trend['r_squared']:.6f}",
     ]
     eps = tracker.per_episode_stats()
     lines += ["", f"  Episodes ({len(eps)}):"]
     for ep, stats in eps.items():
         lines.append(
-            f"    Ep {ep}: min={stats["min_dist"]:.4f}  "
-            f"max={stats["max_dist"]:.4f}  mean={stats["mean_dist"]:.4f}  "
-            f"n={stats["n_points"]}"
+            f"    Ep {ep}: min={stats['min_dist']:.4f}  "
+            f"max={stats['max_dist']:.4f}  mean={stats['mean_dist']:.4f}  "
+            f"n={stats['n_points']}"
         )
     lines.append("=" * 50)
     return chr(10).join(lines)
