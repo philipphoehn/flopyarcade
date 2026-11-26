@@ -1,6 +1,11 @@
 """Deep coverage tests for agent.py, render.py, play.py.
 Uses real installed dependencies. Only mocks ray.rllib.agents (missing in this Ray version)."""
 import pytest
+
+try:
+    import ray
+except ImportError:
+    pytest.skip("ray not installed", allow_module_level=True)
 import numpy as np
 import os
 import sys

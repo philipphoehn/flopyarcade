@@ -11,6 +11,11 @@ from pathlib import Path
 
 import pytest
 
+try:
+    import ray
+except ImportError:
+    pytest.skip("ray not installed", allow_module_level=True)
+
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "examples"
 
 SCRIPTS = {

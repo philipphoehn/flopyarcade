@@ -15,6 +15,11 @@ from unittest import mock
 
 import pytest
 
+try:
+    import ray
+except ImportError:
+    pytest.skip("ray not installed", allow_module_level=True)
+
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 MODULES = {

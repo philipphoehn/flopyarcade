@@ -10,6 +10,11 @@ import importlib.util
 from unittest.mock import MagicMock, patch, PropertyMock, call
 import pytest
 
+try:
+    import ray
+except ImportError:
+    pytest.skip("ray not installed", allow_module_level=True)
+
 
 # ============================================================
 # HELPER: load a module from file path with mocked deps
