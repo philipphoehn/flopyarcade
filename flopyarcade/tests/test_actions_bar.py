@@ -23,6 +23,7 @@ class TestActionBarRendering(unittest.TestCase):
         stub.fig = fig
         stub.ax2 = ax
         stub._blit_enabled = False
+        stub._ACTION_ICONS = {'up': '↑', 'down': '↓', 'left': '←', 'right': '→', 'keep': '●', 'keepQ': '●', 'moreQ': '▲', 'lessQ': '▼'}
         return stub
 
     def test_renderActionBar_creates_text_artists(self):

@@ -15,6 +15,29 @@ import numpy as np
 # Mock all heavy / external imports BEFORE importing env_base
 # ---------------------------------------------------------------------------
 
+# Save original sys.modules entries before mocking (explicit list = bulletproof)
+_MOCKED_NAMES = [
+    'flopy', 'flopy.modflow', 'flopy.mf6', 'flopy.mf6.modflow',
+    'flopy.mf6.modflow.mfgwfwel', 'flopy.modpath', 'flopy.plot',
+    'flopy.utils', 'flopy.utils.binaryfile', 'flopy.mf6.utils',
+    'flopy.mf6.utils.binarygrid_util',
+    'matplotlib', 'matplotlib.ticker', 'matplotlib.pyplot',
+    'matplotlib.colors', 'matplotlib.transforms', 'matplotlib.text',
+    'matplotlib.cm', 'matplotlib.artist',
+    'imageio', 'joblib', 'xmipy',
+    'IPython', 'IPython.display', 'tqdm',
+    'gymnasium', 'pathos', 'pathos.multiprocessing', 'pathos.pools', 'pathos.helpers',
+    'tensorflow', 'tensorflow.keras', 'tensorflow.keras.initializers',
+    'tensorflow.keras.layers', 'tensorflow.keras.models',
+    'tensorflow.keras.optimizers', 'tensorflow.keras.random',
+    'tensorflow.keras.backend', 'tensorflow.compat', 'tensorflow.compat.v1',
+    'flopyarcade', 'flopyarcade.env_base',
+]
+_saved_modules = {}
+for _name in _MOCKED_NAMES:
+    if _name in sys.modules:
+        _saved_modules[_name] = sys.modules[_name]
+
 mock_flopy = MagicMock()
 mock_flopy_modflow = MagicMock()
 mock_flopy_mf6 = MagicMock()
@@ -83,11 +106,6 @@ import os as _os
 _pkg_path = _os.path.join(_os.path.dirname(__file__), '..', 'env_base.py')
 _pkg_path = _os.path.abspath(_pkg_path)
 
-# Save original sys.modules entries before mocking
-_saved_modules = {}
-for _key in list(sys.modules.keys()):
-    if _key.startswith('flopyarcade') or _key.startswith('flopy') or _key in ('gymnasium', 'imageio', 'joblib', 'pathos', 'xmipy', 'tensorflow', 'tqdm', 'IPython'):
-        _saved_modules[_key] = sys.modules[_key]
 
 _pkg = types.ModuleType('flopyarcade')
 _pkg.__path__ = [_os.path.dirname(_pkg_path)]
@@ -101,14 +119,11 @@ _spec.loader.exec_module(_mod)
 EnvBaseMixin = _mod.EnvBaseMixin
 
 # Restore original sys.modules to prevent corruption of other test files
-for _key, _val in _saved_modules.items():
-    if _val is not None:
-        sys.modules[_key] = _val
-    else:
-        sys.modules.pop(_key, None)
-for _key in ['flopyarcade']:  # keep 'flopyarcade.env_base' in sys.modules so patch() targets the same module
-    if _key not in _saved_modules:
-        sys.modules.pop(_key, None)
+for _name, _orig in _saved_modules.items():
+    sys.modules[_name] = _orig
+for _name in _MOCKED_NAMES:
+    if _name not in _saved_modules:
+        sys.modules.pop(_name, None)
 
 
 # ---------------------------------------------------------------------------

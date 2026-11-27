@@ -29,10 +29,7 @@ from flopy.mf6 import ModflowGwfdis, ModflowGwfic, ModflowGwfchd, ModflowGwfnpf
 from flopy.mf6 import ModflowGwfoc, ModflowGwfsto, ModflowGwfrcha
 from flopy.mf6.modflow.mfgwfwel import ModflowGwfwel
 from flopy.modpath import Modpath6 as Modpath
-from flopy.modpath import Modpath6Bas as ModpathBas
-from flopy.plot import PlotMapView
-from flopy.utils import HeadFile, PathlineFile
-from flopy.mf6.utils.binarygrid_util import MfGrdFile
+from flopy.utils import HeadFile
 from glob import glob
 import warnings
 warnings.filterwarnings('ignore', 'SelectableGroups dict interface')
@@ -235,7 +232,7 @@ class ActionsMixin:
         self.actionSpace = [
             ''.join(comb) for comb in product(self.actionSpaceIndividual, repeat=_cap)
         ]
-        self.actionSpaceSize = self.nHelperWells
+        self.actionSpaceSize = len(self.actionSpace)
 
     def _setup_continuous_multiwell_actions(self):
         """Set up continuous action space for multiwell environments.
@@ -263,6 +260,7 @@ class ActionsMixin:
             for i in range(self.nHelperWells)
             for a in self.actionSpaceIndividual
         ]
+        self.actionSpaceSize = len(self.actionSpace)
 
     def initialize_helper_wells(self):
         """Initialize helper wells if ENVTYPE requires it.

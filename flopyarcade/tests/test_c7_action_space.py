@@ -24,6 +24,7 @@ class TestDiscreteMultiWellNoOOM:
             flagSavePlot=False,
             flagManualControl=False,
             flagRender=False,
+            initWithSolution=False,
             _seed=42,
             nLay=1,
             nRow=10,

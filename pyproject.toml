@@ -3,14 +3,14 @@ requires = ["setuptools >= 64", "wheel"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "flopyarcade"
-version = "0.7.19"
+version = "0.7.25"
 description="Simulated groundwater flow environments for reinforcement learning."
 readme = "README.md"
 urls = {Homepage = "https://github.com/philipphoehn/flopyarcade", Documentation = "https://flopyarcade.readthedocs.io"}
 authors = [
   { name = "Philipp Hoehn", email = "philipp.hoehn@yahoo.com" }
 ]
-requires-python = ">=3.10, <3.13"
+requires-python = ">=3.10"
 license={text = "GNU GPLv3"}
 dependencies = [
 	"flopy >= 3.9.2",
@@ -60,6 +60,7 @@ ray = [
 	"ray[all] >= 2.43.0",
 	"ray[tune] >= 2.43.0",
 	"ray[rllib] >= 2.43.0",
+	"dm-tree >= 0.1.8",
 ]
 all = [
 	"flopyarcade[solvers,ray]",

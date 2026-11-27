@@ -13,9 +13,40 @@ regenerate with:
 """
 
 import json
+import os
 import pathlib
+import subprocess
 import numpy as np
 import pytest
+
+
+# These tests run REAL MODFLOW simulations — they belong in the slow pass
+pytestmark = pytest.mark.slow
+
+
+def _solver_available():
+    """Check that the MODFLOW solver binary exists and is executable."""
+    import flopyarcade
+    base = os.path.dirname(os.path.realpath(flopyarcade.__file__))
+    import platform
+    sys_name = platform.system().lower()
+    plat = {'linux': 'linux', 'darwin': 'mac', 'windows': 'win64'}.get(sys_name, 'linux')
+    sim_dir = os.path.join(base, 'simulators', plat)
+    # Check for any executable in the sim dir
+    if not os.path.isdir(sim_dir):
+        return False
+    for f in os.listdir(sim_dir):
+        if not f.startswith('.') and os.path.isfile(os.path.join(sim_dir, f)):
+            if os.access(os.path.join(sim_dir, f), os.X_OK):
+                return True
+    return False
+
+
+@pytest.fixture(autouse=True)
+def _require_solver():
+    """Skip all regression tests if the MODFLOW solver is not available."""
+    if not _solver_available():
+        pytest.skip('MODFLOW solver binary not found or not executable — install flopyarcade[solvers]')
 
 
 GOLDEN_PATH = pathlib.Path(__file__).parent / "golden_outputs.json"

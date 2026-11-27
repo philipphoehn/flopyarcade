@@ -1,6 +1,7 @@
 
 """Coverage tests - push to 90%."""
 import pytest
+import importlib
 import numpy as np
 import os
 import sys
@@ -12,9 +13,20 @@ from unittest.mock import MagicMock, patch, PropertyMock
 from collections import defaultdict
 from itertools import count
 
+_TF_AVAILABLE = False
+try:
+    import tensorflow  # noqa: F401
+    _TF_AVAILABLE = True
+except (ImportError, ValueError, Exception):
+    _TF_AVAILABLE = False
+
 
 # === BENCHMARK.PY ===
 
+@pytest.mark.skipif(
+    _TF_AVAILABLE is False,
+    reason='tensorflow not installed'
+)
 class TestBenchMore:
     def test_load_keras_agent_dir_tune(self):
         from flopyarcade.benchmark import load_keras_agent

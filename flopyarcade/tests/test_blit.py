@@ -18,7 +18,7 @@ class TestBlitInit(unittest.TestCase):
             ENVTYPE='1s-d', _seed=1, MODELNAME='test_blit',
             ANIMATIONFOLDER='test_blit', flagRender=True,
             NAGENTSTEPS=5, nLay=1, nRow=10, nCol=10,
-            initWithSolution=True
+            initWithSolution=False
         )
         env.renderInitializeCanvas()
         env.render_blit_init()

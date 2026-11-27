@@ -3,16 +3,38 @@
 import sys
 import os
 import pytest
+<<<<<<< HEAD
 
 try:
     import ray
 except ImportError:
     pytest.skip("ray not installed", allow_module_level=True)
+=======
+import importlib.util
+>>>>>>> 4d8cd25 (fix: remove hardcoded version assertion, bump to 0.7.25, improve test coverage and robustness)
 from unittest.mock import patch, MagicMock, PropertyMock
 from argparse import ArgumentParser
 
 
 # ─── 1. __init__.py: full import coverage ────────────────────────────────────
+
+def _ray_tune_available():
+    """Check if ray.tune is a REAL installed package (not a MagicMock from another test)."""
+    try:
+        from unittest.mock import MagicMock as _MC
+        import ray
+        if isinstance(ray, _MC):
+            return False
+        _f = getattr(ray, '__file__', None)
+        if not _f or not os.path.exists(_f):
+            return False
+        import ray.tune
+        if isinstance(ray.tune, _MC):
+            return False
+        return True
+    except (ImportError, AttributeError, ModuleNotFoundError):
+        return False
+_ray_available = _ray_tune_available()
 
 class TestInitFullImport:
     def test_all_importable(self):
@@ -392,6 +414,7 @@ class TestAgentSaveLoad:
 
 # ─── 5. train_rllib_*: config validation ──────────────────────────────────────
 
+@pytest.mark.skipif(not _ray_tune_available(), reason='ray.tune not available (pip install flopyarcade[ray])')
 class TestTrainRllibConfig:
     """Validate config structure of train_rllib modules.
     These modules call parser.parse_args() at import time,
@@ -490,6 +513,9 @@ class TestTrainRllibConfig:
 
 # ─── 6. play_againstai.py: config + test function ─────────────────────────────
 
+
+
+@pytest.mark.skipif(not _ray_available, reason='ray not installed (pip install flopyarcade[ray])')
 class TestPlayAgainstAI:
     """Validate play_againstai config structure and test() function."""
 

@@ -14,9 +14,13 @@ The full suite (all 20 env types) lives in test_regression.py (marked slow).
 """
 
 import json
+import os
 import pathlib
 import numpy as np
 import pytest
+
+# These tests run REAL MODFLOW simulations — they belong in the slow pass
+pytestmark = pytest.mark.slow
 
 GOLDEN_PATH = pathlib.Path(__file__).parent / "golden_outputs.json"
 

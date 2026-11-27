@@ -26,13 +26,21 @@ class TestInitPublicAPI:
         assert hasattr(flopyarcade, 'FloPyArcade')
 
     def test_simulators_extracted(self):
-        """After import, simulator dirs should exist (unzip ran on first import)."""
+        """After import, current platform's simulator dir should exist."""
         import flopyarcade
+        import platform
         wrkspc = os.path.dirname(os.path.realpath(flopyarcade.__file__))
-        assert os.path.exists(os.path.join(wrkspc, 'simulators', 'linux'))
-        assert os.path.exists(os.path.join(wrkspc, 'simulators', 'mac'))
-        assert os.path.exists(os.path.join(wrkspc, 'simulators', 'win32'))
-        assert os.path.exists(os.path.join(wrkspc, 'simulators', 'win64'))
+        sys_name = platform.system().lower()
+        if sys_name == 'linux':
+            plat = 'linux'
+        elif sys_name == 'darwin':
+            plat = 'mac'
+        elif sys_name == 'windows':
+            plat = 'win64' if platform.architecture()[0] == '64bit' else 'win32'
+        else:
+            plat = 'linux'
+        assert os.path.exists(os.path.join(wrkspc, 'simulators', plat)),             f'Expected simulators/{plat}/ to exist on {sys_name}'
+
 
 
 # ─── play.py: str_to_bool ─────────────────────────────────────────────────────

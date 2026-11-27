@@ -3,9 +3,17 @@ import os
 import sys
 import numpy as np
 import pytest
+import importlib
 from unittest.mock import patch, MagicMock, call
 from collections import defaultdict
 import pickle
+
+_TF_AVAILABLE = False
+try:
+    import tensorflow  # noqa: F401
+    _TF_AVAILABLE = True
+except (ImportError, ValueError, Exception):
+    _TF_AVAILABLE = False
 
 
 # ===================== BENCHMARK =====================
@@ -36,6 +44,10 @@ class TestTryLayerGet:
         assert k is not None
 
 
+@pytest.mark.skipif(
+    _TF_AVAILABLE is False,
+    reason='tensorflow not installed'
+)
 class TestLoadKerasAgent:
     def test_pickle_dir(self, tmp_path):
         from flopyarcade.benchmark import load_keras_agent

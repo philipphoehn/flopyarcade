@@ -2,12 +2,19 @@
 
 import numpy as np
 import pytest
+import importlib
 
 from flopyarcade.conv_field_input import (
     FieldReshaper,
     build_conv_model,
     ConvFieldPipeline,
 )
+
+try:
+    import tensorflow  # noqa
+    _HAS_TF = True
+except ImportError:
+    _HAS_TF = False
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +94,9 @@ class TestFieldReshaper:
 # build_conv_model
 # ---------------------------------------------------------------------------
 
+@pytest.mark.skipif(not _HAS_TF, reason='tensorflow not installed')
+
+
 class TestBuildConvModel:
     @pytest.fixture(scope="class")
     def model_discrete(self):
@@ -143,6 +153,7 @@ class TestBuildConvModel:
 # ConvFieldPipeline
 # ---------------------------------------------------------------------------
 
+@pytest.mark.skipif(not _HAS_TF, reason='tensorflow not installed')
 class TestConvFieldPipeline:
     @pytest.fixture(scope="class")
     def pipeline(self):

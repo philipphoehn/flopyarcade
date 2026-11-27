@@ -8,6 +8,15 @@ from unittest.mock import MagicMock, patch, PropertyMock
 
 import numpy as np
 import pytest
+import importlib
+
+
+_TF_AVAILABLE = False
+try:
+    import tensorflow  # noqa: F401
+    _TF_AVAILABLE = True
+except (ImportError, ValueError, Exception):
+    _TF_AVAILABLE = False
 
 
 # =============================================================================
@@ -63,6 +72,10 @@ class TestTryLayerGet:
         assert b is None
 
 
+@pytest.mark.skipif(
+    _TF_AVAILABLE is False,
+    reason='tensorflow not installed'
+)
 class TestLoadKerasAgent:
     """Test load_keras_agent function."""
 
@@ -1507,6 +1520,8 @@ class TestSuppressTensorFlowWarnings:
 
 import numpy as np
 from collections import deque
+
+
 
 
 class TestGetActionManualDiscrete:

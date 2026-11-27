@@ -15,6 +15,24 @@ except ImportError:
     pytest.skip("ray not installed", allow_module_level=True)
 import numpy as np
 
+import os as _os
+from unittest.mock import MagicMock as _MC
+
+def _ray_real():
+    try:
+        import ray
+        if isinstance(ray, _MC): return False
+        _f = getattr(ray, '__file__', None)
+        if not _f or not _os.path.exists(_f): return False
+        import ray.tune
+        if isinstance(ray.tune, _MC): return False
+        return True
+    except (ImportError, AttributeError, ModuleNotFoundError):
+        return False
+
+if not _ray_real():
+    pytest.skip('ray.tune not available (pip install flopyarcade[ray])', allow_module_level=True)
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 

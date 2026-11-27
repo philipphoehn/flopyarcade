@@ -231,11 +231,35 @@ class TestFloPyAgentLogic:
 # === RENDER.PY (35% gap) ===
 
 
+def _solver_available():
+    """Check if MODFLOW solver binary is accessible."""
+    import shutil, os, sys
+    for name in ['mf2005', 'mf6', 'mp6']:
+        if shutil.which(name):
+            return True
+    try:
+        import flopyarcade
+        pkg_dir = os.path.dirname(flopyarcade.__file__)
+        plat = 'linux' if sys.platform.startswith('linux') else ('mac' if sys.platform == 'darwin' else 'win64')
+        solver_path = os.path.join(pkg_dir, 'simulators', plat, 'mf2005')
+        if os.path.isfile(solver_path) and os.access(solver_path, os.X_OK):
+            return True
+    except ImportError:
+        pass
+    return False
+
+
+HAS_SOLVER = _solver_available()
+
+
 class TestEnvEdge:
     @pytest.fixture
     def env(self):
         from flopyarcade.flopyarcade import FloPyEnv
-        e = FloPyEnv(ENVTYPE='1s-d', flagRender=False)
+        if HAS_SOLVER:
+            e = FloPyEnv(ENVTYPE='1s-d', flagRender=False)
+        else:
+            e = FloPyEnv(ENVTYPE='1s-d', flagRender=False, initWithSolution=False)
         yield e
         e.close()
 
@@ -243,6 +267,7 @@ class TestEnvEdge:
         obs = env.reset(seed=123)
         assert obs is not None
 
+    @pytest.mark.skipif(not HAS_SOLVER, reason='MODFLOW solver not available')
     def test_step_keep(self, env):
         env.reset(seed=42)
         result = env.step('keep')
@@ -250,16 +275,19 @@ class TestEnvEdge:
         obs, rew, done, trunc, info = result
         assert obs is not None
 
+    @pytest.mark.skipif(not HAS_SOLVER, reason='MODFLOW solver not available')
     def test_step_up(self, env):
         env.reset(seed=42)
         obs, rew, done, trunc, info = env.step('up')
         assert obs is not None
 
+    @pytest.mark.skipif(not HAS_SOLVER, reason='MODFLOW solver not available')
     def test_step_down(self, env):
         env.reset(seed=42)
         obs, rew, done, trunc, info = env.step('down')
         assert obs is not None
 
+    @pytest.mark.skipif(not HAS_SOLVER, reason='MODFLOW solver not available')
     def test_multiple_steps(self, env):
         env.reset(seed=42)
         for i in range(5):
@@ -271,7 +299,7 @@ class TestEnvEdge:
     def test_different_envtypes(self):
         for et in ['1s-d', '2s-d']:
             from flopyarcade.flopyarcade import FloPyEnv
-            e = FloPyEnv(ENVTYPE=et, flagRender=False)
+            e = FloPyEnv(ENVTYPE=et, flagRender=False, initWithSolution=False)
             obs = e.reset(seed=42)
             assert obs is not None
             e.close()

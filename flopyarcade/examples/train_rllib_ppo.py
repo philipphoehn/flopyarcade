@@ -128,7 +128,7 @@ def env_creator(env_config):
 
     env_config = {}
     env_config['ENVTYPE'] = ENVTYPE
-    env = FloPyEnv(env_config=env_config)
+    env = FloPyEnv(env_config=env_config, initWithSolution=False)
     # env.env = env
 
     # from ray.rllib.env.wrappers.multi_agent_env_compatibility import MultiAgentEnvCompatibility

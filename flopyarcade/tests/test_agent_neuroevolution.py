@@ -23,6 +23,9 @@ import pytest
 
 pytestmark = pytest.mark.slow
 
+import pytest
+
+@pytest.mark.slow
 class TestFloPyAgentGenetic(unittest.TestCase):
 
     def test_FloPyAgentGenetic_noExceptionRaised(self):
@@ -47,7 +50,7 @@ class TestFloPyAgentGenetic(unittest.TestCase):
                     # environment settings
                     envSettings['ENVTYPE'] = ENVTYPE
                     envSettings['MODELNAME'] = 'unittest_' + ENVTYPE
-                    envSettings['NAGENTSPARALLEL'] = 2
+                    envSettings['NAGENTSPARALLEL'] = 1  # Avoid multiprocess pool (Docker/Py3.10 compat)
                     envSettings['RENDER'] = False
                     envSettings['BESTAGENTANIMATION'] = True
                     envSettings['KEEPMODELHISTORY'] = KEEPMODELHISTORY

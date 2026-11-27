@@ -23,10 +23,7 @@ from flopy.mf6 import ModflowGwfdis, ModflowGwfic, ModflowGwfchd, ModflowGwfnpf
 from flopy.mf6 import ModflowGwfoc, ModflowGwfsto, ModflowGwfrcha
 from flopy.mf6.modflow.mfgwfwel import ModflowGwfwel
 from flopy.modpath import Modpath6 as Modpath
-from flopy.modpath import Modpath6Bas as ModpathBas
-from flopy.plot import PlotMapView
-from flopy.utils import HeadFile, PathlineFile
-from flopy.mf6.utils.binarygrid_util import MfGrdFile
+from flopy.utils import HeadFile
 from glob import glob
 import warnings
 warnings.filterwarnings('ignore', 'SelectableGroups dict interface')

@@ -12,32 +12,46 @@ import pytest
 # Mock heavy dependencies BEFORE importing target modules
 # ──────────────────────────────────────────────────────────────────────
 
+# Explicit list of ALL names we will touch in sys.modules
+_MOCKED_NAMES = [
+    'flopy', 'flopy.modflow', 'flopy.mf6', 'flopy.mf6.modflow',
+    'flopy.mf6.modflow.mfgwfwel', 'flopy.mf6.utils', 'flopy.mf6.utils.binarygrid_util',
+    'flopy.modpath', 'flopy.plot', 'flopy.utils', 'flopy.utils.binaryfile',
+    'gymnasium', 'imageio', 'joblib',
+    'pathos', 'pathos.multiprocessing', 'pathos.helpers', 'pathos.pools',
+    'xmipy',
+    'tensorflow', 'tensorflow.keras', 'tensorflow.keras.initializers',
+    'tensorflow.keras.layers', 'tensorflow.keras.models',
+    'tensorflow.keras.optimizers', 'tensorflow.keras.random', 'tensorflow.keras.backend',
+    'tensorflow.compat', 'tensorflow.compat.v1',
+    'tqdm', 'ipykernel', 'IPython', 'IPython.display',
+    # Also save these to prevent side-effect corruption
+    'flopyarcade', 'matplotlib', 'matplotlib.pyplot', 'matplotlib.colors',
+    'matplotlib.transforms', 'matplotlib.ticker', 'matplotlib.artist',
+]
+
+# Save originals (only those that currently exist in sys.modules)
+_saved_modules = {}
+for _name in _MOCKED_NAMES:
+    if _name in sys.modules:
+        _saved_modules[_name] = sys.modules[_name]
+
+# Mock the heavy dependencies
 def _mk(name):
     m = MagicMock()
     sys.modules[name] = m
     return m
 
-for name in [
-    'flopy','flopy.modflow','flopy.mf6','flopy.mf6.modflow',
-    'flopy.mf6.modflow.mfgwfwel','flopy.mf6.utils','flopy.mf6.utils.binarygrid_util',
-    'flopy.modpath','flopy.plot','flopy.utils','flopy.utils.binaryfile',
-    'gymnasium','imageio','joblib',
-    'pathos','pathos.multiprocessing','pathos.helpers','pathos.pools',
-    'xmipy',
-    'tensorflow','tensorflow.keras','tensorflow.keras.initializers',
-    'tensorflow.keras.layers','tensorflow.keras.models',
-    'tensorflow.keras.optimizers','tensorflow.keras.random','tensorflow.keras.backend',
-    'tensorflow.compat','tensorflow.compat.v1',
-    'tqdm','ipykernel','IPython','IPython.display',
-]:
-    _mk(name)
+for name in _MOCKED_NAMES:
+    if name not in _saved_modules:  # only mock if not already real
+        _mk(name)
 
+# Special sub-attributes needed by render.py
 sys.modules['pathos.helpers'].mp = MagicMock()
 sys.modules['pathos.helpers'].mp.context = MagicMock()
 sys.modules['pathos.helpers'].mp.context._force_start_method = MagicMock()
-
-# Fix IPython mock so matplotlib's _fix_ipython_backend2gui doesn't crash
-sys.modules['IPython'].version_info = (8, 25, 0)
+if 'IPython' not in _saved_modules:
+    sys.modules['IPython'].version_info = (8, 25, 0)
 
 # ──────────────────────────────────────────────────────────────────────
 # Import target modules directly by file path (bypasses package __init__)
@@ -47,39 +61,42 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 RENDER_PATH = os.path.join(BASE, '..', 'render.py')
 RENDER3D_PATH = os.path.join(BASE, '..', 'render3d.py')
 
-# Save original sys.modules entries before mocking
-_saved_modules = {}
-for _key in list(sys.modules.keys()):
-    if _key.startswith('flopyarcade') or _key.startswith('flopy') or _key in ('gymnasium', 'imageio', 'joblib', 'pathos', 'xmipy', 'tensorflow', 'tqdm', 'ipykernel', 'IPython'):
-        _saved_modules[_key] = sys.modules[_key]
+try:
+    _pkg = types.ModuleType("flopyarcade")
+    _pkg.__path__ = [os.path.dirname(RENDER_PATH)]
+    _pkg.__file__ = os.path.join(BASE, "..", "__init__.py")
+    _real_flopyarcade = sys.modules.get('flopyarcade')
+    sys.modules["flopyarcade"] = _pkg
 
-_pkg = types.ModuleType("flopyarcade")
-sys.modules["flopyarcade"] = _pkg
-sys.modules["flopyarcade"].__path__ = [os.path.dirname(RENDER_PATH)]
-sys.modules["flopyarcade"].__file__ = os.path.join(BASE, "..", "__init__.py")
+    spec_r = importlib.util.spec_from_file_location('flopyarcade.render', RENDER_PATH)
+    mod_r = importlib.util.module_from_spec(spec_r)
+    sys.modules['flopyarcade.render'] = mod_r
+    spec_r.loader.exec_module(mod_r)
+    RenderMixin = mod_r.RenderMixin
 
-spec_r = importlib.util.spec_from_file_location('flopyarcade.render', RENDER_PATH)
-mod_r = importlib.util.module_from_spec(spec_r)
-sys.modules['flopyarcade.render'] = mod_r
-spec_r.loader.exec_module(mod_r)
-RenderMixin = mod_r.RenderMixin
-
-spec_r3d = importlib.util.spec_from_file_location('flopyarcade.render3d', RENDER3D_PATH)
-mod_r3d = importlib.util.module_from_spec(spec_r3d)
-sys.modules['flopyarcade.render3d'] = mod_r3d
-spec_r3d.loader.exec_module(mod_r3d)
-Render3D = mod_r3d.Render3D
-render_environment_3d = mod_r3d.render_environment_3d
-
-# Restore original sys.modules to prevent corruption of other test files
-for _key, _val in _saved_modules.items():
-    if _val is not None:
-        sys.modules[_key] = _val
+    spec_r3d = importlib.util.spec_from_file_location('flopyarcade.render3d', RENDER3D_PATH)
+    mod_r3d = importlib.util.module_from_spec(spec_r3d)
+    sys.modules['flopyarcade.render3d'] = mod_r3d
+    spec_r3d.loader.exec_module(mod_r3d)
+    Render3D = mod_r3d.Render3D
+    render_environment_3d = mod_r3d.render_environment_3d
+finally:
+    # BULLETPROOF restore: put back every saved original
+    for _name, _orig in _saved_modules.items():
+        sys.modules[_name] = _orig
+    # Remove every mocked name that was NOT originally present
+    for _name in _MOCKED_NAMES:
+        if _name not in _saved_modules:
+            sys.modules.pop(_name, None)
+    # Remove target module entries if they weren't originally present
+    for _name in ['flopyarcade.render', 'flopyarcade.render3d']:
+        if _name not in _saved_modules:
+            sys.modules.pop(_name, None)
+    # If flopyarcade was originally present, ensure it's restored
+    if 'flopyarcade' in _saved_modules:
+        sys.modules['flopyarcade'] = _saved_modules['flopyarcade']
     else:
-        sys.modules.pop(_key, None)
-for _key in ['flopyarcade.render', 'flopyarcade.render3d', 'flopyarcade']:
-    if _key not in _saved_modules:
-        sys.modules.pop(_key, None)
+        sys.modules.pop('flopyarcade', None)
 
 # ──────────────────────────────────────────────────────────────────────
 # Helper: concrete subclass + mock env builder

@@ -29,10 +29,7 @@ from flopy.mf6 import ModflowGwfdis, ModflowGwfic, ModflowGwfchd, ModflowGwfnpf
 from flopy.mf6 import ModflowGwfoc, ModflowGwfsto, ModflowGwfrcha
 from flopy.mf6.modflow.mfgwfwel import ModflowGwfwel
 from flopy.modpath import Modpath6 as Modpath
-from flopy.modpath import Modpath6Bas as ModpathBas
-from flopy.plot import PlotMapView
-from flopy.utils import HeadFile, PathlineFile
-from flopy.mf6.utils.binarygrid_util import MfGrdFile
+from flopy.utils import HeadFile
 from glob import glob
 import warnings
 warnings.filterwarnings('ignore', 'SelectableGroups dict interface')
@@ -432,8 +429,18 @@ class EnvBaseMixin:
             self (object): The instance of the class.
         
         """
+        if getattr(self, 'closed', False):
+            return
         self.closed = True
         gc.collect()
+
+    def __str__(self):
+        """Return a human-readable summary of the environment."""
+        envtype = getattr(self, 'ENVTYPE', 'unknown')
+        nrow = getattr(self, 'nRow', '?')
+        ncol = getattr(self, 'nCol', '?')
+        closed = getattr(self, 'closed', False)
+        return f'FloPyEnv({envtype}, {nrow}x{ncol}, closed={closed})'
 
     def teardown(self):
         """Clean up the workspace by removing the example folder if deletion is enabled.
@@ -1778,6 +1785,12 @@ class EnvBaseMixin:
         else:
             self._reset_other(seed, MODELNAME, initWithSolution)
 
+        if not hasattr(self, 'observationsVectorNormalized'):
+            # Solver was not run (initWithSolution=False); return zero observations
+            n = getattr(self, 'observationSize', 0)
+            if n == 0:
+                n = self.nRow * self.nCol * self.nLay
+            self.observationsVectorNormalized = np.zeros(n, dtype=np.float64)
         return array(self.observationsVectorNormalized), {}
 
     def _get_init_solution(self, initWithSolution):

@@ -1,5 +1,6 @@
 """Coverage tests for play_againstai, actions, observations, mf6_prt_runner, play3d, modpath_runner."""
 import sys
+import importlib.util
 import os
 from unittest.mock import MagicMock, patch, PropertyMock
 import pytest
@@ -69,6 +70,9 @@ def _defaults(**overrides):
 
 
 # === play_againstai.py ===
+_ray_available = importlib.util.find_spec('ray') is not None
+
+@pytest.mark.skipif(not _ray_available, reason='ray not installed (pip install flopyarcade[ray])')
 class TestPlayAgainstAI:
 
     @pytest.mark.parametrize("val,expected", [

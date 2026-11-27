@@ -8,11 +8,15 @@ import importlib
 import numpy as np
 import pandas as pd
 import pytest
+<<<<<<< HEAD
 
 try:
     import ray
 except ImportError:
     pytest.skip("ray not installed", allow_module_level=True)
+=======
+import importlib.util
+>>>>>>> 4d8cd25 (fix: remove hardcoded version assertion, bump to 0.7.25, improve test coverage and robustness)
 from contextlib import ExitStack
 from unittest.mock import MagicMock, patch, PropertyMock, call
 from pathlib import Path
@@ -33,6 +37,9 @@ def apply_patches(specs):
 # PLAY_AGAINSTAI TESTS
 # ---------------------------------------------------------------------------
 
+_ray_available = importlib.util.find_spec('ray') is not None
+
+@pytest.mark.skipif(not _ray_available, reason="ray not installed (pip install flopyarcade[ray])")
 class TestPlayAgainstAIImport:
     """Test module-level code in play_againstai.py (lines 65-66)."""
 
@@ -81,6 +88,9 @@ class TestPlayAgainstAIImport:
             mod.str_to_bool('invalid')
 
 
+_ray_available = importlib.util.find_spec('ray') is not None
+
+@pytest.mark.skipif(not _ray_available, reason="ray not installed (pip install flopyarcade[ray])")
 class TestPlayAgainstAIFunctions:
     """Test the test() function and env_creator."""
 
@@ -150,6 +160,9 @@ class TestPlayAgainstAIFunctions:
             stack.close()
 
 
+_ray_available = importlib.util.find_spec('ray') is not None
+
+@pytest.mark.skipif(not _ray_available, reason="ray not installed (pip install flopyarcade[ray])")
 class TestPlayAgainstAIMain:
     """Test the __main__ block (lines 296-386)."""
 
