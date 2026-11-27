@@ -8,6 +8,11 @@ import importlib
 import numpy as np
 import pandas as pd
 import pytest
+
+try:
+    import ray
+except ImportError:
+    pytest.skip("ray not installed", allow_module_level=True)
 from contextlib import ExitStack
 from unittest.mock import MagicMock, patch, PropertyMock, call
 from pathlib import Path

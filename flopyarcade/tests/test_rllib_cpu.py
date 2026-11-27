@@ -8,6 +8,11 @@ They use FloPyEnv (1s-d) with MODFLOW on CPU. Each test runs ~40-60s.
 import os
 import sys
 import pytest
+
+try:
+    import ray
+except ImportError:
+    pytest.skip("ray not installed", allow_module_level=True)
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

@@ -3,6 +3,11 @@
 import sys
 import os
 import pytest
+
+try:
+    import ray
+except ImportError:
+    pytest.skip("ray not installed", allow_module_level=True)
 from unittest.mock import patch, MagicMock, PropertyMock
 from argparse import ArgumentParser
 
