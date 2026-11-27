@@ -136,7 +136,7 @@ def format_heatmap(
                 star = _stars(c.p_value)
                 cells_str += f"  {c.score:8.4f}{star}"
             else:
-                cells_str += f"  {'\u2014':>12}"
+                cells_str += "  " + "\u2014".rjust(12)
         lines.append(label + cells_str)
 
     lines.append("")
