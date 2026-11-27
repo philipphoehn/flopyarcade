@@ -4,7 +4,7 @@ FloPyArcade.
 Simulated groundwater flow environments to test reinforcement learning algorithms.
 """
 
-__version__ = "0.7.25"
+__version__ = "0.7.26"
 __author__ = 'Philipp Hoehn'
 
 
