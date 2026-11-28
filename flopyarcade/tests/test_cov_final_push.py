@@ -8,15 +8,11 @@ import importlib
 import numpy as np
 import pandas as pd
 import pytest
-<<<<<<< HEAD
-
 try:
     import ray
 except ImportError:
     pytest.skip("ray not installed", allow_module_level=True)
-=======
 import importlib.util
->>>>>>> 4d8cd25 (fix: remove hardcoded version assertion, bump to 0.7.25, improve test coverage and robustness)
 from contextlib import ExitStack
 from unittest.mock import MagicMock, patch, PropertyMock, call
 from pathlib import Path
