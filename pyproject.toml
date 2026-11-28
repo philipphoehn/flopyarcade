@@ -13,7 +13,7 @@ authors = [
 requires-python = ">=3.10"
 license={text = "GNU GPLv3"}
 dependencies = [
-	"flopy >= 3.9.2",
+	"flopy >= 3.9.2, < 3.11",
 	"gymnasium >= 0.29.1, < 1.2; python_version < '3.11'",
 	"gymnasium >= 0.29.1; python_version >= '3.11'",
 	"imageio >= 2.22.4",
